@@ -6,7 +6,7 @@
 
 |  |  |
 | :---- | :---- |
-| **RESEARCHER:** | Member 1: Acuin, Sophia Mae V. Member 2:Buenaventura, Angel A. Member 3:Fallacurna, Rainier B. Member 4:Fernandez, Kristofer Cyle Member 5:Pascua, Neil John A. |
+| **RESEARCHER:** | Member 1: Pascua, Neil John A. Member 2: Basit, Krizandra Josephine L. Member 3: Buenaventura, Angel A. Member 4: Fallarcuna, Rainier B. Member 5: Fernandez, Kristofer Cyle |
 |  **Proposed Project Title 3:  SmartFlow: A QR-Based Inter-Department Document Flow Tracking and COA Compliance System for the Municipality of Urbiztondo** |  |
 
        

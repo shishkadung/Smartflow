@@ -3,7 +3,7 @@
 
 **SmartFlow: A QR-Based Inter-Department Document Flow Tracking and COA Compliance System for the Municipality of Urbiztondo**
 
-**Researchers:** Acuin, Sophia Mae V.; Buenaventura, Angel A.; Fallacurna, Rainier B.; Fernandez, Kristofer Cyle; Pascua, Neil John A.
+**Researchers:** Pascua, Neil John A.; Basit, Krizandra Josephine L.; Buenaventura, Angel A.; Fallarcuna, Rainier B.; Fernandez, Kristofer Cyle
 
 ---
 
