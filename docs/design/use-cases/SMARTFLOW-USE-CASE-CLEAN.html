@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartFlow Use Case Diagram</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 22px;
+        }
+        
+        .legend-bar {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 20px;
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .legend-box {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+        }
+        
+        .doc-color { background: #FFE4B5; }
+        .scan-color { background: #E6F3FF; }
+        .audit-color { background: #E8F5E9; }
+        .coa-color { background: #FFF3E0; }
+        
+        .diagram {
+            position: relative;
+            width: 100%;
+            height: 800px;
+            border: 1px solid #ddd;
+            background: #fafafa;
+        }
+        
+        /* System Boundary */
+        .system-box {
+            position: absolute;
+            left: 200px;
+            top: 10px;
+            right: 200px;
+            bottom: 10px;
+            border: 2px solid #333;
+            background: white;
+        }
+        
+        .system-title {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 0 15px;
+            font-weight: bold;
+            font-size: 13px;
+        }
+        
+        /* Group Boxes */
+        .group-box {
+            position: absolute;
+            border: 1px dashed #999;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.7);
+        }
+        
+        .group-doc {
+            left: 20px;
+            top: 30px;
+            width: 200px;
+            height: 140px;
+            background: rgba(255,228,181,0.3);
+        }
+        
+        .group-scan {
+            left: 20px;
+            top: 190px;
+            width: 200px;
+            height: 180px;
+            background: rgba(230,243,255,0.3);
+        }
+        
+        .group-view {
+            left: 20px;
+            top: 390px;
+            width: 200px;
+            height: 140px;
+            background: rgba(240,240,240,0.3);
+        }
+        
+        .group-audit {
+            left: 240px;
+            top: 30px;
+            width: 180px;
+            height: 140px;
+            background: rgba(232,245,233,0.3);
+        }
+        
+        .group-coa {
+            left: 240px;
+            top: 190px;
+            width: 180px;
+            height: 280px;
+            background: rgba(255,243,224,0.3);
+        }
+        
+        .group-label {
+            position: absolute;
+            top: -10px;
+            left: 10px;
+            background: white;
+            padding: 0 8px;
+            font-size: 9px;
+            font-weight: bold;
+            color: #666;
+            text-transform: uppercase;
+        }
+        
+        /* Actors - Left Side */
+        .actor-left {
+            position: absolute;
+            left: 30px;
+            text-align: center;
+            z-index: 20;
+        }
+        
+        /* Actors - Right Side */
+        .actor-right {
+            position: absolute;
+            right: 30px;
+            text-align: center;
+            z-index: 20;
+        }
+        
+        /* Stick Figure */
+        .stick-fig {
+            width: 25px;
+            height: 40px;
+            margin: 0 auto 5px;
+            position: relative;
+        }
+        
+        .stick-fig .head {
+            width: 10px;
+            height: 10px;
+            border: 1.5px solid #333;
+            border-radius: 50%;
+            margin: 0 auto;
+            background: white;
+        }
+        
+        .stick-fig .body-line {
+            width: 1.5px;
+            height: 12px;
+            background: #333;
+            margin: 0 auto;
+        }
+        
+        .stick-fig .arms-line {
+            width: 18px;
+            height: 1.5px;
+            background: #333;
+            margin: -8px auto 0;
+            position: relative;
+        }
+        
+        .stick-fig .arms-line::before,
+        .stick-fig .arms-line::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 1.5px;
+            background: #333;
+            top: 0;
+        }
+        
+        .stick-fig .arms-line::before {
+            left: -6px;
+            transform: rotate(45deg);
+            transform-origin: right center;
+        }
+        
+        .stick-fig .arms-line::after {
+            right: -6px;
+            transform: rotate(-45deg);
+            transform-origin: left center;
+        }
+        
+        .stick-fig .legs-line {
+            width: 1.5px;
+            height: 10px;
+            background: #333;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        .stick-fig .legs-line::before,
+        .stick-fig .legs-line::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 1.5px;
+            background: #333;
+            bottom: 0;
+        }
+        
+        .stick-fig .legs-line::before {
+            left: -6px;
+            transform: rotate(-45deg);
+            transform-origin: right center;
+        }
+        
+        .stick-fig .legs-line::after {
+            right: -6px;
+            transform: rotate(45deg);
+            transform-origin: left center;
+        }
+        
+        .actor-name {
+            font-size: 10px;
+            font-weight: bold;
+            color: #333;
+            white-space: nowrap;
+            background: rgba(255,255,255,0.9);
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+        
+        /* Actor Positions */
+        .act-accounting { top: 60px; }
+        .act-staff { top: 250px; }
+        .act-head { top: 330px; }
+        .act-admin { top: 80px; }
+        .act-coa { top: 320px; }
+        
+        /* Use Cases */
+        .use-case {
+            position: absolute;
+            background: #fff8dc;
+            border: 1px solid #8b7355;
+            border-radius: 20px;
+            padding: 8px 15px;
+            text-align: center;
+            font-size: 9px;
+            color: #333;
+            white-space: nowrap;
+            z-index: 10;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        /* Document Management */
+        .uc-create { left: 35px; top: 60px; background: #FFE4B5; }
+        .uc-print { left: 115px; top: 60px; background: #FFE4B5; }
+        .uc-reprint { left: 75px; top: 110px; background: #FFE4B5; }
+        
+        /* Scanning */
+        .uc-scanin { left: 35px; top: 220px; background: #E6F3FF; border-color: #4A90E2; }
+        .uc-scanout { left: 125px; top: 220px; background: #E6F3FF; border-color: #4A90E2; }
+        .uc-verify { left: 80px; top: 280px; background: #E6F3FF; border-color: #4A90E2; }
+        .uc-duplicate { left: 80px; top: 330px; background: #E6F3FF; border-color: #4A90E2; }
+        
+        /* Viewing */
+        .uc-alerts { left: 35px; top: 420px; background: #f0f0f0; border-color: #999; }
+        .uc-history { left: 115px; top: 420px; background: #f0f0f0; border-color: #999; }
+        .uc-track { left: 75px; top: 470px; background: #f0f0f0; border-color: #999; }
+        
+        /* Admin Audit */
+        .uc-monitor { left: 255px; top: 60px; background: #E8F5E9; border-color: #4CAF50; }
+        .uc-suspicious { left: 255px; top: 110px; background: #E8F5E9; border-color: #4CAF50; }
+        .uc-export { left: 255px; top: 160px; background: #E8F5E9; border-color: #4CAF50; }
+        
+        /* COA */
+        .uc-coa-reports { left: 255px; top: 220px; background: #FFF3E0; border-color: #FF9800; }
+        .uc-coa-compliance { left: 255px; top: 270px; background: #FFF3E0; border-color: #FF9800; }
+        .uc-coa-trail { left: 255px; top: 320px; background: #FFF3E0; border-color: #FF9800; }
+        .uc-coa-generate { left: 255px; top: 370px; background: #FFF3E0; border-color: #FF9800; }
+        .uc-coa-location { left: 255px; top: 420px; background: #FFF3E0; border-color: #FF9800; }
+        
+        /* SVG Lines */
+        svg.lines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+        }
+        
+        line {
+            stroke: #333;
+            stroke-width: 1;
+        }
+        
+        /* Include relationship */
+        .include {
+            stroke-dasharray: 4,4;
+        }
+        
+        /* Footer note */
+        .footer-note {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 10px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SmartFlow Use Case Diagram</h1>
+        
+        <div class="legend-bar">
+            <div class="legend-item">
+                <div class="legend-box doc-color"></div>
+                <span>Document Management</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box scan-color"></div>
+                <span>Scan Operations</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box audit-color"></div>
+                <span>Admin Audit</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box coa-color"></div>
+                <span>COA Compliance</span>
+            </div>
+        </div>
+        
+        <div class="diagram">
+            <svg class="lines">
+                <!-- Accounting lines -->
+                <line x1="75" y1="90" x2="200" y2="75" />
+                <line x1="75" y1="90" x2="200" y2="75" />
+                <line x1="75" y1="90" x2="280" y2="75" />
+                <line x1="75" y1="90" x2="230" y2="125" />
+                
+                <!-- Staff lines -->
+                <line x1="75" y1="280" x2="200" y2="235" />
+                <line x1="75" y1="280" x2="290" y2="235" />
+                <line x1="75" y1="280" x2="245" y2="295" />
+                <line x1="75" y1="280" x2="290" y2="445" />
+                
+                <!-- Head lines -->
+                <line x1="75" y1="360" x2="200" y2="245" />
+                <line x1="75" y1="360" x2="290" y2="245" />
+                <line x1="75" y1="360" x2="245" y2="305" />
+                <line x1="75" y1="360" x2="200" y2="435" />
+                <line x1="75" y1="360" x2="230" y2="485" />
+                
+                <!-- Admin lines -->
+                <line x1="625" y1="110" x2="450" y2="75" />
+                <line x1="625" y1="110" x2="450" y2="125" />
+                <line x1="625" y1="110" x2="450" y2="175" />
+                <line x1="625" y1="110" x2="290" y2="125" />
+                
+                <!-- COA lines -->
+                <line x1="625" y1="350" x2="450" y2="235" />
+                <line x1="625" y1="350" x2="450" y2="285" />
+                <line x1="625" y1="350" x2="450" y2="335" />
+                <line x1="625" y1="350" x2="450" y2="385" />
+                <line x1="625" y1="350" x2="450" y2="435" />
+                <line x1="625" y1="350" x2="290" y2="485" />
+                
+                <!-- Include lines -->
+                <line x1="245" y1="240" x2="270" y2="240" class="include" />
+                <line x1="290" y1="240" x2="265" y2="290" class="include" />
+            </svg>
+            
+            <!-- System Boundary -->
+            <div class="system-box">
+                <span class="system-title">SmartFlow Document Tracking System</span>
+            </div>
+            
+            <!-- Group Boxes -->
+            <div class="group-box group-doc">
+                <span class="group-label">Document</span>
+            </div>
+            <div class="group-box group-scan">
+                <span class="group-label">Scanning</span>
+            </div>
+            <div class="group-box group-view">
+                <span class="group-label">View</span>
+            </div>
+            <div class="group-box group-audit">
+                <span class="group-label">Audit</span>
+            </div>
+            <div class="group-box group-coa">
+                <span class="group-label">COA Compliance</span>
+            </div>
+            
+            <!-- Left Actors -->
+            <div class="actor-left act-accounting">
+                <div class="stick-fig">
+                    <div class="head"></div>
+                    <div class="body-line">
+                        <div class="arms-line"></div>
+                        <div class="legs-line"></div>
+                    </div>
+                </div>
+                <div class="actor-name">Accounting</div>
+            </div>
+            
+            <div class="actor-left act-staff">
+                <div class="stick-fig">
+                    <div class="head"></div>
+                    <div class="body-line">
+                        <div class="arms-line"></div>
+                        <div class="legs-line"></div>
+                    </div>
+                </div>
+                <div class="actor-name">Staff/Clerk</div>
+            </div>
+            
+            <div class="actor-left act-head">
+                <div class="stick-fig">
+                    <div class="head"></div>
+                    <div class="body-line">
+                        <div class="arms-line"></div>
+                        <div class="legs-line"></div>
+                    </div>
+                </div>
+                <div class="actor-name">Dept Head</div>
+            </div>
+            
+            <!-- Right Actors -->
+            <div class="actor-right act-admin">
+                <div class="stick-fig">
+                    <div class="head"></div>
+                    <div class="body-line">
+                        <div class="arms-line"></div>
+                        <div class="legs-line"></div>
+                    </div>
+                </div>
+                <div class="actor-name">System Admin</div>
+            </div>
+            
+            <div class="actor-right act-coa">
+                <div class="stick-fig">
+                    <div class="head"></div>
+                    <div class="body-line">
+                        <div class="arms-line"></div>
+                        <div class="legs-line"></div>
+                    </div>
+                </div>
+                <div class="actor-name">COA Auditor</div>
+            </div>
+            
+            <!-- Use Cases -->
+            <!-- Document -->
+            <div class="use-case uc-create">Create Document</div>
+            <div class="use-case uc-print">Print QR</div>
+            <div class="use-case uc-reprint">Reprint Label</div>
+            
+            <!-- Scanning -->
+            <div class="use-case uc-scanin">Scan IN</div>
+            <div class="use-case uc-scanout">Scan OUT</div>
+            <div class="use-case uc-verify">Verify QR</div>
+            <div class="use-case uc-duplicate">Block Duplicate</div>
+            
+            <!-- View -->
+            <div class="use-case uc-alerts">View Alerts</div>
+            <div class="use-case uc-history">View History</div>
+            <div class="use-case uc-track">Track Location</div>
+            
+            <!-- Admin -->
+            <div class="use-case uc-monitor">Monitor Scans</div>
+            <div class="use-case uc-suspicious">View Suspicious</div>
+            <div class="use-case uc-export">Export CSV</div>
+            
+            <!-- COA -->
+            <div class="use-case uc-coa-reports">View Audit Reports</div>
+            <div class="use-case uc-coa-compliance">Verify Compliance</div>
+            <div class="use-case uc-coa-trail">Access Trail</div>
+            <div class="use-case uc-coa-generate">Generate Report</div>
+            <div class="use-case uc-coa-location">Track Location</div>
+        </div>
+        
+        <div class="footer-note">
+            <strong>5 Actors:</strong> Accounting, Staff/Clerk, Dept Head, System Admin, COA Auditor | 
+            <strong>18 Use Cases</strong> grouped by 4 subsystems
+        </div>
+    </div>
+</body>
+</html>

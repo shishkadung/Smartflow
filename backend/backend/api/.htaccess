@@ -1,0 +1,17 @@
+# Make sure Apache forwards the Authorization header to PHP.
+# Without this, get_bearer_token() in config.php may not see the token.
+RewriteEngine On
+CGIPassAuth On
+RewriteCond %{HTTP:Authorization} .+
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+SetEnvIf Authorization "(.+)" HTTP_AUTHORIZATION=$1
+SetEnvIf X-Authorization "(.+)" HTTP_X_AUTHORIZATION=$1
+SetEnvIf X-Smartflow-Token "(.+)" HTTP_X_SMARTFLOW_TOKEN=$1
+
+# CORS configuration
+# In production, set CORS_ALLOWED_ORIGINS in .env to specific domains
+# For development, * is allowed
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Authorization, Content-Type, X-Authorization, X-Smartflow-Token"
+</IfModule>

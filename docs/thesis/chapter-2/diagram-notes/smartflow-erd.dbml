@@ -1,0 +1,81 @@
+// SmartFlow ERD — paste ALL of this into https://dbdiagram.io
+// (Replace any sample code first: Ctrl+A → paste)
+// Then drag tables into 3 rows — see erd.md "Clean layout"
+
+Table roles {
+  role_id int [pk, increment]
+  role_name varchar [note: 'admin, accountant, head, clerk']
+}
+
+Table offices {
+  office_id int [pk, increment]
+  office_name varchar [note: 'Engineering, HR, Budget, Accounting']
+}
+
+Table users {
+  user_id int [pk, increment]
+  username varchar [unique]
+  password_hash varchar
+  full_name varchar
+  office_id int
+  role_id int
+  is_active boolean
+}
+
+Table document_types {
+  type_id int [pk, increment]
+  type_name varchar [note: 'DV, Payroll, Approved Budget']
+}
+
+Table documents {
+  document_id int [pk, increment]
+  tracking_code varchar [unique, note: 'QR label']
+  type_id int
+  reference_no varchar
+  origin_office_id int [note: 'where created']
+  current_office_id int [note: 'where now']
+  status varchar
+  created_at datetime
+  completed_at datetime
+}
+
+Table scan_logs {
+  scan_id int [pk, increment]
+  document_id int
+  office_id int
+  user_id int
+  action varchar [note: 'receive or forward']
+  scanned_at datetime
+  remarks text
+}
+
+Table thresholds {
+  threshold_id int [pk, increment]
+  office_id int
+  document_type_id int
+  max_hours int
+  is_active boolean
+}
+// MySQL: UNIQUE(office_id, document_type_id) for active rules
+
+Table alerts {
+  alert_id int [pk, increment]
+  document_id int
+  office_id int
+  triggered_at datetime
+  is_resolved boolean
+}
+
+// Relationships (many-to-one)
+Ref: users.role_id > roles.role_id
+Ref: users.office_id > offices.office_id
+Ref: documents.type_id > document_types.type_id
+Ref: documents.origin_office_id > offices.office_id
+Ref: documents.current_office_id > offices.office_id
+Ref: scan_logs.document_id > documents.document_id
+Ref: scan_logs.office_id > offices.office_id
+Ref: scan_logs.user_id > users.user_id
+Ref: thresholds.office_id > offices.office_id
+Ref: thresholds.document_type_id > document_types.type_id
+Ref: alerts.document_id > documents.document_id
+Ref: alerts.office_id > offices.office_id

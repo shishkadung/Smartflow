@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SmartFlow — UI Mock Gallery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/tokens.css" />
+  <link rel="stylesheet" href="css/layout.css" />
+  <link rel="stylesheet" href="css/components.css" />
+</head>
+<body>
+  <main class="sf-gallery">
+    <h1>SmartFlow UI Mock</h1>
+    <p>
+      Lahat ng mobile screens sa isang page — grouped by POV. I-click ang screen para buksan full-size, o i-import sa Figma gamit ang instructions sa baba.
+    </p>
+
+    <nav class="sf-gallery__jump">
+      <a href="#auth">Auth</a>
+      <a href="#employee">Employee</a>
+      <a href="#head">Head</a>
+      <a href="#admin">Admin</a>
+    </nav>
+
+    <!-- Auth -->
+    <section class="sf-gallery__section" id="auth">
+      <div class="sf-gallery__section-head">
+        <p class="sf-gallery__eyebrow">Shared · Auth &amp; onboarding</p>
+        <h2>Auth screens</h2>
+        <p class="sf-gallery__section-desc">Get Started, Login, Sign up, Pending approval</p>
+      </div>
+      <div class="sf-gallery__grid">
+        <a class="sf-gallery__item" href="pages/auth/get-started.html" target="_blank">
+          <div class="sf-gallery__label">Get Started</div>
+          <div class="sf-gallery__frame"><iframe src="pages/auth/get-started.html" title="Get Started" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/auth/login.html" target="_blank">
+          <div class="sf-gallery__label">Login</div>
+          <div class="sf-gallery__frame"><iframe src="pages/auth/login.html" title="Login" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/auth/signup.html" target="_blank">
+          <div class="sf-gallery__label">Sign Up · Step 1</div>
+          <div class="sf-gallery__frame"><iframe src="pages/auth/signup.html" title="Sign Up Step 1" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/auth/signup-step2.html" target="_blank">
+          <div class="sf-gallery__label">Sign Up · Step 2</div>
+          <div class="sf-gallery__frame"><iframe src="pages/auth/signup-step2.html" title="Sign Up Step 2" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/auth/signup-pending.html" target="_blank">
+          <div class="sf-gallery__label">Pending Approval</div>
+          <div class="sf-gallery__frame"><iframe src="pages/auth/signup-pending.html" title="Pending" scrolling="no"></iframe></div>
+        </a>
+      </div>
+    </section>
+
+    <!-- Employee -->
+    <section class="sf-gallery__section sf-gallery__section--employee" id="employee">
+      <div class="sf-gallery__section-head">
+        <p class="sf-gallery__eyebrow">POV · Employee (Clerk)</p>
+        <h2>Employee screens</h2>
+        <p class="sf-gallery__section-desc">Engineering Office clerk — scan, register, history, alerts, document requests</p>
+      </div>
+      <div class="sf-gallery__grid">
+        <a class="sf-gallery__item" href="pages/employee/staff-home.html" target="_blank">
+          <div class="sf-gallery__label">Dashboard</div>
+          <div class="sf-gallery__frame"><iframe src="pages/employee/staff-home.html" title="Dashboard" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/employee/staff-scan.html" target="_blank">
+          <div class="sf-gallery__label">Scan · QR / lookup</div>
+          <div class="sf-gallery__frame"><iframe src="pages/employee/staff-scan.html" title="Scan" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/employee/staff-scan-lookup-blocked.html" target="_blank">
+          <div class="sf-gallery__label">Scan · Lookup blocked</div>
+          <div class="sf-gallery__frame"><iframe src="pages/employee/staff-scan-lookup-blocked.html" title="Scan blocked" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/employee/staff-scan-mark-in.html" target="_blank">
+          <div class="sf-gallery__label">Scan · Mark IN</div>
+          <div class="sf-gallery__frame"><iframe src="pages/employee/staff-scan-mark-in.html" title="Mark IN" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/employee/staff-scan-mark-out.html" target="_blank">
+          <div class="sf-gallery__label">Scan · Mark OUT</div>
+          <div class="sf-gallery__frame"><iframe src="pages/employee/staff-scan-mark-out.html" title="Mark OUT" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/employee/staff-register.html" target="_blank">
+          <div class="sf-gallery__label">Register Document</div>
+          <div class="sf-gallery__frame"><iframe src="pages/employee/staff-register.html" title="Register" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/employee/staff-register-success.html" target="_blank">
+          <div class="sf-gallery__label">Register Success + QR</div>
+          <div class="sf-gallery__frame"><iframe src="pages/employee/staff-register-success.html" title="Register Success" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/employee/staff-history.html" target="_blank">
+          <div class="sf-gallery__label">Movement History</div>
+          <div class="sf-gallery__frame"><iframe src="pages/employee/staff-history.html" title="History" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/employee/staff-alerts.html" target="_blank">
+          <div class="sf-gallery__label">Alert Center</div>
+          <div class="sf-gallery__frame"><iframe src="pages/employee/staff-alerts.html" title="Alerts" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/employee/staff-profile.html" target="_blank">
+          <div class="sf-gallery__label">Profile</div>
+          <div class="sf-gallery__frame"><iframe src="pages/employee/staff-profile.html" title="Profile" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/employee/staff-requests.html" target="_blank">
+          <div class="sf-gallery__label">Document Requests</div>
+          <div class="sf-gallery__frame"><iframe src="pages/employee/staff-requests.html" title="Requests" scrolling="no"></iframe></div>
+        </a>
+      </div>
+    </section>
+
+    <!-- Head -->
+    <section class="sf-gallery__section sf-gallery__section--head" id="head">
+      <div class="sf-gallery__section-head">
+        <p class="sf-gallery__eyebrow">POV · Department Head</p>
+        <h2>Head of Department screens</h2>
+        <p class="sf-gallery__section-desc">Supervisor dashboard, queue, alerts, analytics — monitor-only</p>
+      </div>
+      <div class="sf-gallery__grid">
+        <a class="sf-gallery__item" href="pages/head/head-home.html" target="_blank">
+          <div class="sf-gallery__label">Dashboard</div>
+          <div class="sf-gallery__frame"><iframe src="pages/head/head-home.html" title="Head Dashboard" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/head/head-register.html" target="_blank">
+          <div class="sf-gallery__label">Register (Head override)</div>
+          <div class="sf-gallery__frame"><iframe src="pages/head/head-register.html" title="Head Register" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/head/head-queue.html" target="_blank">
+          <div class="sf-gallery__label">Document Queue</div>
+          <div class="sf-gallery__frame"><iframe src="pages/head/head-queue.html" title="Queue" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/head/head-alerts.html" target="_blank">
+          <div class="sf-gallery__label">Supervisor Alerts</div>
+          <div class="sf-gallery__frame"><iframe src="pages/head/head-alerts.html" title="Head Alerts" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/head/head-analytics.html" target="_blank">
+          <div class="sf-gallery__label">Office Analytics</div>
+          <div class="sf-gallery__frame"><iframe src="pages/head/head-analytics.html" title="Analytics" scrolling="no"></iframe></div>
+        </a>
+      </div>
+    </section>
+
+    <!-- Admin -->
+    <section class="sf-gallery__section sf-gallery__section--admin" id="admin">
+      <div class="sf-gallery__section-head">
+        <p class="sf-gallery__eyebrow">POV · System Admin / Accounting Head</p>
+        <h2>Admin screens</h2>
+        <p class="sf-gallery__section-desc">Users, offices, COA summary, thresholds — municipal overview</p>
+      </div>
+      <div class="sf-gallery__grid">
+        <a class="sf-gallery__item" href="pages/admin/admin-home.html" target="_blank">
+          <div class="sf-gallery__label">Dashboard</div>
+          <div class="sf-gallery__frame"><iframe src="pages/admin/admin-home.html" title="Admin Dashboard" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/admin/admin-users.html" target="_blank">
+          <div class="sf-gallery__label">User Management</div>
+          <div class="sf-gallery__frame"><iframe src="pages/admin/admin-users.html" title="Users" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/admin/admin-offices.html" target="_blank">
+          <div class="sf-gallery__label">Pilot Offices</div>
+          <div class="sf-gallery__frame"><iframe src="pages/admin/admin-offices.html" title="Offices" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/admin/admin-coa-summary.html" target="_blank">
+          <div class="sf-gallery__label">COA Summary</div>
+          <div class="sf-gallery__frame"><iframe src="pages/admin/admin-coa-summary.html" title="COA Summary" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/admin/admin-profile.html" target="_blank">
+          <div class="sf-gallery__label">Profile</div>
+          <div class="sf-gallery__frame"><iframe src="pages/admin/admin-profile.html" title="Admin Profile" scrolling="no"></iframe></div>
+        </a>
+        <a class="sf-gallery__item" href="pages/admin/admin-thresholds.html" target="_blank">
+          <div class="sf-gallery__label">Processing Thresholds</div>
+          <div class="sf-gallery__frame"><iframe src="pages/admin/admin-thresholds.html" title="Thresholds" scrolling="no"></iframe></div>
+        </a>
+      </div>
+    </section>
+
+    <div class="sf-gallery__note">
+      <h2>How to put these in Figma</h2>
+      <ol>
+        <li>I-click ang screen sa taas para buksan full-size sa Chrome.</li>
+        <li><strong>Option A — Plugin:</strong> Install <em>html.to.design</em> in Figma → paste the local file URL.</li>
+        <li><strong>Option B — DevTools:</strong> Right-click <code>#figma-export</code> → Capture node screenshot.</li>
+        <li>Design tokens are in <code>css/tokens.css</code> — use the same hex values for Figma color styles.</li>
+      </ol>
+    </div>
+  </main>
+  <script src="js/icons.js"></script>
+  <script src="js/gallery.js"></script>
+</body>
+</html>

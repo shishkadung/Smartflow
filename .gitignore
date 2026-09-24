@@ -1,0 +1,33 @@
+# Secrets
+.env
+**/.env
+!.env.example
+!**/.env.example
+
+# IDE / editor
+.idea/
+.vscode/
+.cursor/
+*.iml
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Flutter / Android build
+**/build/
+**/.dart_tool/
+**/android/.gradle/
+**/ios/Pods/
+**/ios/.symlinks/
+**/Flutter/ephemeral/
+
+# Node
+**/node_modules/
+**/dist/
+
+# Local dumps / screenshots
+sf-screen*.png
+sf-screen*.jpg
+new ver_SmartFlow_Capstone2.docx.pdf

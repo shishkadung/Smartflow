@@ -1,0 +1,438 @@
+/**
+ * Shared “buhay” polish for desk / head / admin / shared pages.
+ * Colorful stats, empty states, and light panel accents — scoped under
+ * `.desk-home` and `.sf-life` so auth screens stay untouched.
+ */
+
+.main > .sf-life {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* —— Stats strip → separate tinted cards —— */
+.desk-home__stats,
+.sf-life__stats {
+  gap: 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+.desk-home__stats .stat,
+.sf-life__stats .stat {
+  border: 1px solid rgba(11, 31, 58, 0.08);
+  border-radius: 12px;
+  border-right: 1px solid rgba(11, 31, 58, 0.08);
+  padding: 14px 12px 12px;
+  background: #fff;
+  text-align: left;
+}
+.desk-home__stats .stat b,
+.sf-life__stats .stat b {
+  font-size: 1.55rem;
+  letter-spacing: -0.03em;
+}
+.desk-home__stats .stat span,
+.sf-life__stats .stat span {
+  margin-top: 6px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.desk-home__stats .stat--in,
+.sf-life__stats .stat--in,
+.sf-life__stats .stat--ok {
+  background: linear-gradient(180deg, #f0fdf4 0%, #fff 70%);
+  border-color: rgba(22, 163, 74, 0.22);
+}
+.desk-home__stats .stat--in b,
+.sf-life__stats .stat--in b,
+.sf-life__stats .stat--ok b { color: #15803d; }
+.desk-home__stats .stat--in span,
+.sf-life__stats .stat--in span,
+.sf-life__stats .stat--ok span { color: #3f7a52; }
+
+.desk-home__stats .stat--out,
+.sf-life__stats .stat--out,
+.sf-life__stats .stat--bad {
+  background: linear-gradient(180deg, #fef2f2 0%, #fff 70%);
+  border-color: rgba(185, 28, 28, 0.18);
+}
+.desk-home__stats .stat--out b,
+.sf-life__stats .stat--out b,
+.sf-life__stats .stat--bad b { color: #b91c1c; }
+.desk-home__stats .stat--out span,
+.sf-life__stats .stat--out span,
+.sf-life__stats .stat--bad span { color: #9a4a4a; }
+
+.desk-home__stats .stat--desk,
+.sf-life__stats .stat--desk,
+.sf-life__stats .stat--info {
+  background: linear-gradient(180deg, #eff6ff 0%, #fff 70%);
+  border-color: rgba(29, 78, 216, 0.2);
+}
+.desk-home__stats .stat--desk b,
+.sf-life__stats .stat--desk b,
+.sf-life__stats .stat--info b { color: #1d4ed8; }
+.desk-home__stats .stat--desk span,
+.sf-life__stats .stat--desk span,
+.sf-life__stats .stat--info span { color: #3b5b9a; }
+
+.sf-life__stats .stat--warn,
+.sf-life__stats .stat--overdue {
+  background: linear-gradient(180deg, #fffbeb 0%, #fff 70%);
+  border-color: rgba(217, 119, 6, 0.28);
+}
+.sf-life__stats .stat--warn b,
+.sf-life__stats .stat--overdue b { color: #b45309; }
+.sf-life__stats .stat--warn span,
+.sf-life__stats .stat--overdue span { color: #a16207; }
+
+.sf-life__stats .stat--pending {
+  background: linear-gradient(180deg, #faf5ff 0%, #fff 70%);
+  border-color: rgba(126, 34, 206, 0.2);
+}
+.sf-life__stats .stat--pending b { color: #7e22ce; }
+.sf-life__stats .stat--pending span { color: #7c5a9a; }
+
+.sf-life__stats .stat--hours {
+  background: linear-gradient(180deg, #f8fafc 0%, #fff 70%);
+  border-color: rgba(71, 85, 105, 0.2);
+}
+.sf-life__stats .stat--hours b { color: #334155; }
+.sf-life__stats .stat--hours span { color: #64748b; }
+
+/* —— CTA / scan button —— */
+.desk-home__scan-btn,
+.sf-life__cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+}
+.desk-home__scan-btn svg,
+.sf-life__cta svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.page-head__actions .desk-home__scan-btn,
+.overview__actions .desk-home__scan-btn,
+.page-head__actions .sf-life__cta,
+.overview__actions .sf-life__cta {
+  width: auto;
+  min-width: 0;
+}
+
+/* —— Panels & empties —— */
+.desk-home__panel .section-title,
+.sf-life__panel .section-title {
+  margin-bottom: 10px;
+}
+
+.desk-home__empty,
+.sf-life__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0 4px;
+}
+.desk-home__empty-icon,
+.sf-life__empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: #eef2ff;
+  color: var(--sf-navy);
+  border: 1px solid rgba(29, 78, 216, 0.16);
+}
+.sf-life__empty-icon--ok {
+  background: #f0fdf4;
+  color: #15803d;
+  border-color: rgba(22, 163, 74, 0.22);
+}
+.sf-life__empty-icon--warn {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: rgba(217, 119, 6, 0.28);
+}
+.desk-home__empty-icon svg,
+.sf-life__empty-icon svg {
+  width: 22px;
+  height: 22px;
+}
+.desk-home__empty .empty,
+.sf-life__empty .empty {
+  padding: 0;
+}
+.desk-home__empty-cta,
+.sf-life__empty-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  min-width: 0;
+  padding: 9px 14px;
+  text-decoration: none;
+  border-color: rgba(29, 78, 216, 0.35);
+  color: var(--sf-blue);
+  font-weight: 700;
+}
+.desk-home__empty-cta:hover,
+.sf-life__empty-cta:hover {
+  background: #eef2ff;
+}
+
+/* Soft panel lift */
+.sf-life__panel.card,
+.desk-home__panel.card {
+  box-shadow: 0 1px 0 rgba(11, 31, 58, 0.04), 0 8px 24px rgba(11, 31, 58, 0.04);
+}
+
+/* Scan Mark IN / OUT */
+.sf-life .btn--mark-in {
+  background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+  border-color: #166534;
+}
+.sf-life .btn--mark-in:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+.sf-life .btn--mark-out {
+  border-color: rgba(185, 28, 28, 0.35);
+  color: #b91c1c;
+}
+.sf-life .btn--mark-out:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+/* History timeline accents */
+.sf-life .timeline li {
+  border-left: 2px solid rgba(29, 78, 216, 0.18);
+  padding-left: 12px;
+  margin-left: 4px;
+}
+
+/* Requests */
+.sf-life .request-card {
+  border-radius: 12px;
+  border: 1px solid rgba(11, 31, 58, 0.08);
+  background: linear-gradient(180deg, #fcfcfd 0%, #fff 100%);
+  padding: 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 4px 14px rgba(11, 31, 58, 0.03);
+}
+
+/* Profile stats reuse */
+.sf-life .profile-stats.stats {
+  gap: 8px;
+  background: transparent;
+  border: 0;
+  overflow: visible;
+}
+.sf-life .profile-stats .stat {
+  border: 1px solid rgba(11, 31, 58, 0.08);
+  border-radius: 12px;
+  border-right: 1px solid rgba(11, 31, 58, 0.08);
+  padding: 14px 12px 12px;
+  background: #fff;
+  text-align: left;
+}
+.sf-life .profile-stats .stat span {
+  margin-top: 6px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+/* Admin alert tile */
+.sf-life a.admin-tile--alert {
+  background: linear-gradient(135deg, #fff7ed 0%, #fff 60%);
+  border: 1px solid rgba(217, 119, 6, 0.28);
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+/* Scan result panel */
+.sf-life .scan-result {
+  border-color: rgba(29, 78, 216, 0.18);
+  background: linear-gradient(180deg, #f8fbff 0%, #fff 40%);
+}
+.sf-life .scan-result__type {
+  margin: 0 0 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.sf-life .scan-result__id {
+  margin: 0 0 6px;
+  font-family: var(--sf-display);
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  color: var(--sf-navy);
+}
+.sf-life .ok--in {
+  background: #ecfdf3;
+  color: #15803d;
+  border: 1px solid rgba(22, 163, 74, 0.22);
+}
+.sf-life .ok--out {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid rgba(29, 78, 216, 0.2);
+}
+
+/* Soft load shimmer */
+.sf-life__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 6px 0 2px;
+}
+.sf-life__skeleton-bar {
+  height: 12px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #e8eef6 0%, #f4f7fb 45%, #e8eef6 90%);
+  background-size: 200% 100%;
+  animation: sf-life-shimmer 1.15s ease-in-out infinite;
+}
+.sf-life__skeleton-bar--lg {
+  height: 18px;
+  width: 62%;
+}
+.sf-life__skeleton-bar:nth-child(2) { width: 88%; }
+.sf-life__skeleton-bar:nth-child(3) { width: 74%; }
+.sf-life__skeleton-bar:nth-child(4) { width: 52%; }
+
+@keyframes sf-life-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+/* Soft success appear */
+.sf-life .ok {
+  animation: sf-life-ok-in 220ms ease-out;
+}
+@keyframes sf-life-ok-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Register QR reward */
+.sf-life .register-qr--ready {
+  border-color: rgba(22, 163, 74, 0.28);
+  background: linear-gradient(180deg, #f0fdf4 0%, #fff 45%);
+}
+.sf-life .register-qr__id {
+  margin: 0 0 4px;
+  font-family: var(--sf-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--sf-navy);
+}
+.sf-life .qr-box--ready {
+  border-style: solid;
+  border-color: rgba(22, 163, 74, 0.35);
+  box-shadow: 0 8px 24px rgba(22, 163, 74, 0.08);
+}
+.sf-life .register-qr__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+.sf-life .register-qr__actions .btn,
+.sf-life .register-qr__actions .btn-secondary,
+.sf-life .register-qr__actions .as-link {
+  width: auto;
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .desk-home__stats,
+  .sf-life__stats,
+  .sf-life .profile-stats.stats {
+    gap: 10px;
+  }
+  .desk-home__stats .stat,
+  .sf-life__stats .stat,
+  .sf-life .profile-stats .stat {
+    padding: 16px 18px;
+  }
+  .desk-home__stats .stat b,
+  .sf-life__stats .stat b {
+    font-size: 1.75rem;
+  }
+  .desk-home__stats .stat span,
+  .sf-life__stats .stat span,
+  .sf-life .profile-stats .stat span {
+    font-size: 0.78rem;
+  }
+}
+
+/*
+ * Projector / short desktop (~1280×720 defense).
+ * Keep Desk + Scan + History first screen without hunting for the second column.
+ */
+@media (min-width: 900px) and (max-height: 800px) {
+  .main > .sf-life,
+  .main > .desk-home {
+    gap: 8px;
+  }
+
+  .desk-home__stats,
+  .sf-life__stats {
+    gap: 6px;
+  }
+  .desk-home__stats .stat,
+  .sf-life__stats .stat,
+  .sf-life .profile-stats .stat {
+    padding: 8px 10px 9px;
+    border-radius: 10px;
+  }
+  .desk-home__stats .stat b,
+  .sf-life__stats .stat b {
+    font-size: 1.3rem;
+  }
+  .desk-home__stats .stat span,
+  .sf-life__stats .stat span {
+    margin-top: 2px;
+    font-size: 0.68rem;
+  }
+
+  .desk-home__panel .section-title,
+  .sf-life__panel .section-title {
+    margin-bottom: 6px;
+  }
+
+  .desk-home__empty,
+  .sf-life__empty {
+    gap: 8px;
+    padding: 2px 0;
+  }
+  .desk-home__empty-icon,
+  .sf-life__empty-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+  }
+
+  .sf-life__panel.card,
+  .desk-home__panel.card {
+    box-shadow: 0 1px 0 rgba(11, 31, 58, 0.04), 0 4px 14px rgba(11, 31, 58, 0.03);
+  }
+
+  .sf-life .request-card {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+  }
+}

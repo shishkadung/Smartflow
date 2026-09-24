@@ -1,0 +1,80 @@
+/*
+ * SmartFlow design tokens
+ * SOURCE OF TRUTH: mobile/flutter/lib/theme/smartflow_theme.dart (SfColors / SfGradients)
+ * Keep in sync with web/src/index.css
+ *
+ * CTA: --sf-blue = primary actions; --sf-navy = auth / ceremonial primary
+ * Radii: sm=8 (inputs/buttons), md=10, lg=12, xl=14 (cards) — 1–2 shadow levels only
+ */
+:root {
+  /* Colors — SfColors */
+  --sf-bg: #eef2f7;
+  --sf-bg2: #f7f9fc;
+  --sf-paper: #ffffff;
+  --sf-ink: #0b1f3a;
+  --sf-navy: #0b1f3a;
+  --sf-muted: rgba(11, 31, 58, 0.64); /* 0xA30B1F3A */
+  --sf-blue: #1d4ed8;
+  --sf-blue2: #2563eb;
+  --sf-gold: #b8860b;
+  --sf-rule: #c9b896;
+  --sf-green: #15803d;
+  --sf-red: #b91c1c;
+  --sf-eng: #1d4ed8;
+  --sf-hr: #5b21b6;
+  --sf-bud: #047857;
+  --sf-acc: #b45309;
+  --sf-tre: #0f766e;
+  --sf-may: #9f1239;
+
+  --sf-strap-bg: #f3efe6;
+  --sf-strap-border: #c9b896;
+  --sf-strap-ink: #5c4a32;
+
+  --sf-border: rgba(11, 31, 58, 0.1); /* ~0x1A0B1F3A */
+  --sf-border-strong: rgba(11, 31, 58, 0.16); /* ~0x290B1F3A */
+  --sf-input-bg: #f3f6fa;
+
+  /* Radii — Flutter 8 / 12 / 14 / 16 family */
+  --sf-radius-sm: 8px;
+  --sf-radius-md: 10px;
+  --sf-radius-lg: 12px;
+  --sf-radius-xl: 14px;
+  --sf-radius-pill: 999px;
+
+  /* Shadows — two levels max */
+  --sf-shadow-card: 0 1px 2px rgba(11, 31, 58, 0.04), 0 8px 20px rgba(11, 31, 58, 0.05);
+  --sf-shadow-nav: 0 6px 18px rgba(11, 31, 58, 0.08);
+  --sf-shadow-btn: 0 6px 16px rgba(29, 78, 216, 0.28);
+
+  /* Gradients — SfGradients */
+  --sf-page-sky: linear-gradient(180deg, #e8eef6 0%, #eef2f7 35%, #f7f9fc 100%);
+  --sf-navy-band: linear-gradient(135deg, #0a1a33 0%, #0b1f3a 45%, #123056 100%);
+  --sf-primary-btn: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+
+  /* Screen (app viewport) */
+  --sf-screen-w: 390px;
+  --sf-screen-h: 844px;
+
+  /* Device chrome */
+  --sf-bezel: 12px;
+  --sf-device-w: 414px;
+  --sf-device-h: 868px;
+  --sf-device-radius: 48px;
+  --sf-screen-radius: 38px;
+  --sf-device-bg: #1c1c1e;
+  --sf-device-bg-light: #3a3a3c;
+
+  /* Spacing — matches Flutter padding */
+  --sf-pad-x: 16px;
+  --sf-pad-y: 12px;
+  --sf-pad-section: 14px;
+  --sf-status-h: 54px;
+  --sf-home-h: 28px;
+  --sf-nav-bottom: 8px;
+  --sf-scroll-bottom: 96px;
+
+  /* Type — Source Sans 3 + Source Serif 4 (not Inter) */
+  --sf-font: "Source Sans 3", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sf-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+}

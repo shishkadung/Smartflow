@@ -1,0 +1,40 @@
+flowchart TB
+
+    EF["Frontline Staff (Accounting, Budget, HR, Engineering)"]
+
+    subgraph MID[" "]
+        direction LR
+        EH["Department Head"]
+        P0(("0 SmartFlow Document Tracking System"))
+    end
+
+    EA["Municipal Accountant / System Administrator"]
+    E8["Commission on Audit"]
+
+    EF -->|Login credentials| P0
+    EF -->|Scanned document records| P0
+    P0 -->|Authentication response| EF
+    P0 -->|Scan confirmation| EF
+
+    EH -->|Document tracking requests| P0
+    EH -->|Supervisory report requests| P0
+    P0 -->|Department dashboard data| EH
+    P0 -->|Delay notifications| EH
+
+    EA -->|COA report requests| P0
+    EA -->|Document status queries| P0
+    EA -->|Document registration data| P0
+    EA -->|System configuration data| P0
+    EA -->|User account settings| P0
+    P0 -->|COA compliance reports| EA
+    P0 -->|Document flow status reports| EA
+    P0 -->|QR code tracking code| EA
+    P0 -->|Export PDF Excel| EA
+    P0 -->|Audit logs| EA
+    P0 -->|System status reports| EA
+
+    EA -.->|COA support file| E8
+
+    EF ~~~ MID
+    MID ~~~ EA
+    EA ~~~ E8
