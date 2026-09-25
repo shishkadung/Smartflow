@@ -60,7 +60,7 @@ post_install do |installer|
     end
   end
 
-  Dir.glob(File.join(installer.sandbox.root.to_s, '**', '*.xcconfig')).each do |file|
+  Dir.glob(File.join(installer.sandbox.root.to_s, '**', '*.{xcconfig,pbxproj}')).each do |file|
     text = File.read(file)
     next unless text.include?('DT_TOOLCHAIN_DIR')
     File.chmod(0644, file)

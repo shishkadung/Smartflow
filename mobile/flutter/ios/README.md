@@ -32,6 +32,15 @@ open Runner.xcworkspace
 
 Sign with your Apple team in Xcode → Runner → Signing & Capabilities.
 
+Xcode 15+ rejects `DT_TOOLCHAIN_DIR` written by CocoaPods 1.12. The Podfile rewrites that to `TOOLCHAIN_DIR` during `pod install`. Do not upgrade CocoaPods with `sudo gem install cocoapods` on the system Ruby; stay on 1.12.x and let the Podfile fix it.
+
+If a build still reports `DT_TOOLCHAIN_DIR`, from `mobile/flutter`:
+
+```bash
+grep -rl DT_TOOLCHAIN_DIR ios/Pods | while read f; do sed -i '' 's/DT_TOOLCHAIN_DIR/TOOLCHAIN_DIR/g' "$f"; done
+flutter run
+```
+
 ### API URL tips
 
 | Target | Example |
