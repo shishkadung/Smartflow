@@ -7,7 +7,7 @@ The Dart app in `lib/` is shared with Android. This `ios/` folder is the **nativ
 - **Podfile** — present (was missing); installs pods for `mobile_scanner`, `image_picker`, etc.
 - **Info.plist** — camera + photo library (QR upload / profile photo); ATS allows LAN HTTP for XAMPP pilot
 - **Bundle ID** — `com.urbiztondo.smartflow`
-- **Min iOS** — 13.0
+- **Min iOS** — 15.5 (required by `mobile_scanner` 6.x / ML Kit 7)
 
 Dart UI changes do **not** need a full `ios/` rewrite. Rebuild on a Mac after `flutter pub get`.
 

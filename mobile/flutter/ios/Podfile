@@ -2,7 +2,8 @@
 # Generated to match current Flutter plugins (mobile_scanner, image_picker, etc.).
 # Run on a Mac: `cd ios && pod install` (or just `flutter build ios` / `flutter run`).
 
-platform :ios, '13.0'
+# mobile_scanner 6.x (ML Kit 7) requires iOS 15.5+
+platform :ios, '15.5'
 
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
@@ -42,9 +43,9 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     target.build_configurations.each do |config|
-      # Align with project.pbxproj IPHONEOS_DEPLOYMENT_TARGET
-      if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 13.0
-        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      # Align with project.pbxproj / mobile_scanner minimum (iOS 15.5)
+      if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 15.5
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.5'
       end
     end
   end
