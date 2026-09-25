@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../theme/smartflow_theme.dart';
+import 'sf_shell_chrome.dart';
 
 /// Auth-style page chrome: gradient sky + Material/Scaffold (so TextField works)
 /// + scrollable content. Real device status bar is preserved by SafeArea.
@@ -89,9 +90,18 @@ class SfAppScaffold extends StatelessWidget {
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(gradient: SfGradients.pageSky),
-        child: SafeArea(
-          bottom: false,
-          child: body,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const SfShellTopBar(),
+            Expanded(
+              child: SafeArea(
+                top: false,
+                bottom: false,
+                child: body,
+              ),
+            ),
+          ],
         ),
       ),
       bottomNavigationBar: SafeArea(

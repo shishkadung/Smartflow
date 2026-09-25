@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { smartflow, ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
-import { DocTable, LifeEmpty, LifeSkeleton, Overview } from '../components/ui.jsx'
+import { DocTable, LifeEmpty, LifeSkeleton, Overview, statTone } from '../components/ui.jsx'
 
 /**
  * Clerk / staff desk home.
@@ -34,20 +34,20 @@ export default function StaffHomePage() {
     <div className="desk-home sf-life">
       <Overview
         title="Desk"
-        body="Today’s received, sent, and folders on desk."
+        body="Today's received, sent, and folders on desk."
       />
       {error ? <div className="error">{error}</div> : null}
 
       <div className="stats desk-home__stats sf-life__stats">
-        <div className="stat stat--in">
+        <div className={statTone(received, 'stat--in')}>
           <b>{received}</b>
           <span>Received today</span>
         </div>
-        <div className="stat stat--out">
+        <div className={statTone(sent, 'stat--out')}>
           <b>{sent}</b>
           <span>Sent today</span>
         </div>
-        <div className="stat stat--desk">
+        <div className={statTone(active, 'stat--desk')}>
           <b>{active}</b>
           <span>On desk now</span>
         </div>

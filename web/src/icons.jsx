@@ -79,6 +79,32 @@ export const SF_ICON_PATHS = {
     'M22 21v-2a4 4 0 0 0-3-3.87',
     'M16 3.13a4 4 0 0 1 0 7.75',
   ],
+  /** business / offices */
+  offices: [
+    'M3 21h18',
+    'M5 21V7l7-4 7 4v14',
+    'M9 21v-6h6v6',
+    'M9 10h.01',
+    'M15 10h.01',
+    'M9 14h.01',
+    'M15 14h.01',
+  ],
+  /** tune / thresholds */
+  thresholds: [
+    'M4 21v-7',
+    'M4 10V3',
+    'M12 21v-9',
+    'M12 8V3',
+    'M20 21v-5',
+    'M20 12V3',
+    'M1 14h6',
+    'M9 8h6',
+    'M17 16h6',
+  ],
+  /** cloud / system */
+  system: [
+    'M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z',
+  ],
   /** assessment / COA */
   coa: [
     'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z',

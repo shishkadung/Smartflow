@@ -58,6 +58,7 @@ class _HeadShellState extends State<HeadShell> {
   ];
 
   static const _menuRoutes = [
+    '/head/scan',
     '/head/register',
     '/head/analytics',
     '/head/history',
@@ -836,7 +837,6 @@ class _HeadAlertsScreenState extends State<HeadAlertsScreen> {
     final docTitle = _compactText(m['document_title']) != ''
         ? _compactText(m['document_title'])
         : _compactText(m['title']);
-    final detail = _compactText(m['detail']);
     final days = _asInt(m['days_pending']);
     final hours = _asInt(m['hours_pending']);
     final pendingLabel = days > 0
@@ -849,9 +849,13 @@ class _HeadAlertsScreenState extends State<HeadAlertsScreen> {
         ? 'Waiting for other office'
         : (delayed ? 'Still on your desk' : 'Due soon');
     final rule = m['threshold_rule']?.toString();
+    final office = _compactText(m['last_office_name']);
     final title = docTitle.isNotEmpty ? docTitle : 'Document alert';
-    final subtitle =
-        detail.isNotEmpty ? detail : 'Open this folder to follow up with clerks.';
+    final subtitle = [
+      if (docId.isNotEmpty) docId,
+      if (office.isNotEmpty) office,
+      pendingLabel == '${hours}h' ? '$hours hours at this desk' : pendingLabel,
+    ].join(' · ');
 
     return SfAlertCardWithActions(
       title: title,
@@ -1097,16 +1101,6 @@ class _HeadAnalyticsScreenState extends State<HeadAnalyticsScreen> {
           const SfHeadPageOverviewCard(
             screen: SfHeadScreen.analytics,
             compact: true,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Monthly on-time / delayed custody for your office — use in staff meetings.',
-            style: TextStyle(
-              fontSize: 11.5,
-              height: 1.35,
-              color: SfColors.muted.withValues(alpha: 0.95),
-              fontWeight: FontWeight.w600,
-            ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),

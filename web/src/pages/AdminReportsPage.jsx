@@ -1,12 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { smartflow, ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
-import { LifeEmpty, Overview } from '../components/ui.jsx'
+import { CoaSummaryHero, LifeEmpty, Overview } from '../components/ui.jsx'
 
 function pct(bucket) {
   if (bucket == null) return '—'
   if (typeof bucket === 'object' && bucket.percent != null) return `${Math.round(bucket.percent)}%`
   return String(bucket)
+}
+
+function monthDisplay(ym) {
+  try {
+    const [y, m] = String(ym).split('-').map(Number)
+    if (!y || !m) return ym
+    return new Date(y, m - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' })
+  } catch {
+    return ym
+  }
 }
 
 export default function AdminReportsPage() {
@@ -45,39 +55,53 @@ export default function AdminReportsPage() {
   }
 
   const compliance = data?.compliance || {}
+  const docsInPeriod = useMemo(() => {
+    const totals = data?.totals || data?.summary || {}
+    if (totals.documents_in_period != null) return totals.documents_in_period
+    const offices = data?.office_totals || []
+    return offices.reduce(
+      (n, row) => n + (Number(row.docs_processed ?? row.processed) || 0),
+      0,
+    )
+  }, [data])
 
   return (
     <div className="sf-life">
       <Overview
-        title="Custody support summary"
-        body="Monthly handoff metrics from scan logs — not a COA financial review."
-        actions={(
-          <button type="button" className="btn sf-life__cta" onClick={copySummary} disabled={!data}>
-            {copied ? 'Copied' : 'Copy summary'}
-          </button>
-        )}
+        title="COA reports"
+        body="Monthly handoff metrics from scan logs — not a financial review."
       />
       {error ? <div className="error">{error}</div> : null}
-      <div className="toolbar">
-        <div className="field" style={{ marginBottom: 0, minWidth: 180 }}>
-          <label>Month</label>
-          <input type="month" value={month} onChange={(e) => setMonth(e.target.value)} />
+      <CoaSummaryHero
+        monthLabel={monthDisplay(month)}
+        docsInPeriod={docsInPeriod}
+        monthValue={month}
+        onChangeMonth={setMonth}
+      >
+        <div className="stats sf-life__stats" style={{ margin: 0 }}>
+          <div className="stat stat--ok">
+            <b>{pct(compliance.on_time ?? compliance.completed_on_time)}</b>
+            <span>On time</span>
+          </div>
+          <div className="stat stat--warn">
+            <b>{pct(compliance.unforwarded)}</b>
+            <span>Unforwarded</span>
+          </div>
+          <div className="stat stat--bad">
+            <b>{pct(compliance.delayed)}</b>
+            <span>Delayed</span>
+          </div>
         </div>
-      </div>
-      <div className="stats sf-life__stats">
-        <div className="stat stat--ok">
-          <b>{pct(compliance.on_time ?? compliance.completed_on_time)}</b>
-          <span>On time</span>
-        </div>
-        <div className="stat stat--warn">
-          <b>{pct(compliance.unforwarded)}</b>
-          <span>Unforwarded</span>
-        </div>
-        <div className="stat stat--bad">
-          <b>{pct(compliance.delayed)}</b>
-          <span>Delayed</span>
-        </div>
-      </div>
+        <button
+          type="button"
+          className="btn sf-life__cta"
+          onClick={copySummary}
+          disabled={!data}
+          style={{ marginTop: 14, width: '100%' }}
+        >
+          {copied ? 'Copied' : 'Copy summary for COA'}
+        </button>
+      </CoaSummaryHero>
       <div className="card sf-life__panel">
         <h3 className="section-title">By office</h3>
         {(data?.office_totals || []).length === 0 ? (

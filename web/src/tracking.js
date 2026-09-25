@@ -59,11 +59,14 @@ export const OFFICE_DOCUMENT_TYPES = {
   MAY: ['Disbursement Voucher'],
 }
 
+export const OTHER_DOCUMENT_TYPE = 'Others'
+
 export function documentTypesForOffice(code) {
-  return OFFICE_DOCUMENT_TYPES[String(code || '').toUpperCase()] ?? [
+  const types = OFFICE_DOCUMENT_TYPES[String(code || '').toUpperCase()] ?? [
     'Disbursement Voucher',
     'Approved Budget',
   ]
+  return types.includes(OTHER_DOCUMENT_TYPE) ? types : [...types, OTHER_DOCUMENT_TYPE]
 }
 
 /** Access request categories (matches Flutter office_document_types.dart). */
@@ -72,6 +75,7 @@ export function documentRequestCategoriesForOffice(code) {
   const items = []
   if (upper !== 'BUD') items.push({ value: 'budget', label: 'Budget (→ BUD)' })
   if (upper !== 'ACC') items.push({ value: 'disbursement', label: 'Disbursement / DV (→ ACC)' })
+  items.push({ value: 'other', label: 'Others' })
   return items
 }
 

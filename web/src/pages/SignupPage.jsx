@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { smartflow, ApiError } from '../api.js'
-import { AuthShell } from '../components/ui.jsx'
+import { AuthShell, roleLabel } from '../components/ui.jsx'
 import { SfIcon } from '../icons.jsx'
 
 function BackLink({ to = '/' }) {
@@ -20,6 +20,7 @@ export default function SignupPage() {
   const [username, setUsername] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [officeId, setOfficeId] = useState('')
   const [role, setRole] = useState('staff')
   const [error, setError] = useState('')
@@ -50,7 +51,7 @@ export default function SignupPage() {
       navigate('/signup/pending', {
         replace: true,
         state: {
-          code: data.request_code || data.code || '',
+          code: data.request?.request_code || data.request_code || data.code || '',
           username: username.trim(),
           message: data.message,
         },
@@ -70,7 +71,7 @@ export default function SignupPage() {
       body="Request access for your municipal office. Sign-in works only after approval."
       strap="Account request"
       title="Request access"
-      chips={[{ label: 'Admin approval required', gold: true }]}
+      note="Admin approval required"
       leading={<BackLink />}
     >
       <form className="form-card auth-split__form auth-signup" onSubmit={onSubmit}>
@@ -89,7 +90,26 @@ export default function SignupPage() {
         </div>
         <div className="field">
           <label htmlFor="signup-pass">Password (8+ chars)</label>
-          <input id="signup-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={8} autoComplete="new-password" />
+          <div className="field-password">
+            <input
+              id="signup-pass"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+              autoComplete="new-password"
+              placeholder="Enter your password"
+            />
+            <button
+              type="button"
+              className="field-password__toggle"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
         </div>
         <div className="field">
           <label htmlFor="signup-office">Office</label>
@@ -123,6 +143,33 @@ export default function SignupPage() {
 
 export function SignupPendingPage() {
   const { state } = useLocation()
+  const navigate = useNavigate()
+  const [checking, setChecking] = useState(false)
+  const [statusError, setStatusError] = useState('')
+
+  async function refresh() {
+    if (!state?.code && !state?.username) return
+    setChecking(true)
+    setStatusError('')
+    try {
+      const data = await smartflow.signupStatus({ code: state?.code, username: state?.username })
+      const req = data.request || {}
+      if (req.status === 'approved') {
+        navigate('/signup/approved', { replace: true, state: req })
+        return
+      }
+      if (req.status === 'rejected') {
+        setStatusError(req.review_notes || 'This request was declined. Contact the Municipal Accountant.')
+      }
+    } catch (err) {
+      setStatusError(err instanceof ApiError ? err.message : 'Could not check status')
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  useEffect(() => { refresh() }, [])
+
   return (
     <AuthShell
       layout="split"
@@ -142,9 +189,36 @@ export function SignupPendingPage() {
         ) : null}
         {state?.username ? <p className="muted">Username: @{state.username}</p> : null}
         <div className="auth-note">Keep this code. You cannot sign in until an admin approves.</div>
-        <Link className="btn btn--navy as-link" to="/" style={{ marginTop: 16 }}>
-          Back to sign in
-        </Link>
+        {statusError ? <div className="error" role="alert">{statusError}</div> : null}
+        <button className="btn" type="button" onClick={refresh} disabled={checking}>
+          {checking ? 'Checking…' : 'Refresh status'}
+        </button>
+      </div>
+    </AuthShell>
+  )
+}
+
+export function SignupApprovedPage() {
+  const { state } = useLocation()
+  const req = state || {}
+  const office = [req.office_name, req.office_code ? `(${req.office_code})` : ''].filter(Boolean).join(' ')
+  return (
+    <AuthShell
+      layout="split"
+      welcome="You're all set!"
+      showPoints={false}
+      body="Your account is now active. Sign in to start using SmartFlow."
+      strap="Approved by Admin"
+      title="Account approved"
+      leading={<BackLink />}
+    >
+      <div className="form-card auth-split__form">
+        <p className="register-kv"><span>Username</span><strong>{req.username || '—'}</strong></p>
+        <p className="register-kv"><span>Role</span><strong>{roleLabel(req.requested_role || 'staff')}</strong></p>
+        <p className="register-kv"><span>Office</span><strong>{office || '—'}</strong></p>
+        {req.approved_by_name ? <p className="register-kv"><span>Approved by</span><strong>{req.approved_by_name}</strong></p> : null}
+        {req.approved_at ? <p className="register-kv"><span>Approved at</span><strong>{req.approved_at}</strong></p> : null}
+        <Link className="btn as-link" to="/">Sign in now</Link>
       </div>
     </AuthShell>
   )

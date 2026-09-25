@@ -9,7 +9,6 @@ import '../../providers/auth_provider.dart';
 import '../../theme/sf_icons.dart';
 import '../../theme/smartflow_theme.dart';
 import '../../utils/format_time.dart';
-import '../../widgets/sf_account_menu.dart';
 import '../../widgets/sf_help.dart';
 import '../../widgets/sf_page.dart';
 import '../../widgets/sf_pdf_chrome.dart';
@@ -33,82 +32,13 @@ String? sfAvatarAbsoluteUrl(String? relative) {
 
 /// PDF clerk header — municipality · SMARTFLOW · page help · document requests · account menu.
 /// Office badge opens See profile · Account & security · Log out (web ENG parity).
+/// Legacy inline header — shell chrome now lives in [SfShellTopBar].
+/// Kept as a no-op so older call sites stay compile-safe.
 class SfClerkAppHeader extends StatelessWidget {
   const SfClerkAppHeader({super.key});
 
-  String _requestsRoute(String role) {
-    switch (role) {
-      case 'head':
-        return '/head/requests';
-      case 'admin':
-        return '/admin/requests';
-      default:
-        return '/staff/requests';
-    }
-  }
-
   @override
-  Widget build(BuildContext context) {
-    final user = context.watch<AuthProvider>().user!;
-    final loc = GoRouterState.of(context).uri.path;
-    final requestsRoute = _requestsRoute(user.role);
-    final onRequests = loc == requestsRoute;
-    final onProfile = sfIsOnProfilePage(loc, user.role);
-    final helpPage = sfHelpPageForPath(loc);
-
-    final topInset = MediaQuery.paddingOf(context).top;
-
-    return Padding(
-      padding: EdgeInsets.only(
-        top: topInset > 0 ? 6 : 10,
-        bottom: 4,
-        right: 4,
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const SfLguSeal(size: 34, elevated: false),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'MUNICIPALITY OF URBIZTONDO',
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.9,
-                    color: SfColors.muted.withValues(alpha: 0.85),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const SfSmartFlowWordmark(),
-              ],
-            ),
-          ),
-          const SizedBox(width: 6),
-          if (helpPage != null) ...[
-            SfHelpIconButton(page: helpPage),
-            const SizedBox(width: 6),
-          ],
-          SfHeaderIconButton(
-            icon: Icons.swap_horiz_rounded,
-            tooltip: 'Document requests',
-            active: onRequests,
-            onTap: () => context.go(requestsRoute),
-          ),
-          const SizedBox(width: 6),
-          SfOfficeCodeBadge(
-            code: user.officeCode,
-            tooltip: '${user.officeName} · Account menu',
-            active: onProfile,
-            onTap: () => showSfAccountMenu(context),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 /// Alert counts for bottom Alerts tab (provided by each role shell).
@@ -136,87 +66,140 @@ class SfNavBadgeScope extends InheritedWidget {
 /// Role Menu sheet — opened from the bottom **Menu** tab (tools, not profile).
 Future<void> showSfRoleMoreSheet(BuildContext context) {
   final role = context.read<AuthProvider>().user?.role ?? 'staff';
+  final helpPage = sfHelpPageForPath(GoRouterState.of(context).uri.path);
+  final requestsRoute = switch (role) {
+    'head' => '/head/requests',
+    'admin' => '/admin/requests',
+    _ => '/staff/requests',
+  };
 
+  final shared = <SfMoreDestination>[
+    SfMoreDestination(
+      icon: Icons.swap_horiz_rounded,
+      title: 'Document requests',
+      subtitle: 'Inbox and outgoing requests',
+      route: requestsRoute,
+    ),
+    if (helpPage != null)
+      SfMoreDestination(
+        icon: Icons.help_outline_rounded,
+        title: 'How to use this page',
+        subtitle: 'Tips for the screen you are on',
+        onTap: () => showSfHelpSheet(context, helpPage),
+      ),
+  ];
+
+  late final List<SfMoreDestination> roleItems;
+  late final String subtitle;
   switch (role) {
     case 'head':
-      return showSfMoreSheet(
-        context,
-        title: 'Menu',
-        subtitle: 'Register, analytics, and history.',
-        destinations: const [
-          SfMoreDestination(
-            icon: SfIcons.headRegister,
-            title: 'Register document',
-            subtitle: 'New folder for your office',
-            route: '/head/register',
-          ),
-          SfMoreDestination(
-            icon: SfIcons.headAnalytics,
-            title: 'Analytics',
-            subtitle: 'Office throughput · delays',
-            route: '/head/analytics',
-          ),
-          SfMoreDestination(
-            icon: SfIcons.clerkHistory,
-            title: 'History',
-            subtitle: 'Browse movements · audit trail',
-            route: '/head/history',
-          ),
-        ],
-      );
+      subtitle = 'Scan, register, analytics, and history.';
+      roleItems = const [
+        SfMoreDestination(
+          icon: SfIcons.clerkScan,
+          title: 'Scan',
+          subtitle: 'Mark IN or OUT when a folder is at your desk',
+          route: '/head/scan',
+        ),
+        SfMoreDestination(
+          icon: SfIcons.headRegister,
+          title: 'Register document',
+          subtitle: 'New folder for your office',
+          route: '/head/register',
+        ),
+        SfMoreDestination(
+          icon: SfIcons.headAnalytics,
+          title: 'Analytics',
+          subtitle: 'Office throughput · delays',
+          route: '/head/analytics',
+        ),
+        SfMoreDestination(
+          icon: SfIcons.clerkHistory,
+          title: 'History',
+          subtitle: 'Browse movements · audit trail',
+          route: '/head/history',
+        ),
+      ];
     case 'admin':
-      return showSfMoreSheet(
-        context,
-        title: 'Menu',
-        subtitle: 'Offices and system tools.',
-        destinations: const [
-          SfMoreDestination(
-            icon: SfIcons.adminOffices,
-            title: 'Offices',
-            subtitle: 'Pilot offices · health',
-            route: '/admin/offices',
-          ),
-          SfMoreDestination(
-            icon: Icons.tune_rounded,
-            title: 'Thresholds',
-            subtitle: 'Processing time limits',
-            route: '/admin/thresholds',
-          ),
-          SfMoreDestination(
-            icon: SfIcons.clerkScan,
-            title: 'QR scan monitor',
-            subtitle: 'Accepted vs rejected scans',
-            route: '/admin/qr-monitor',
-          ),
-          SfMoreDestination(
-            icon: SfIcons.adminSystem,
-            title: 'System',
-            subtitle: 'API · health · reset tools',
-            route: '/admin/system',
-          ),
-        ],
-      );
+      subtitle = 'Users, register, history, and system tools.';
+      roleItems = const [
+        SfMoreDestination(
+          icon: SfIcons.adminUsers,
+          title: 'Users',
+          subtitle: 'Approve sign-ups and manage accounts',
+          route: '/admin/users',
+        ),
+        SfMoreDestination(
+          icon: SfIcons.clerkRegister,
+          title: 'Register document',
+          subtitle: 'New folder · get QR ID',
+          route: '/admin/register',
+        ),
+        SfMoreDestination(
+          icon: SfIcons.clerkAlerts,
+          title: 'Alerts',
+          subtitle: 'Late folders across municipal offices',
+          route: '/admin/alerts',
+        ),
+        SfMoreDestination(
+          icon: SfIcons.clerkHistory,
+          title: 'History',
+          subtitle: 'Browse movements · audit trail',
+          route: '/admin/history',
+        ),
+        SfMoreDestination(
+          icon: SfIcons.adminOffices,
+          title: 'Offices',
+          subtitle: 'Municipal offices · health',
+          route: '/admin/offices',
+        ),
+        SfMoreDestination(
+          icon: Icons.tune_rounded,
+          title: 'Thresholds',
+          subtitle: 'Processing time limits',
+          route: '/admin/thresholds',
+        ),
+        SfMoreDestination(
+          icon: SfIcons.clerkScan,
+          title: 'QR scan monitor',
+          subtitle: 'Accepted vs rejected scans',
+          route: '/admin/qr-monitor',
+        ),
+        SfMoreDestination(
+          icon: SfIcons.adminSystem,
+          title: 'System',
+          subtitle: 'API · health · reset tools',
+          route: '/admin/system',
+        ),
+      ];
     default:
-      return showSfMoreSheet(
-        context,
-        title: 'Menu',
-        subtitle: 'Register and history.',
-        destinations: const [
-          SfMoreDestination(
-            icon: SfIcons.clerkRegister,
-            title: 'Register document',
-            subtitle: 'New folder · get QR ID',
-            route: '/staff/register',
-          ),
-          SfMoreDestination(
-            icon: SfIcons.clerkHistory,
-            title: 'History',
-            subtitle: 'Browse movements · open audit trail',
-            route: '/staff/history',
-          ),
-        ],
-      );
+      subtitle = 'Register and history.';
+      roleItems = const [
+        SfMoreDestination(
+          icon: SfIcons.clerkRegister,
+          title: 'Register document',
+          subtitle: 'New folder · get QR ID',
+          route: '/staff/register',
+        ),
+        SfMoreDestination(
+          icon: SfIcons.clerkHistory,
+          title: 'History',
+          subtitle: 'Browse movements · open audit trail',
+          route: '/staff/history',
+        ),
+      ];
   }
+
+  final destinations = [...shared, ...roleItems]..sort(
+        (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+      );
+
+  return showSfMoreSheet(
+    context,
+    title: 'Menu',
+    subtitle: subtitle,
+    destinations: destinations,
+  );
 }
 
 /// Role dashboard route (bottom-nav home).
@@ -240,7 +223,7 @@ bool sfIsPrimaryNavRoute(String path, String? role) {
           path == '/head/alerts';
     case 'admin':
       return path == '/admin' ||
-          path == '/admin/users' ||
+          path == '/admin/scan' ||
           path == '/admin/reports';
     default:
       return path == '/staff' ||
@@ -313,6 +296,7 @@ class SfPageBackButton extends StatelessWidget {
 
     return Align(
       alignment: Alignment.centerLeft,
+      heightFactor: 1,
       child: TextButton.icon(
         onPressed: canGoBack
             ? () {
@@ -340,11 +324,12 @@ class SfPageBackButton extends StatelessWidget {
 class SfClerkTabTitle extends StatelessWidget {
   const SfClerkTabTitle({
     super.key,
-    required this.title,
+    this.title = '',
     this.subtitle,
     this.screen,
   });
 
+  /// Used only when [screen] is null (legacy title row).
   final String title;
   final String? subtitle;
 
@@ -356,8 +341,6 @@ class SfClerkTabTitle extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SfClerkAppHeader(),
-        const SizedBox(height: 10),
         if (screen != null)
           SfClerkPageOverviewCard(screen: screen!, compact: true)
         else
@@ -430,17 +413,11 @@ class SfAuthenticatedPageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SfPageBackButton(
-          fallbackRoute: fallbackRoute,
-          label: backLabel,
-          hideOnRoleHome: hideBackOnRoleHome,
-        ),
-        const SizedBox(height: 4),
-        const SfClerkAppHeader(),
-      ],
+    // Brand / office chrome is [SfShellTopBar] in SfAppScaffold.
+    return SfPageBackButton(
+      fallbackRoute: fallbackRoute,
+      label: backLabel,
+      hideOnRoleHome: hideBackOnRoleHome,
     );
   }
 }
@@ -504,30 +481,29 @@ class SfClerkPageOverviewCard extends StatelessWidget {
         title = 'Desk';
         body = dashboardSubtitleForOffice(user.officeCode);
       case SfClerkScreen.scan:
-        title = 'Scan folder QR';
-        body = scanSubtitleForOffice(user.officeCode);
+        title = 'Scan';
+        body = 'Mark IN when a folder arrives · OUT when you send it.';
       case SfClerkScreen.register:
-        title = 'Register a document folder';
+        title = 'Register';
         body = registerSubtitleForOffice(user.officeCode);
       case SfClerkScreen.history:
         title = 'History';
-        body = 'Look up every IN and OUT scan by tracking ID.';
+        body = 'Search a tracking ID or open a folder trail.';
       case SfClerkScreen.alerts:
         title = 'Alerts';
         body =
-            'Overdue IN, or OUT from ${user.officeCode} with no receive yet.';
+            'Overdue folders, or OUT from ${user.officeCode} with no receive yet.';
       case SfClerkScreen.profile:
-        title = 'Your profile';
-        body =
-            'Office account snapshot. Photo and edits are under Account & security.';
+        title = 'Profile';
+        body = 'Your office account and desk stats.';
       case SfClerkScreen.accountSecurity:
         title = 'Account & security';
-        body = 'Photo, name, email, password, or end this session.';
+        body = 'Photo, name, email, password, or sign out.';
       case SfClerkScreen.registerSuccess:
         title = documentId ?? 'Document registered';
         body = 'Print the QR label and attach it to the folder.';
       case SfClerkScreen.requests:
-        title = 'Document requests';
+        title = 'Requests';
         body = requestsSubtitleForOffice(user.officeCode);
     }
 
@@ -549,10 +525,10 @@ class SfDashboardOverviewCard extends StatelessWidget {
   }
 }
 
-/// Reusable PDF-style page intro card (strap · title · body · chips · hint).
+/// Soft page intro card — same shell on every role screen.
 ///
-/// Use [compact] on high-frequency ops screens (Scan, History, Queue, Alerts)
-/// so clerks get speed; keep full chrome on Home / Profile / first-visit flows.
+/// Soft paper card under the navy shell chrome (avoids double-navy stack).
+/// Title + caption always sit inside the card (ops copy stays short).
 class SfPageOverviewCard extends StatelessWidget {
   const SfPageOverviewCard({
     super.key,
@@ -564,236 +540,163 @@ class SfPageOverviewCard extends StatelessWidget {
     this.compact = false,
   });
 
-  /// Optional eyebrow pill (e.g. auth). Leave empty on role screens — title is enough.
+  /// Unused on role screens (kept for call-site compatibility).
   final String strap;
   final String title;
   final String body;
   final List<SfOverviewChipData> chips;
   final String? navHint;
 
-  /// Title + one line + optional chip. Hides long body / nav hints (see top-bar Help).
+  /// Ops screens: shorter padding; body still shown (one line).
   final bool compact;
 
-  static const _strapBg = Color(0xFFF8F4EC);
-  static const _strapBorder = Color(0xFFD4C4A0);
-  static const _strapInk = Color(0xFF6B5340);
-
-  bool get _hasStrap => strap.trim().isNotEmpty;
-
-  String get _shortBody {
+  String get _caption {
     final t = body.trim();
     if (t.isEmpty) return t;
+    if (!compact) return t;
     final cut = t.indexOf(RegExp(r'[.…]'));
-    if (cut > 12 && cut < 90) return t.substring(0, cut + 1);
-    if (t.length <= 88) return t;
-    return '${t.substring(0, 85).trimRight()}…';
+    if (cut > 12 && cut < 96) return t.substring(0, cut + 1);
+    if (t.length <= 96) return t;
+    return '${t.substring(0, 93).trimRight()}…';
   }
 
   @override
   Widget build(BuildContext context) {
-    if (compact) return _buildCompact(context);
-    return _buildFull(context);
-  }
-
-  Widget _buildCompact(BuildContext context) {
+    final caption = _caption;
+    final showCaption = caption.isNotEmpty;
     final highlight = chips.where((c) => c.highlight != null).toList();
     final chip = highlight.isNotEmpty
         ? highlight.first
         : (chips.isNotEmpty ? chips.first : null);
+    final padV = compact ? 12.0 : 14.0;
 
     return Container(
       width: double.infinity,
-      decoration: BoxDecoration(
-        color: SfColors.paper,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0x140B1F3A)),
-        boxShadow: [
-          BoxShadow(
-            color: SfColors.ink.withValues(alpha: 0.045),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
       clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(height: 3, color: SfColors.navy),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 10, 10, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (_hasStrap) ...[
-                            Text(
-                              strap.toUpperCase(),
-                              style: const TextStyle(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 0.7,
-                                color: _strapInk,
-                                height: 1.2,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                          ],
-                          Text(
-                            title,
-                            style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w700,
-                                      height: 1.2,
-                                      letterSpacing: -0.15,
-                                      color: SfColors.navy,
-                                    ) ??
-                                const TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w700,
-                                  height: 1.2,
-                                  color: SfColors.navy,
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _shortBody,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: SfColors.muted,
-                    height: 1.35,
-                  ),
-                ),
-                if (chip != null) ...[
-                  const SizedBox(height: 8),
-                  SfOverviewChip(
-                    label: chip.label,
-                    highlight: chip.highlight,
-                    trailing: chip.trailing,
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFull(BuildContext context) {
-    return Container(
-      width: double.infinity,
       decoration: BoxDecoration(
         color: SfColors.paper,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x140B1F3A)),
+        border: Border.all(color: SfColors.navy.withValues(alpha: 0.10)),
         boxShadow: [
           BoxShadow(
-            color: SfColors.ink.withValues(alpha: 0.055),
-            blurRadius: 18,
+            color: SfColors.ink.withValues(alpha: 0.06),
+            blurRadius: 14,
             offset: const Offset(0, 6),
           ),
         ],
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
         children: [
-          Container(height: 3, color: SfColors.navy),
+          // Navy + gold top rule
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            child: Container(
+              height: 3,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    SfColors.navy,
+                    SfColors.blue,
+                    Color(0xFFC9B896),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: -28,
+            top: -36,
+            child: IgnorePointer(
+              child: Container(
+                width: 110,
+                height: 110,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      const Color(0xFF1D4ED8).withValues(alpha: 0.10),
+                      const Color(0xFF1D4ED8).withValues(alpha: 0.0),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+            padding: EdgeInsets.fromLTRB(16, padV + 2, 14, padV),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (_hasStrap) ...[
-                  Row(
-                    children: [
-                      Flexible(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 5,
-                          ),
-                          decoration: BoxDecoration(
-                            color: _strapBg,
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: _strapBorder),
-                          ),
-                          child: Text(
-                            strap.toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.5,
-                              color: _strapInk,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                ],
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontSize: 20,
+                        fontSize: compact ? 17 : 18,
                         fontWeight: FontWeight.w700,
                         height: 1.15,
                         letterSpacing: -0.2,
                         color: SfColors.navy,
                       ) ??
-                      const TextStyle(
-                        fontSize: 20,
+                      TextStyle(
+                        fontSize: compact ? 17 : 18,
                         fontWeight: FontWeight.w700,
                         height: 1.15,
+                        letterSpacing: -0.2,
                         color: SfColors.navy,
                       ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  body,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: SfColors.muted,
-                    height: 1.5,
+                if (showCaption) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    width: 28,
+                    height: 2,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(2),
+                      gradient: LinearGradient(
+                        colors: [
+                          SfColors.gold.withValues(alpha: 0.95),
+                          SfColors.gold.withValues(alpha: 0.0),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                if (chips.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: chips
-                        .map(
-                          (c) => SfOverviewChip(
-                            label: c.label,
-                            highlight: c.highlight,
-                            trailing: c.trailing,
-                          ),
-                        )
-                        .toList(),
+                  const SizedBox(height: 7),
+                  Text(
+                    caption,
+                    maxLines: compact ? 2 : 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: compact ? 12.5 : 13,
+                      color: SfColors.muted.withValues(alpha: 0.95),
+                      height: 1.4,
+                      letterSpacing: 0.05,
+                    ),
                   ),
                 ],
-                if (navHint != null && navHint!.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  SfOverviewNavHint(text: navHint!),
+                if (chip != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: SfColors.navy.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: SfColors.navy.withValues(alpha: 0.12),
+                      ),
+                    ),
+                    child: Text(
+                      chip.trailing == null
+                          ? chip.label
+                          : '${chip.label} ${chip.trailing}',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: chip.highlight ?? SfColors.navy,
+                      ),
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -1164,7 +1067,7 @@ class SfDashboardStatRow extends StatelessWidget {
               value: inFlow,
               label: 'Received',
               sublabel: 'today',
-              color: SfColors.green,
+              color: SfColors.countInk(inFlow, live: SfColors.green),
               onTap: onInFlowTap,
             ),
             const SizedBox(width: 8),
@@ -1172,7 +1075,7 @@ class SfDashboardStatRow extends StatelessWidget {
               value: outFlow,
               label: 'Sent',
               sublabel: 'today',
-              color: SfColors.red,
+              color: SfColors.countInk(outFlow),
               onTap: onOutFlowTap,
             ),
             const SizedBox(width: 8),
@@ -1180,7 +1083,7 @@ class SfDashboardStatRow extends StatelessWidget {
               value: activeTags,
               label: 'On desk',
               sublabel: 'now',
-              color: SfColors.blue,
+              color: SfColors.countInk(activeTags, live: SfColors.blue),
               onTap: onActiveTap,
             ),
           ],
@@ -1254,15 +1157,8 @@ class SfDashboardStatCell extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
       decoration: BoxDecoration(
         color: SfColors.paper,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x120F172A)),
-        boxShadow: [
-          BoxShadow(
-            color: SfColors.ink.withValues(alpha: 0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0x1A0B1F3A)),
       ),
       child: Column(
         children: [
@@ -2182,7 +2078,6 @@ class SfProfileAccountCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final deptColor = SfColors.dept(user.officeCode);
     final photo = sfAvatarAbsoluteUrl(user.avatarUrl);
     final roleLine = roleLabel ??
         '${_profileRoleShort(user)} · ${user.officeName} (${user.officeCode})';
@@ -2257,7 +2152,7 @@ class SfProfileAccountCard extends StatelessWidget {
                   child: _statMini(
                     stat1Label ?? 'Received',
                     inFlow!,
-                    SfColors.green,
+                    SfColors.countInk(inFlow, live: SfColors.green),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -2265,7 +2160,7 @@ class SfProfileAccountCard extends StatelessWidget {
                   child: _statMini(
                     stat2Label ?? 'Sent',
                     outFlow!,
-                    SfColors.red,
+                    SfColors.countInk(outFlow),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -2273,7 +2168,7 @@ class SfProfileAccountCard extends StatelessWidget {
                   child: _statMini(
                     stat3Label ?? 'On desk',
                     activeTags!,
-                    deptColor,
+                    SfColors.countInk(activeTags, live: SfColors.blue),
                   ),
                 ),
               ],
@@ -2288,8 +2183,9 @@ class SfProfileAccountCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
+        color: SfColors.paper,
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0x1A0B1F3A)),
       ),
       child: Column(
         children: [

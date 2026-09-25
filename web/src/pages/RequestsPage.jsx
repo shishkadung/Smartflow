@@ -20,6 +20,7 @@ function toneForStatus(status) {
 export default function RequestsPage() {
   const { user } = useAuth()
   const [tab, setTab] = useState('inbox')
+  const [inboxFilter, setInboxFilter] = useState('all')
   const [inbox, setInbox] = useState([])
   const [outbox, setOutbox] = useState([])
   const [pending, setPending] = useState(0)
@@ -102,13 +103,23 @@ export default function RequestsPage() {
     })
   }
 
-  const rows = tab === 'inbox' ? inbox : outbox
+  const inboxRows = inbox.filter((req) => {
+    if (inboxFilter === 'pending') return req.status === 'pending'
+    if (inboxFilter === 'overdue') return req.is_overdue === true
+    return true
+  })
+  const rows = tab === 'inbox' ? inboxRows : outbox
+  const overdueCount = inbox.filter((req) => req.is_overdue === true).length
 
   return (
     <div className="sf-life">
       <Overview
-        title="Document requests"
-        body="Accepting does not move the folder — register or scan when it arrives."
+        title="Requests"
+        body={
+          user.role === 'head'
+            ? 'Monitor tickets for your office — clerks fulfill handoffs.'
+            : 'Accepting does not move the folder — register or scan when it arrives.'
+        }
         actions={(
           <button type="button" className="btn sf-life__cta" onClick={() => setShowCreate((v) => !v)}>
             {showCreate ? 'Close form' : 'New request'}
@@ -127,6 +138,17 @@ export default function RequestsPage() {
             { value: 'outbox', label: 'My requests' },
           ]}
         />
+        {tab === 'inbox' ? (
+          <Segmented
+            value={inboxFilter}
+            onChange={setInboxFilter}
+            options={[
+              { value: 'all', label: 'All' },
+              { value: 'pending', label: 'Pending', badge: pending || undefined },
+              { value: 'overdue', label: 'Overdue', badge: overdueCount || undefined },
+            ]}
+          />
+        ) : null}
       </div>
 
       {showCreate ? (
@@ -142,7 +164,11 @@ export default function RequestsPage() {
         {loading ? <LifeSkeleton rows={3} label="Loading requests" /> : null}
         {!loading && rows.length === 0 ? (
           <LifeEmpty icon="requests" tone="ok">
-            {tab === 'inbox' ? 'No open requests for this office.' : 'No requests yet.'}
+            {tab === 'outbox'
+              ? 'No requests yet.'
+              : inboxFilter === 'all'
+                ? 'No open requests for this office.'
+                : 'Nothing in this filter.'}
           </LifeEmpty>
         ) : null}
         {rows.map((req) => (
@@ -251,7 +277,9 @@ function CreateRequestForm({ categories, onDone, onError }) {
         document_category: kind === 'access' ? category : 'general',
         purpose: purpose.trim(),
         required_by: requiredBy,
-        ...(kind === 'pull' ? { target_office_id: Number(targetOfficeId) } : {}),
+        ...(kind === 'pull' || category === 'other'
+          ? { target_office_id: Number(targetOfficeId) }
+          : {}),
       })
       onDone()
     } catch (err) {
@@ -268,7 +296,7 @@ function CreateRequestForm({ categories, onDone, onError }) {
         <div className="field">
           <label>Kind</label>
           <select value={kind} onChange={(e) => setKind(e.target.value)}>
-            <option value="access">By type (Budget / DV)</option>
+            <option value="access">By type (Budget / DV / Others)</option>
             <option value="pull">From office (pull)</option>
           </select>
         </div>
@@ -283,7 +311,8 @@ function CreateRequestForm({ categories, onDone, onError }) {
               </select>
             )}
           </div>
-        ) : (
+        ) : null}
+        {kind === 'pull' || category === 'other' ? (
           <div className="field">
             <label>Target office</label>
             <select value={targetOfficeId} onChange={(e) => setTargetOfficeId(e.target.value)} required>
@@ -291,7 +320,7 @@ function CreateRequestForm({ categories, onDone, onError }) {
               {offices.map((o) => <option key={o.id} value={o.id}>{o.name} ({o.code})</option>)}
             </select>
           </div>
-        )}
+        ) : null}
       </div>
       <div className="field">
         <label>Purpose</label>
@@ -301,7 +330,7 @@ function CreateRequestForm({ categories, onDone, onError }) {
         <label>Required by</label>
         <input type="date" value={requiredBy} onChange={(e) => setRequiredBy(e.target.value)} required />
       </div>
-      <button className="btn" type="submit" disabled={loading || (kind === 'access' && categories.length === 0)}>
+      <button className="btn" type="submit" disabled={loading || (kind === 'access' && categories.length === 0) || ((kind === 'pull' || category === 'other') && !targetOfficeId)}>
         {loading ? 'Sending…' : 'Send request'}
       </button>
     </form>

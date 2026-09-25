@@ -8,6 +8,7 @@ import '../../utils/api_error.dart';
 import '../../theme/smartflow_theme.dart';
 import '../../widgets/sf_widgets.dart';
 
+/// Twin of web LoginPage form column — same strap, fields, links, notes.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -55,8 +56,8 @@ class _LoginScreenState extends State<LoginScreen> {
     return SfAuthShell(
       strap: 'Official portal · Authorized users',
       headline: 'Sign in',
-      body:
-          'Sign in with your municipal account. Custody events are logged for accountability.',
+      body: '',
+      showWordmark: false,
       leading: Align(
         alignment: Alignment.centerLeft,
         child: TextButton.icon(
@@ -67,32 +68,9 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 14),
           label: const Text(
-            'Back',
+            'Back to sign in',
             style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
           ),
-        ),
-      ),
-      footer: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Text(
-              "Don't have an account? ",
-              style: TextStyle(color: SfColors.muted, fontSize: 13),
-            ),
-            GestureDetector(
-              onTap: () => context.push('/signup'),
-              child: const Text(
-                'Request access',
-                style: TextStyle(
-                  color: SfColors.blue,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-              ),
-            ),
-          ],
         ),
       ),
       child: Column(
@@ -123,21 +101,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ? Icons.visibility_outlined
                       : Icons.visibility_off_outlined,
                   size: 20,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: GestureDetector(
-              onTap: () => context.push('/forgot-password'),
-              child: const Text(
-                'Forgot password?',
-                style: TextStyle(
-                  color: SfColors.blue,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12.5,
                 ),
               ),
             ),
@@ -187,6 +150,36 @@ class _LoginScreenState extends State<LoginScreen> {
               color: SfColors.muted.withValues(alpha: 0.9),
               height: 1.4,
             ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 14,
+            runSpacing: 8,
+            children: [
+              GestureDetector(
+                onTap: () => context.push('/forgot-password'),
+                child: const Text(
+                  'Forgot password?',
+                  style: TextStyle(
+                    color: SfColors.blue,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () => context.push('/signup'),
+                child: const Text(
+                  'Request access',
+                  style: TextStyle(
+                    color: SfColors.blue,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

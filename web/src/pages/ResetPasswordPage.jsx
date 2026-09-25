@@ -10,6 +10,7 @@ export default function ResetPasswordPage() {
   const [username, setUsername] = useState(state?.username || '')
   const [code, setCode] = useState(state?.code || '')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
   const [loading, setLoading] = useState(false)
@@ -62,21 +63,30 @@ export default function ResetPasswordPage() {
         </div>
         <div className="field">
           <label htmlFor="reset-pass">New password (8+)</label>
-          <input
-            id="reset-pass"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={8}
-          />
+          <div className="field-password">
+            <input
+              id="reset-pass"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={8}
+              autoComplete="new-password"
+              placeholder="Enter your password"
+            />
+            <button
+              type="button"
+              className="field-password__toggle"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
         </div>
         <button className="btn btn--navy" type="submit" disabled={loading}>
           {loading ? 'Saving…' : 'Update password'}
         </button>
-        <div className="auth-links">
-          <Link to="/">Back to sign in</Link>
-        </div>
       </form>
     </AuthShell>
   )

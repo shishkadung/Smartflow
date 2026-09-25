@@ -643,15 +643,8 @@ class SfSquareGradientAvatar extends StatelessWidget {
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(size * 0.23),
-        gradient: SfGradients.brandTitle,
-        boxShadow: [
-          BoxShadow(
-            color: SfColors.navy.withValues(alpha: 0.18),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(8),
+        color: SfColors.navy,
       ),
       clipBehavior: Clip.antiAlias,
       child: url != null && url.isNotEmpty

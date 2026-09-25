@@ -1,6 +1,7 @@
 /// Pilot document types per office (validated with Municipal Accountant).
 /// Physical QR: **Disbursement Voucher** and **Approved Budget**.
-/// Payroll uses payslip access — no physical QR registration in HR.
+/// Payroll uses payslip access — no payroll QR. Others is a named folder that is not a DV or an approved budget.
+const String kOtherDocumentType = 'Others';
 const Map<String, List<String>> kOfficeDocumentTypes = {
   'ENG': ['Disbursement Voucher'],
   'HR': [],
@@ -15,11 +16,17 @@ const Map<String, List<String>> kOfficeDocumentTypes = {
 
 List<String> documentTypesForOffice(String officeCode) {
   final code = officeCode.trim().toUpperCase();
-  return kOfficeDocumentTypes[code] ??
-      const [
-        'Disbursement Voucher',
-        'Approved Budget',
-      ];
+  final types = List<String>.from(
+    kOfficeDocumentTypes[code] ??
+        const [
+          'Disbursement Voucher',
+          'Approved Budget',
+        ],
+  );
+  if (!types.contains(kOtherDocumentType)) {
+    types.add(kOtherDocumentType);
+  }
+  return types;
 }
 
 /// Inter-office request categories shown in the app (payroll omitted — ACC prepares payroll).
@@ -34,5 +41,6 @@ List<MapEntry<String, String>> documentRequestCategoriesForOffice(String officeC
   if (code != 'ACC') {
     items.add(const MapEntry('disbursement', 'Disbursement / DV (→ ACC)'));
   }
+  items.add(const MapEntry('other', 'Others'));
   return items;
 }

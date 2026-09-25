@@ -11,53 +11,88 @@ export function Wordmark({ size = 'sm' }) {
   )
 }
 
+function OverviewCopy({ strap, title, body, chips, hint }) {
+  return (
+    <>
+      {strap ? (
+        <div className="overview__strap-row">
+          <span className="strap">{strap}</span>
+        </div>
+      ) : null}
+      {title ? <h2>{title}</h2> : null}
+      {body ? (
+        <>
+          <span className="overview__rule" aria-hidden />
+          <p className="muted">{body}</p>
+        </>
+      ) : null}
+      {chips?.length ? (
+        <div className="chips">
+          {chips.map((c) => (
+            <span key={typeof c === 'string' ? c : c.label} className={c.gold ? 'chip chip--gold' : 'chip'}>
+              {typeof c === 'string' ? c : c.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {hint ? <div className="hint">{hint}</div> : null}
+    </>
+  )
+}
+
 export function Overview({ strap, title, body, chips, hint, actions, children }) {
+  const props = { strap, title, body, chips, hint }
   return (
     <>
       <section className="overview">
-        {strap ? (
-          <div className="overview__strap-row">
-            <span className="strap">{strap}</span>
-          </div>
-        ) : null}
-        {title ? <h2>{title}</h2> : null}
-        {body ? <p className="muted">{body}</p> : null}
-        {chips?.length ? (
-          <div className="chips">
-            {chips.map((c) => (
-              <span key={typeof c === 'string' ? c : c.label} className={c.gold ? 'chip chip--gold' : 'chip'}>
-                {typeof c === 'string' ? c : c.label}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        {hint ? <div className="hint">{hint}</div> : null}
+        <div className="overview__copy">
+          <OverviewCopy {...props} />
+        </div>
         {actions ? <div className="overview__actions">{actions}</div> : null}
         {children}
       </section>
       <header className="page-head">
         <div className="page-head__copy">
-          {strap ? (
-            <div className="overview__strap-row">
-              <span className="strap">{strap}</span>
-            </div>
-          ) : null}
-          {title ? <h2>{title}</h2> : null}
-          {body ? <p className="muted">{body}</p> : null}
-          {chips?.length ? (
-            <div className="chips">
-              {chips.map((c) => (
-                <span key={typeof c === 'string' ? c : c.label} className={c.gold ? 'chip chip--gold' : 'chip'}>
-                  {typeof c === 'string' ? c : c.label}
-                </span>
-              ))}
-            </div>
-          ) : null}
-          {hint ? <p className="page-head__hint">{hint}</p> : null}
+          <OverviewCopy {...props} />
         </div>
         {actions ? <div className="page-head__actions">{actions}</div> : null}
       </header>
     </>
+  )
+}
+
+/** Soft paper COA summary band (mobile twin of SfCoaExportHero header). */
+export function CoaSummaryHero({
+  monthLabel,
+  docsInPeriod = 0,
+  onChangeMonth,
+  monthValue,
+  children,
+}) {
+  return (
+    <section className="coa-hero">
+      <div className="coa-hero__band">
+        <div className="coa-hero__copy">
+          <p className="coa-hero__strap">COA SUPPORT SUMMARY</p>
+          <h3 className="coa-hero__title">{monthLabel}</h3>
+          <span className="coa-hero__rule" aria-hidden />
+          <p className="coa-hero__meta">
+            {docsInPeriod} documents with activity · municipal system
+          </p>
+        </div>
+        {onChangeMonth ? (
+          <label className="coa-hero__month">
+            <span>Month</span>
+            <input
+              type="month"
+              value={monthValue}
+              onChange={(e) => onChangeMonth(e.target.value)}
+            />
+          </label>
+        ) : null}
+      </div>
+      {children ? <div className="coa-hero__body">{children}</div> : null}
+    </section>
   )
 }
 
@@ -95,6 +130,14 @@ export function LifeSkeleton({ rows = 3, label = 'Loading' }) {
       ))}
     </div>
   )
+}
+
+/** Navy until the count is above zero. Red is only for overdue. */
+export function statTone(value, tone) {
+  const n = Number(String(value ?? '').replace('%', ''))
+  if (!Number.isFinite(n) || n <= 0) return 'stat stat--quiet'
+  if (tone === 'stat--out' || tone === 'stat--hours' || tone === 'stat--pending') return 'stat stat--quiet'
+  return `stat ${tone}`
 }
 
 export function roleLabel(role) {
@@ -237,6 +280,7 @@ export function AuthShell({
   layout = 'stack',
   welcome = 'Welcome',
   showPoints = true,
+  note,
 }) {
   if (layout === 'split') {
     return (
@@ -265,28 +309,31 @@ export function AuthShell({
           </aside>
           <div className="auth-split__panel">
             <div className="auth-split__panel-inner">
-              {leading ? <div className="auth-split__leading">{leading}</div> : null}
-              <div className="auth-split__mobile-brand" aria-hidden="true">
-                <Wordmark size="sm" />
+              <div className="auth-split__stack">
+                {leading ? <div className="auth-split__leading">{leading}</div> : null}
+                <div className="auth-split__mobile-brand" aria-hidden="true">
+                  <Wordmark size="sm" />
+                </div>
+                {strap ? (
+                  <div className="auth-strap">
+                    <span className="auth-strap__text">{strap}</span>
+                    <span className="auth-strap__rule" aria-hidden />
+                  </div>
+                ) : null}
+                {title ? <h2 className="auth-split__form-title">{title}</h2> : null}
+                {note ? <p className="auth-note-plain">{note}</p> : null}
+                {chips?.length ? (
+                  <div className="chips auth-split__chips">
+                    {chips.map((c) => (
+                      <span key={typeof c === 'string' ? c : c.label} className={c.gold ? 'chip chip--gold' : 'chip'}>
+                        {typeof c === 'string' ? c : c.label}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                {children}
+                <GovFooter />
               </div>
-              {strap ? (
-                <div className="auth-strap">
-                  <span className="auth-strap__text">{strap}</span>
-                  <span className="auth-strap__rule" aria-hidden />
-                </div>
-              ) : null}
-              {title ? <h2 className="auth-split__form-title">{title}</h2> : null}
-              {chips?.length ? (
-                <div className="chips auth-split__chips">
-                  {chips.map((c) => (
-                    <span key={typeof c === 'string' ? c : c.label} className={c.gold ? 'chip chip--gold' : 'chip'}>
-                      {typeof c === 'string' ? c : c.label}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-              {children}
-              <GovFooter />
             </div>
           </div>
         </div>

@@ -7,6 +7,7 @@ import '../../utils/api_error.dart';
 import '../../theme/smartflow_theme.dart';
 import '../../widgets/sf_widgets.dart';
 
+/// Twin of web ResetPasswordPage (confirm field kept for mobile safety).
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key, this.username, this.code});
 
@@ -103,32 +104,23 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return SfAuthShell(
-      strap: 'Account recovery · Official portal',
-      headline: 'Set a new password',
+      strap: 'Password reset',
+      headline: 'New password',
       body:
-          'Enter the reset code from your email, then choose a new password for your municipal account.',
+          'Use the reset code from your email, then choose a new password (8+ characters).',
+      showWordmark: false,
       leading: Align(
         alignment: Alignment.centerLeft,
         child: TextButton.icon(
-          onPressed: () => context.go('/forgot-password'),
+          onPressed: () => context.go('/login'),
           style: TextButton.styleFrom(
             foregroundColor: Colors.white.withValues(alpha: 0.85),
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           ),
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 14),
           label: const Text(
-            'Back',
-            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-          ),
-        ),
-      ),
-      footer: Padding(
-        padding: const EdgeInsets.only(top: 4),
-        child: TextButton(
-          onPressed: () => context.go('/login'),
-          child: const Text(
             'Back to sign in',
-            style: TextStyle(fontWeight: FontWeight.w700),
+            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
           ),
         ),
       ),
@@ -195,8 +187,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               controller: _passwordCtrl,
               obscureText: _obscurePassword,
               decoration: InputDecoration(
-                labelText: 'New password',
-                hintText: 'At least 8 characters',
+                labelText: 'New password (8+)',
+                hintText: 'Enter your password',
                 prefixIcon: const Icon(Icons.lock_outline, size: 20),
                 suffixIcon: IconButton(
                   onPressed: () =>
@@ -263,7 +255,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             ],
             const SizedBox(height: 18),
             SfPrimaryButton(
-              label: _loading ? 'Saving…' : 'Save new password',
+              label: _loading ? 'Saving…' : 'Update password',
+              navy: true,
               loading: _loading,
               onPressed: _loading ? null : _submit,
             ),

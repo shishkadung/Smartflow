@@ -80,9 +80,9 @@ function smartflow_category_owner_code(string $category): ?string
 function smartflow_allowed_categories_for_role(string $role): array
 {
     return match ($role) {
-        'admin' => ['budget', 'payroll', 'disbursement', 'general'],
-        'head'  => ['budget', 'payroll', 'disbursement', 'general'],
-        'staff' => ['budget', 'payroll', 'disbursement', 'general'],
+        'admin' => ['budget', 'payroll', 'disbursement', 'general', 'other'],
+        'head'  => ['budget', 'payroll', 'disbursement', 'general', 'other'],
+        'staff' => ['budget', 'payroll', 'disbursement', 'general', 'other'],
         default => [],
     };
 }
@@ -115,6 +115,26 @@ function smartflow_resolve_document_request(PDO $pdo, array $user, string $kind,
         return [
             'handler_office_id' => $targetOfficeId,
             'document_category' => $category,
+            'target_office_id'  => $targetOfficeId,
+        ];
+    }
+
+    if ($category === 'other') {
+        if ($targetOfficeId === null || $targetOfficeId <= 0) {
+            json_response([
+                'success' => false,
+                'message' => 'Choose the office that should receive this request',
+            ], 400);
+        }
+        if ($targetOfficeId === (int)$user['office_id']) {
+            json_response([
+                'success' => false,
+                'message' => 'Cannot send Others to your own office — process locally',
+            ], 400);
+        }
+        return [
+            'handler_office_id' => $targetOfficeId,
+            'document_category' => 'other',
             'target_office_id'  => $targetOfficeId,
         ];
     }

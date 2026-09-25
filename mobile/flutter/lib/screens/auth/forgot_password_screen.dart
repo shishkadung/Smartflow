@@ -7,6 +7,7 @@ import '../../utils/api_error.dart';
 import '../../theme/smartflow_theme.dart';
 import '../../widgets/sf_widgets.dart';
 
+/// Twin of web ForgotPasswordPage.
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
 
@@ -61,10 +62,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   @override
   Widget build(BuildContext context) {
     return SfAuthShell(
-      strap: 'Account recovery · Official portal',
-      headline: 'Forgot password',
-      body:
-          'Enter your username and we will send a reset code to your registered email.',
+      strap: 'Password reset',
+      headline: 'Reset password',
+      body: 'Enter your username. A one-time code is sent if the account exists.',
+      showWordmark: false,
       leading: Align(
         alignment: Alignment.centerLeft,
         child: TextButton.icon(
@@ -192,6 +193,20 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               onPressed: _loading ? null : _submit,
             ),
           ],
+          const SizedBox(height: 14),
+          Center(
+            child: GestureDetector(
+              onTap: () => context.push('/reset-password'),
+              child: const Text(
+                'Already have a code?',
+                style: TextStyle(
+                  color: SfColors.blue,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );

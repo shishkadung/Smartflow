@@ -193,32 +193,77 @@ function smartflow_ensure_pilot_offices(PDO $pdo): void
     }
 }
 
+/**
+ * Concurrent API requests can race on ALTER/CREATE during bootstrap.
+ * Duplicate column / already-exists errors are safe to ignore.
+ */
+function smartflow_is_benign_schema_race(PDOException $e): bool
+{
+    $msg = $e->getMessage();
+    foreach ([
+        'Duplicate column',
+        'Duplicate key name',
+        'already exists',
+        'check that it exists', // DROP INDEX / FK when missing mid-race
+    ] as $needle) {
+        if (stripos($msg, $needle) !== false) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function smartflow_run_schema_step(callable $step): void
+{
+    try {
+        $step();
+    } catch (PDOException $e) {
+        if (smartflow_is_benign_schema_race($e)) {
+            return;
+        }
+        throw $e;
+    }
+}
+
 function smartflow_bootstrap_schema(PDO $pdo): void
 {
     require_once __DIR__ . '/thresholds-helper.php';
     require_once __DIR__ . '/users-helper.php';
     require_once __DIR__ . '/document-requests-helper.php';
 
-    smartflow_ensure_pilot_offices($pdo);
-    smartflow_ensure_signup_requests($pdo);
-    smartflow_ensure_users_active_column($pdo);
-    smartflow_ensure_users_avatar_column($pdo);
-    smartflow_ensure_users_email_column($pdo);
-    smartflow_ensure_documents_due_column($pdo);
-    smartflow_ensure_documents_created_by($pdo);
-    smartflow_ensure_documents_date_registered($pdo);
-    smartflow_ensure_movements_destination_column($pdo);
-    smartflow_ensure_audit_logs($pdo);
-    smartflow_ensure_password_resets($pdo);
-    smartflow_ensure_auth_tokens($pdo);
-    smartflow_ensure_processing_thresholds($pdo);
-    smartflow_ensure_document_requests($pdo);
+    $steps = [
+        static fn () => smartflow_ensure_pilot_offices($pdo),
+        static fn () => smartflow_ensure_signup_requests($pdo),
+        static fn () => smartflow_ensure_users_active_column($pdo),
+        static fn () => smartflow_ensure_users_avatar_column($pdo),
+        static fn () => smartflow_ensure_users_email_column($pdo),
+        static fn () => smartflow_ensure_documents_due_column($pdo),
+        static fn () => smartflow_ensure_documents_created_by($pdo),
+        static fn () => smartflow_ensure_documents_date_registered($pdo),
+        static fn () => smartflow_ensure_movements_destination_column($pdo),
+        static fn () => smartflow_ensure_audit_logs($pdo),
+        static fn () => smartflow_ensure_password_resets($pdo),
+        static fn () => smartflow_ensure_auth_tokens($pdo),
+        static fn () => smartflow_ensure_processing_thresholds($pdo),
+        static fn () => smartflow_ensure_document_requests($pdo),
+    ];
+
+    foreach ($steps as $step) {
+        smartflow_run_schema_step($step);
+    }
 }
 
 function smartflow_json_exception_handler(Throwable $e): void
 {
     if (headers_sent()) {
         return;
+    }
+    if (function_exists('smartflow_log')) {
+        smartflow_log('error', $e->getMessage(), [
+            'type' => $e::class,
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+        ]);
     }
     $message = 'Server error';
     if ($e instanceof PDOException) {

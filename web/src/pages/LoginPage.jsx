@@ -5,12 +5,13 @@ import { useAuth } from '../auth.jsx'
 import { AuthShell } from '../components/ui.jsx'
 import { homePath } from '../tracking.js'
 
-/** Landing + sign-in — form is primary; brand copy stays short (adviser split layout). */
+/** Twin of Flutter Get Started + Login — same strap, pitch, fields, links, footer. */
 export default function LoginPage() {
   const { isAuthenticated, user, login } = useAuth()
   const navigate = useNavigate()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -59,17 +60,31 @@ export default function LoginPage() {
         </div>
         <div className="field">
           <label htmlFor="sf-login-pass">Password</label>
-          <input
-            id="sf-login-pass"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoComplete="current-password"
-          />
+          <div className="field-password">
+            <input
+              id="sf-login-pass"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              placeholder="Enter your password"
+            />
+            <button
+              type="button"
+              className="field-password__toggle"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+            >
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
+          </div>
         </div>
         <button className="btn btn--navy" type="submit" disabled={loading}>
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
+        <p className="auth-session-note">
+          Sessions and custody events are logged for municipal accountability.
+        </p>
         <div className="auth-links">
           <Link to="/forgot-password">Forgot password?</Link>
           <Link to="/signup">Request access</Link>

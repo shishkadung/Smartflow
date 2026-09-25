@@ -67,7 +67,6 @@ export default function ForgotPasswordPage() {
         </button>
         <div className="auth-links">
           <Link to="/reset-password">Already have a code?</Link>
-          <Link to="/">Sign in</Link>
         </div>
       </form>
     </AuthShell>

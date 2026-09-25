@@ -18,6 +18,7 @@ import '../../widgets/sf_page.dart';
 import '../../widgets/sf_pdf_chrome.dart';
 import '../../widgets/sf_widgets.dart';
 import '../admin/admin_shell.dart';
+import '../admin/admin_widgets.dart';
 import '../head/head_widgets.dart';
 import '../shared/change_password_sheet.dart';
 import '../shared/edit_profile_sheet.dart';
@@ -366,8 +367,6 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
         controller: _scrollCtrl,
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          const SfClerkAppHeader(),
-          const SizedBox(height: 10),
           const SfClerkPageOverviewCard(screen: SfClerkScreen.home),
           if (requestHint != null) ...[
             const SizedBox(height: 12),
@@ -542,7 +541,10 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
 }
 
 class StaffAlertsScreen extends StatefulWidget {
-  const StaffAlertsScreen({super.key});
+  const StaffAlertsScreen({super.key, this.municipal = false});
+
+  /// Municipal accountant: alerts across offices, not one desk.
+  final bool municipal;
 
   @override
   State<StaffAlertsScreen> createState() => _StaffAlertsScreenState();
@@ -680,7 +682,9 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
       _error = null;
     });
     try {
-      final data = await context.read<AuthProvider>().api.alerts(oid);
+      final data = widget.municipal
+          ? await context.read<AuthProvider>().api.accountantAlerts()
+          : await context.read<AuthProvider>().api.alerts(oid);
       final list = data['alerts'] as List<dynamic>? ?? [];
       if (!mounted) return;
       setState(() {
@@ -708,7 +712,8 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
   }
 
   void _openHistory(String docId) {
-    context.push('/staff/history', extra: {'documentId': docId});
+    final route = widget.municipal ? '/admin/history' : '/staff/history';
+    context.push(route, extra: {'documentId': docId});
   }
 
   String _compactText(dynamic value) =>
@@ -727,7 +732,6 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
     final unconfirmed = kind == 'unconfirmed';
     final docId = _compactText(m['document_id']);
     final docTitle = _compactText(m['document_title']);
-    final detail = _compactText(m['detail']);
     final days = _asInt(m['days_pending']);
     final hours = _asInt(m['hours_pending']);
     final pendingLabel = days > 0
@@ -740,11 +744,15 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
         ? 'Waiting for other office'
         : (delayed ? 'Still on your desk' : 'Due soon');
     final rule = m['threshold_rule']?.toString();
+    final office = _compactText(m['last_office_name']);
     final title = docTitle.isNotEmpty
         ? docTitle
         : (docId.isNotEmpty ? docId : 'Document alert');
-    final subtitle =
-        detail.isNotEmpty ? detail : 'Open Scan to follow up on this folder.';
+    final subtitle = [
+      if (docId.isNotEmpty) docId,
+      if (office.isNotEmpty) office,
+      pendingLabel == '${hours}h' ? '$hours hours at this desk' : pendingLabel,
+    ].join(' · ');
 
     return SfAlertCardWithActions(
       title: title,
@@ -793,7 +801,10 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
         children: [
           const SfAuthenticatedPageHeader(),
           const SizedBox(height: 8),
-          const SfClerkPageOverviewCard(screen: SfClerkScreen.alerts),
+          if (widget.municipal)
+            const SfAdminPageOverviewCard(screen: SfAdminScreen.alerts)
+          else
+            const SfClerkPageOverviewCard(screen: SfClerkScreen.alerts),
           const SizedBox(height: 14),
           if (_error != null) ...[
             SfErrorBanner(message: _error!),
@@ -1331,18 +1342,6 @@ class _StaffHistoryScreenState extends State<StaffHistoryScreen> {
               screen: SfClerkScreen.history,
               compact: true,
             ),
-          const SizedBox(height: 8),
-          Text(
-            widget.monitorOnly
-                ? 'Look up a tracking ID or open a folder from Queue.'
-                : 'Browse today’s scans, then open a trail for one folder.',
-            style: TextStyle(
-              fontSize: 11.5,
-              height: 1.35,
-              color: SfColors.muted.withValues(alpha: 0.95),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
           const SizedBox(height: 12),
           _HistoryLookupCard(
             controller: _lookupCtrl,
@@ -1420,10 +1419,10 @@ class _StaffHistoryScreenState extends State<StaffHistoryScreen> {
             else if (_movements.isEmpty)
               SfEmptyState(
                 icon: SfIcons.timeline,
-                title: 'No scans yet',
-                subtitle: widget.monitorOnly
-                    ? 'No IN/OUT movements for this tracking ID.'
-                    : null,
+                title: _loadedId == null ? 'No scans yet' : 'No movements for this ID',
+                subtitle: _loadedId == null
+                    ? 'Enter a tracking ID to see the custody trail.'
+                    : 'No movements for this ID.',
                 actionLabel: widget.monitorOnly ? null : 'Open Scanner',
                 onAction: widget.monitorOnly
                     ? null
@@ -1520,11 +1519,6 @@ class _HistoryLookupCard extends StatelessWidget {
           const Text(
             'Look up tracking ID',
             style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Enter a tracking ID or tap a folder below.',
-            style: TextStyle(fontSize: 11, color: SfColors.muted, height: 1.35),
           ),
           const SizedBox(height: 10),
           TextField(
@@ -2023,8 +2017,8 @@ class _GenericProfileView extends StatelessWidget {
             title: 'Session',
             rows: [
               MapEntry(
-                'Role (database)',
-                '${user.role} · monitor one office only',
+                'Role',
+                'Department head · this office only',
               ),
               MapEntry(
                 'Office scope',

@@ -55,11 +55,16 @@ class _AdminShellState extends State<AdminShell> {
 
   static const _primaryTabs = [
     '/admin',
-    '/admin/users',
+    '/admin/scan',
     '/admin/reports',
   ];
 
   static const _menuRoutes = [
+    '/admin/users',
+    '/admin/requests',
+    '/admin/register',
+    '/admin/alerts',
+    '/admin/history',
     '/admin/offices',
     '/admin/thresholds',
     '/admin/qr-monitor',
@@ -98,11 +103,10 @@ class _AdminShellState extends State<AdminShell> {
             activeIcon: SfIcons.adminHomeActive,
             label: 'Home',
           ),
-          SfNavTab(
-            icon: SfIcons.adminUsers,
-            activeIcon: SfIcons.adminUsersActive,
-            label: 'Users',
-            badge: _pendingSignups > 0 ? _pendingSignups : null,
+          const SfNavTab(
+            icon: SfIcons.clerkScan,
+            activeIcon: SfIcons.clerkScanActive,
+            label: 'Scan',
           ),
           const SfNavTab(
             icon: SfIcons.adminCoaSummary,
@@ -110,10 +114,11 @@ class _AdminShellState extends State<AdminShell> {
             label: 'COA',
             elevated: true,
           ),
-          const SfNavTab(
+          SfNavTab(
             icon: SfIcons.more,
             activeIcon: SfIcons.moreActive,
             label: 'Menu',
+            badge: _pendingSignups > 0 ? _pendingSignups : null,
           ),
         ],
         body: widget.child,
@@ -137,6 +142,7 @@ class _AdminProfileViewState extends State<AdminProfileView> {
   String? _activeDocs;
   String? _overdue;
   String? _pending;
+  bool? _apiOnline;
   bool _statsLoading = true;
   bool _photoBusy = false;
 
@@ -148,14 +154,23 @@ class _AdminProfileViewState extends State<AdminProfileView> {
 
   Future<void> _loadMunicipalStats() async {
     try {
-      final data =
-          await context.read<AuthProvider>().api.accountantDashboard();
+      final api = context.read<AuthProvider>().api;
+      final data = await api.accountantDashboard();
       final stats = data['stats'] as Map<String, dynamic>? ?? {};
+      bool? online;
+      try {
+        final status = await api.systemStatus();
+        final st = status['status'] as Map<String, dynamic>?;
+        online = st?['api']?.toString().startsWith('On') == true;
+      } catch (_) {
+        online = false;
+      }
       if (!mounted) return;
       setState(() {
         _activeDocs = '${stats['active_documents'] ?? '—'}';
         _overdue = '${stats['overdue'] ?? '—'}';
         _pending = '${stats['pending_signups'] ?? '—'}';
+        _apiOnline = online;
         _statsLoading = false;
       });
       final n = (stats['pending_signups'] as int?) ?? 0;
@@ -231,6 +246,13 @@ class _AdminProfileViewState extends State<AdminProfileView> {
               child: const Text('Back to profile'),
             ),
           ] else ...[
+            if (_apiOnline != null) ...[
+              SfAdminSystemStatusBanner(
+                apiOnline: _apiOnline!,
+                onTap: () => context.go('/admin/system'),
+              ),
+              const SizedBox(height: 14),
+            ],
             if (_statsLoading)
               const SfLoadingCard()
             else
@@ -241,7 +263,7 @@ class _AdminProfileViewState extends State<AdminProfileView> {
                 deskSectionTitle: 'Municipal snapshot',
                 stat1Label: 'Active docs',
                 stat2Label: 'Overdue',
-                stat3Label: 'Pending users',
+                stat3Label: 'Sign-ups',
                 inFlow: _activeDocs,
                 outFlow: _overdue,
                 activeTags: _pending,
@@ -284,10 +306,8 @@ class AdminDashboardScreen extends StatefulWidget {
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Map<String, dynamic>? _dash;
-  Map<String, dynamic>? _status;
   String? _error;
   bool _loading = true;
-  DateTime? _lastLoaded;
 
   @override
   void initState() {
@@ -306,15 +326,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     try {
       final api = context.read<AuthProvider>().api;
       final dash = await api.accountantDashboard();
-      final status = await api.systemStatus();
       if (!mounted) return;
       final pending = (dash['stats']?['pending_signups'] as int?) ?? 0;
       context.findAncestorStateOfType<_AdminShellState>()?.refreshPendingBadge(pending);
       setState(() {
         _dash = dash;
-        _status = status;
         _loading = false;
-        _lastLoaded = DateTime.now();
       });
     } on ApiException catch (e) {
       if (mounted) {
@@ -333,30 +350,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     }
   }
 
-  String _statHint(int active, int overdue, int pending) {
-    final parts = <String>[];
-    if (active > 0) {
-      parts.add('$active folder${active == 1 ? '' : 's'} IN somewhere in the pilot');
-    }
-    if (overdue > 0) {
-      parts.add('$overdue past 48h at a desk');
-    }
-    if (pending > 0) {
-      parts.add('$pending sign-up${pending == 1 ? '' : 's'} need review');
-    }
-    if (parts.isEmpty) {
-      return 'Municipal pilot is quiet — no overdue desks or pending sign-ups.';
-    }
-    return parts.join(' · ');
-  }
-
   @override
   Widget build(BuildContext context) {
     final stats = _dash?['stats'] as Map<String, dynamic>?;
     final offices = _dash?['office_totals'] as List<dynamic>? ?? [];
     final month = _dash?['month']?.toString();
-    final st = _status?['status'] as Map<String, dynamic>?;
-    final apiOnline = st?['api']?.toString().startsWith('On') == true;
     final pending = (stats?['pending_signups'] as int?) ?? 0;
     final active = (stats?['active_documents'] as int?) ?? 0;
     final overdue = (stats?['overdue'] as int?) ?? 0;
@@ -374,93 +372,46 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             screen: SfAdminScreen.home,
             pendingSignups: pending,
           ),
-          if (month != null && month.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Activity month · $month · $pilotOffices pilot office${pilotOffices == 1 ? '' : 's'}',
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: SfColors.muted,
-                letterSpacing: 0.2,
-              ),
-            ),
-          ],
           const SizedBox(height: 12),
           if (pending > 0) ...[
             SfAdminStartHereCard(pendingSignups: pending),
             const SizedBox(height: 12),
           ],
           if (_error != null) ...[
-            const SizedBox(height: 12),
             SfErrorBanner(message: _error!),
+            const SizedBox(height: 12),
           ],
-          const SizedBox(height: 12),
-          if (!_loading)
-            SfAdminSystemStatusBanner(
-              apiOnline: apiOnline,
-              onTap: () => context.go('/admin/system'),
+          if (month != null && month.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              '$month · $pilotOffices office${pilotOffices == 1 ? '' : 's'}',
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: SfColors.muted,
+              ),
             ),
+          ],
           if (_loading) ...[
             const SizedBox(height: 12),
             const SfLoadingCard(),
           ] else if (stats != null) ...[
-            const SizedBox(height: 14),
-            Text(
-              sfAdminLastSyncLabel(_lastLoaded),
-              style: const TextStyle(
-                fontSize: 10,
-                color: SfColors.muted,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             SfAdminStatRow(
               activeDocs: active,
               overdue: overdue,
               pendingSignups: pending,
-              hint: _statHint(active, overdue, pending),
               onActiveDocsTap: () => context.go('/admin/offices'),
               onOverdueTap: () => context.go('/admin/offices'),
               onPendingTap: () => context.go('/admin/users'),
             ),
-            if (overdue == 0 && pending == 0 && active > 0) ...[
-              const SizedBox(height: 12),
-              SfFormCard(
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.verified_outlined,
-                      size: 22,
-                      color: SfColors.green.withValues(alpha: 0.9),
-                    ),
-                    const SizedBox(width: 10),
-                    const Expanded(
-                      child: Text(
-                        'Pilot on track — no overdue desks or pending sign-ups right now.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: SfColors.muted,
-                          height: 1.4,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
           ],
           if (!_loading && offices.isNotEmpty) ...[
             const SizedBox(height: 20),
             SfClerkSectionHeader(
-              title: 'Office health',
+              title: 'By office',
               link: 'All offices',
               onLinkTap: () => context.go('/admin/offices'),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Tap a row for office config and thresholds',
-              style: TextStyle(fontSize: 11, color: SfColors.muted, height: 1.35),
             ),
             const SizedBox(height: 8),
             ...offices.map((o) {
@@ -479,8 +430,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             const SfEmptyState(
               icon: Icons.domain_outlined,
               title: 'No office activity yet',
-              subtitle:
-                  'Movement counts appear after clerks scan IN/OUT in pilot offices.',
+              subtitle: 'Counts appear after an IN or OUT scan.',
             ),
           ],
         ],
@@ -630,16 +580,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
             screen: SfAdminScreen.users,
             pendingSignups: _pending.length,
             compact: true,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Approve only verified municipal staff · reject unknown requests.',
-            style: TextStyle(
-              fontSize: 11.5,
-              height: 1.35,
-              color: SfColors.muted.withValues(alpha: 0.95),
-              fontWeight: FontWeight.w600,
-            ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
@@ -817,16 +757,6 @@ class _AdminOfficesScreenState extends State<AdminOfficesScreen> {
           const SfAuthenticatedPageHeader(),
           const SizedBox(height: 12),
           const SfAdminPageOverviewCard(screen: SfAdminScreen.offices, compact: true),
-          const SizedBox(height: 8),
-          Text(
-            'Pilot offices and desk-time limits — edit thresholds when processing rules change.',
-            style: TextStyle(
-              fontSize: 11.5,
-              height: 1.35,
-              color: SfColors.muted.withValues(alpha: 0.95),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
           if (_error != null) ...[
             const SizedBox(height: 12),
             SfErrorBanner(message: _error!),
@@ -856,7 +786,7 @@ class _AdminOfficesScreenState extends State<AdminOfficesScreen> {
                   : thresholds
                       .map((t) {
                         final th = t as Map<String, dynamic>;
-                        return '${th['document_type']}: ${th['max_hours']}h';
+                        return '${th['document_type']} · ${th['max_hours']} hours at this desk';
                       })
                       .join(' · ');
               final dept = SfColors.dept(code.isNotEmpty ? code : 'ENG');
@@ -909,7 +839,7 @@ class _AdminOfficesScreenState extends State<AdminOfficesScreen> {
                         ),
                       ),
                       const SfStatusPill(
-                        label: 'Pilot',
+                        label: 'Active',
                         tone: SfPillTone.success,
                       ),
                     ],
@@ -990,16 +920,6 @@ class _AdminSystemScreenState extends State<AdminSystemScreen> {
           const SfAuthenticatedPageHeader(),
           const SizedBox(height: 12),
           const SfAdminPageOverviewCard(screen: SfAdminScreen.system, compact: true),
-          const SizedBox(height: 8),
-          Text(
-            'Municipal pilot health — API, database, and today’s custody activity.',
-            style: TextStyle(
-              fontSize: 11.5,
-              height: 1.35,
-              color: SfColors.muted.withValues(alpha: 0.95),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
           if (_error != null) ...[
             const SizedBox(height: 12),
             SfErrorBanner(message: _error!),
@@ -1101,13 +1021,16 @@ class _AdminSystemScreenState extends State<AdminSystemScreen> {
                   SfStatCard(
                     value: '${_data?['users']?['active'] ?? ops['pending_signups'] ?? 0}',
                     label: 'Active users',
-                    color: SfColors.blue,
+                    color: SfColors.countInk(
+                      _data?['users']?['active'] ?? ops['pending_signups'] ?? 0,
+                      live: SfColors.blue,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   SfStatCard(
                     value: '${ops['movements_today'] ?? 0}',
                     label: 'Scans today',
-                    color: SfColors.green,
+                    color: SfColors.countInk(ops['movements_today'] ?? 0, live: SfColors.green),
                   ),
                 ],
               ),
@@ -1260,7 +1183,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     final docCount = totals?['documents_in_period'] ?? 0;
     final text = '''
 SmartFlow · Municipality of Urbiztondo
-COA Support Summary · $monthLabel (municipal pilot)
+COA Support Summary · $monthLabel (Municipality of Urbiztondo)
 
 Documents with activity: $docCount
 On time: $onTime%
@@ -1399,7 +1322,7 @@ Generated from SmartFlow mobile (admin / accountant view).
             ),
             const SizedBox(height: 4),
             const Text(
-              'Documents touched per pilot office this month',
+              'Documents touched per office this month',
               style: TextStyle(fontSize: 11, color: SfColors.muted, height: 1.35),
             ),
             const SizedBox(height: 8),
@@ -1542,16 +1465,6 @@ class _AdminThresholdsScreenState extends State<AdminThresholdsScreen> {
           const SfAdminPageOverviewCard(
             screen: SfAdminScreen.thresholds,
             compact: true,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Set how long a folder may sit IN at each office before it is overdue.',
-            style: TextStyle(
-              fontSize: 11.5,
-              height: 1.35,
-              color: SfColors.muted.withValues(alpha: 0.95),
-              fontWeight: FontWeight.w600,
-            ),
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),

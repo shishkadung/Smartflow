@@ -10,6 +10,7 @@ import '../staff/clerk_widgets.dart';
 /// Head (department supervisor) screens using the shared overview card layout.
 enum SfHeadScreen {
   home,
+  scan,
   register,
   queue,
   alerts,
@@ -35,19 +36,20 @@ class SfHeadPageOverviewCard extends StatelessWidget {
   final String? documentId;
   final int? pendingInbox;
 
-  /// When null, Queue / Alerts / History / Requests / Register default to compact.
+  /// When null, Queue / Alerts / History / Requests / Register / Analytics → title-only.
   final bool? compact;
 
   static bool _defaultCompact(SfHeadScreen screen) {
     switch (screen) {
+      case SfHeadScreen.scan:
       case SfHeadScreen.queue:
       case SfHeadScreen.alerts:
       case SfHeadScreen.history:
       case SfHeadScreen.requests:
       case SfHeadScreen.register:
+      case SfHeadScreen.analytics:
         return true;
       case SfHeadScreen.home:
-      case SfHeadScreen.analytics:
       case SfHeadScreen.profile:
       case SfHeadScreen.accountSecurity:
       case SfHeadScreen.registerSuccess:
@@ -65,36 +67,38 @@ class SfHeadPageOverviewCard extends StatelessWidget {
 
     switch (screen) {
       case SfHeadScreen.home:
-        title = 'Office queue';
+        title = 'Office overview';
         body = headDashboardSubtitleForOffice(user.officeCode);
+      case SfHeadScreen.scan:
+        title = 'Scan';
+        body = 'Mark IN when a folder arrives at your desk, or OUT when you send it.';
       case SfHeadScreen.register:
-        title = 'Register a document folder';
+        title = 'Register';
         body = registerSubtitleForOffice(user.officeCode);
       case SfHeadScreen.queue:
-        title = 'Office queue';
+        title = 'Queue';
         body = headQueueSubtitleForOffice(user.officeCode);
       case SfHeadScreen.alerts:
         title = 'Alerts';
         body =
-            'Overdue IN, or OUT from ${user.officeCode} with no receive yet.';
+            'Overdue folders, or OUT from ${user.officeCode} with no receive yet.';
       case SfHeadScreen.analytics:
-        title = 'Turnaround & compliance';
-        body = 'Monthly on-time rate and slow documents for your office.';
+        title = 'Analytics';
+        body = 'On-time rate and slow documents for your office.';
       case SfHeadScreen.history:
         title = 'History';
-        body = 'Look up every IN and OUT scan by tracking ID.';
+        body = 'Search a tracking ID or open a folder trail.';
       case SfHeadScreen.profile:
-        title = 'Your profile';
-        body =
-            'Office account snapshot. Photo and edits are under Account & security.';
+        title = 'Profile';
+        body = 'Your office account and desk stats.';
       case SfHeadScreen.accountSecurity:
         title = 'Account & security';
-        body = 'Photo, name, email, password, or end this session.';
+        body = 'Photo, name, email, password, or sign out.';
       case SfHeadScreen.registerSuccess:
         title = documentId ?? 'Document registered';
         body = 'Print the QR label and attach it to the folder.';
       case SfHeadScreen.requests:
-        title = 'Document requests';
+        title = 'Requests';
         body = headRequestsSubtitleForOffice(user.officeCode);
     }
 
@@ -140,6 +144,7 @@ class SfHeadStatRow extends StatelessWidget {
             child: SfStatCard(
               value: '$inOffice',
               label: 'In office',
+              color: SfColors.countInk(inOffice, live: SfColors.blue),
             ),
           ),
         ),
@@ -150,7 +155,7 @@ class SfHeadStatRow extends StatelessWidget {
             child: SfStatCard(
               value: '$overdue',
               label: 'Overdue',
-              color: overdue > 0 ? SfColors.red : null,
+              color: SfColors.countInk(overdue, live: SfColors.red),
             ),
           ),
         ),
@@ -159,7 +164,7 @@ class SfHeadStatRow extends StatelessWidget {
           child: SfStatCard(
             value: '${avgHours}h',
             label: 'Avg time',
-            color: SfColors.green,
+            color: SfColors.navy,
           ),
         ),
       ],

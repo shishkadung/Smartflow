@@ -38,6 +38,8 @@ class _SignupScreenState extends State<SignupScreen> {
 
   String? _passError;
   String? _confirmError;
+  bool _obscurePass = true;
+  bool _obscureConfirm = true;
 
   List<Map<String, dynamic>> _offices = [];
   int? _officeId;
@@ -180,7 +182,7 @@ class _SignupScreenState extends State<SignupScreen> {
     final heroTitle =
         _step == 0 ? 'Create your account' : 'Select office & role';
     final heroBody = _step == 0
-        ? 'Tell us who you are. Your account starts as Pending until the LGU IT admin approves it.'
+        ? 'Admin approval required. Tell us who you are — your account stays pending until approved.'
         : "Choose where you work and what you'll do. Admin will verify this during approval.";
 
     return SfPage(
@@ -213,7 +215,7 @@ class _SignupScreenState extends State<SignupScreen> {
           const SizedBox(height: 14),
           if (_step == 0)
             SfSecondaryOutlineButton(
-              label: 'Back to Login',
+              label: 'Back to sign in',
               onPressed: () => context.go('/login'),
             )
           else
@@ -229,7 +231,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 Expanded(
                   flex: 2,
                   child: SfPrimaryButton(
-                    label: _loading ? 'Submitting…' : 'Submit Request',
+                    label: _loading ? 'Submitting…' : 'Submit for approval',
                     loading: _loading,
                     onPressed: _loading ? null : _submit,
                   ),
@@ -243,11 +245,20 @@ class _SignupScreenState extends State<SignupScreen> {
 
   List<Widget> _buildAccountStep() {
     return [
+      const Text(
+        'Admin approval required',
+        style: TextStyle(
+          fontSize: 12.5,
+          color: SfColors.muted,
+          height: 1.35,
+        ),
+      ),
+      const SizedBox(height: 12),
       TextField(
         controller: _name,
         decoration: const InputDecoration(
-          labelText: 'Full Name',
-          hintText: 'Engr. Name',
+          labelText: 'Full name',
+          hintText: 'Full name',
         ),
       ),
       const SizedBox(height: 12),
@@ -255,7 +266,7 @@ class _SignupScreenState extends State<SignupScreen> {
         controller: _username,
         decoration: const InputDecoration(
           labelText: 'Username',
-          hintText: 'name',
+          hintText: 'Username',
         ),
       ),
       const SizedBox(height: 12),
@@ -263,28 +274,47 @@ class _SignupScreenState extends State<SignupScreen> {
         controller: _email,
         keyboardType: TextInputType.emailAddress,
         decoration: const InputDecoration(
-          labelText: 'Email (LGU)',
+          labelText: 'Email',
           hintText: 'name@urbiztondo.gov.ph',
         ),
       ),
       const SizedBox(height: 12),
       TextField(
         controller: _pass,
-        obscureText: true,
+        obscureText: _obscurePass,
         decoration: InputDecoration(
-          labelText: 'Password',
-          hintText: 'At least 8 characters',
+          labelText: 'Password (8+ chars)',
+          hintText: 'Enter your password',
           errorText: _passError,
           counterText: '${_pass.text.length}/8 min',
+          suffixIcon: IconButton(
+            onPressed: () => setState(() => _obscurePass = !_obscurePass),
+            icon: Icon(
+              _obscurePass
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined,
+              size: 20,
+            ),
+          ),
         ),
       ),
       const SizedBox(height: 12),
       TextField(
         controller: _confirm,
-        obscureText: true,
+        obscureText: _obscureConfirm,
         decoration: InputDecoration(
-          labelText: 'Confirm Password',
+          labelText: 'Confirm password',
           errorText: _confirmError,
+          suffixIcon: IconButton(
+            onPressed: () =>
+                setState(() => _obscureConfirm = !_obscureConfirm),
+            icon: Icon(
+              _obscureConfirm
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined,
+              size: 20,
+            ),
+          ),
         ),
       ),
       const SizedBox(height: 18),

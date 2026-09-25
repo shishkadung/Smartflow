@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { smartflow, ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
-import { Modal, Overview, roleLabel } from '../components/ui.jsx'
+import { Modal, Overview, roleLabel, statTone } from '../components/ui.jsx'
 import { RoleTipButton } from '../components/Help.jsx'
 import { UserAvatar } from '../components/UserAvatar.jsx'
 import { SfIcon } from '../icons.jsx'
@@ -34,6 +34,7 @@ export default function ProfilePage() {
 
   const [stats, setStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(true)
+  const [status, setStatus] = useState(null)
 
   useEffect(() => {
     setName(user.name || '')
@@ -48,8 +49,11 @@ export default function ProfilePage() {
       ? smartflow.accountantDashboard()
       : smartflow.dashboardStats(user.office_id)
 
-    load
-      .then((d) => {
+    Promise.all([
+      load,
+      user.role === 'admin' ? smartflow.systemStatus().catch(() => null) : Promise.resolve(null),
+    ])
+      .then(([d, st]) => {
         if (cancelled) return
         if (user.role === 'admin') {
           const s = d.stats || {}
@@ -57,7 +61,7 @@ export default function ProfilePage() {
             a: s.active_documents ?? '—',
             b: s.overdue ?? '—',
             c: s.pending_signups ?? '—',
-            labels: ['Active', 'Overdue', 'Pending'],
+            labels: ['Active', 'Overdue', 'Sign-ups'],
             title: 'Municipal overview',
           })
         } else {
@@ -70,6 +74,7 @@ export default function ProfilePage() {
             title: "Today's desk",
           })
         }
+        setStatus(st)
       })
       .catch(() => {
         if (!cancelled) setStats(null)
@@ -161,9 +166,7 @@ export default function ProfilePage() {
 
   const hasPhoto = Boolean(user.has_avatar || user.avatar_url)
   const isAdmin = user.role === 'admin'
-  const overviewBody = isAdmin
-    ? 'Municipal account snapshot. Photo and edits are under Account & security.'
-    : 'Office account snapshot. Photo and edits are under Account & security.'
+  const apiOnline = String(status?.status?.api || '').startsWith('On')
   const roleOfficeHint = isAdmin
     ? 'Role and home office are fixed for this municipal account.'
     : 'Assigned by admin — cannot change here.'
@@ -172,12 +175,21 @@ export default function ProfilePage() {
     return (
       <div className="sf-life">
         <Overview
-          title="Your profile"
-          body={overviewBody}
+          title="Profile"
+          body={isAdmin ? 'Your municipal account.' : 'Your office account and desk stats.'}
         />
 
+        {isAdmin && status ? (
+          <Link
+            to="/admin/system"
+            className={`admin-status-banner ${apiOnline ? 'admin-status-banner--ok' : 'admin-status-banner--bad'}`}
+          >
+            <strong>{apiOnline ? 'API online · municipal system reachable' : 'API offline · check Apache / MySQL'}</strong>
+            <span>System details →</span>
+          </Link>
+        ) : null}
+
         <div className="card profile-account sf-life__panel">
-          <div className="profile-banner" aria-hidden />
           <div className="profile-hero profile-hero--rich">
             <div className="profile-hero__photo">
               <UserAvatar user={user} size="xl" />
@@ -197,24 +209,27 @@ export default function ProfilePage() {
             <div className="profile-overview">
               <h3 className="section-title">{stats.title}</h3>
               <div className="stats profile-stats sf-life__stats">
-                <div className={`stat ${isAdmin ? 'stat--desk' : 'stat--in'}`}>
+                <div className={statTone(stats.a, isAdmin ? 'stat--desk' : 'stat--in')}>
                   <b>{stats.a}</b><span>{stats.labels[0]}</span>
                 </div>
-                <div className={`stat ${isAdmin ? 'stat--overdue' : 'stat--out'}`}>
+                <div className={statTone(stats.b, isAdmin ? 'stat--overdue' : 'stat--out')}>
                   <b>{stats.b}</b><span>{stats.labels[1]}</span>
                 </div>
-                <div className={`stat ${isAdmin ? 'stat--pending' : 'stat--desk'}`}>
+                <div className={statTone(stats.c, isAdmin ? 'stat--pending' : 'stat--desk')}>
                   <b>{stats.c}</b><span>{stats.labels[2]}</span>
                 </div>
               </div>
             </div>
           ) : null}
-        </div>
 
-        <Link className="btn btn--navy as-link profile-goto-security sf-life__cta" to="/profile?view=security">
-          <SfIcon name="lock" size={18} />
-          Account &amp; security
-        </Link>
+          <Link className="profile-goto-security" to="/profile?view=security">
+            <span className="profile-goto-security__lead">
+              <SfIcon name="lock" size={18} />
+              Account &amp; security
+            </span>
+            <SfIcon name="back" size={16} className="profile-goto-security__chev" />
+          </Link>
+        </div>
       </div>
     )
   }
@@ -223,7 +238,7 @@ export default function ProfilePage() {
     <div className="sf-life">
       <Overview
         title="Account & security"
-        body="Photo, name, email, password, or end this session."
+        body="Photo, name, email, password, or sign out."
         actions={
           <Link className="btn-secondary as-link sf-life__cta" to="/profile">Back to profile</Link>
         }

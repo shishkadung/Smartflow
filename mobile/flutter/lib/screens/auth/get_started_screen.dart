@@ -4,7 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../theme/smartflow_theme.dart';
 import '../../widgets/sf_widgets.dart';
 
-/// First screen for signed-out users — ceremonial LGU portal entry.
+/// Twin of web login brand column — same pitch + trust points, then Sign in.
 class GetStartedScreen extends StatelessWidget {
   const GetStartedScreen({super.key});
 
@@ -55,7 +55,7 @@ class GetStartedScreen extends StatelessWidget {
   }
 }
 
-/// Three quiet trust signals — hero Get Started only.
+/// Same three signals as web auth-split__points.
 class _AuthTrustStrip extends StatelessWidget {
   const _AuthTrustStrip();
 
@@ -97,6 +97,7 @@ class _AuthTrustStrip extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Same three signals as web auth-split__points (short labels for icon strip).
         cell(Icons.qr_code_2_rounded, 'QR handoffs'),
         cell(Icons.history_edu_rounded, 'Custody log'),
         cell(Icons.verified_outlined, 'COA preparation'),

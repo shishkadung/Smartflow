@@ -77,7 +77,7 @@ export const HELP_PAGES = {
   adminHome: {
     title: 'How to use Admin Home',
     purpose:
-      'Municipal overview across pilot offices. You monitor custody and COA support — clerks do the scanning.',
+      'Municipal overview across offices. You monitor custody and COA support — clerks do the scanning.',
     steps: [
       'Check active documents, overdue items, and pending sign-ups.',
       'Open office tiles to see health per department.',

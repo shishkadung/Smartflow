@@ -79,10 +79,10 @@ function smartflow_check_movement(
     int $officeId,
     string $status
 ): ?array {
-    $allowedRoles = ['staff', 'head'];
+    $allowedRoles = ['staff', 'head', 'admin'];
     if (!in_array($user['role'], $allowedRoles, true)) {
         return [
-            'message' => 'Only frontline staff and department heads can scan documents',
+            'message' => 'Your role cannot scan documents',
             'scan_error' => 'role_forbidden',
             'http' => 403,
         ];

@@ -53,11 +53,19 @@ $officeId = 1;
 $userId = 1;
 
 $ping('login', static function () use ($pdo, &$token, &$officeId, &$userId): void {
+    // Prefer current team seed; fall back to legacy demo username.
     $stmt = $pdo->prepare('SELECT id, office_id, password_hash FROM users WHERE username = :u LIMIT 1');
-    $stmt->execute([':u' => 'engineering.staff']);
-    $row = $stmt->fetch();
-    if (!$row || !password_verify('smartflow123', $row['password_hash'])) {
-        throw new RuntimeException('engineering.staff not seeded or wrong password');
+    $row = null;
+    foreach (['kristofer.eng', 'neil.admin', 'engineering.staff'] as $username) {
+        $stmt->execute([':u' => $username]);
+        $candidate = $stmt->fetch();
+        if ($candidate && password_verify('smartflow123', $candidate['password_hash'])) {
+            $row = $candidate;
+            break;
+        }
+    }
+    if (!$row) {
+        throw new RuntimeException('No demo user seeded (try kristofer.eng / neil.admin) or wrong password');
     }
     $userId = (int)$row['id'];
     $officeId = (int)$row['office_id'];

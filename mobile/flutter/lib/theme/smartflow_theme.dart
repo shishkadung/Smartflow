@@ -27,6 +27,14 @@ class SfColors {
   static const strapBorder = Color(0xFFC9B896);
   static const strapInk = Color(0xFF5C4A32);
 
+  /// Navy until the count is above zero. [live] is green, blue, or overdue red.
+  static Color countInk(Object? raw, {Color live = navy}) {
+    final text = '${raw ?? ''}'.replaceAll(RegExp(r'[^0-9.]'), '');
+    final n = num.tryParse(text);
+    if (n == null || n <= 0) return navy;
+    return live;
+  }
+
   static Color dept(String code) {
     switch (code.toUpperCase()) {
       case 'ENG':

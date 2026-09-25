@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { smartflow, ApiError } from '../api.js'
-import { DocTable, LifeEmpty, Overview } from '../components/ui.jsx'
+import { LifeEmpty, Overview, StatusPill, statTone } from '../components/ui.jsx'
 
 export default function AdminHomePage() {
   const [data, setData] = useState(null)
@@ -10,20 +10,26 @@ export default function AdminHomePage() {
   useEffect(() => {
     let cancelled = false
     smartflow.accountantDashboard()
-      .then((d) => { if (!cancelled) setData(d) })
-      .catch((e) => { if (!cancelled) setError(e instanceof ApiError ? e.message : 'Could not load municipal dashboard') })
+      .then((dash) => {
+        if (!cancelled) setData(dash)
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e instanceof ApiError ? e.message : 'Could not load municipal dashboard')
+      })
     return () => { cancelled = true }
   }, [])
 
   const stats = data?.stats || {}
   const offices = data?.office_totals || []
   const pending = stats.pending_signups ?? 0
+  const officeCount = stats.pilot_offices ?? offices.length
+  const month = data?.month
 
   return (
     <div className="sf-life">
       <Overview
         title="Municipal dashboard"
-        body="Active custody across pilot offices."
+        body="Active custody across municipal offices."
       />
       {pending > 0 ? (
         <Link className="stat admin-tile admin-tile--alert" to="/admin/users" style={{ display: 'block', textDecoration: 'none' }}>
@@ -32,34 +38,61 @@ export default function AdminHomePage() {
         </Link>
       ) : null}
       {error ? <div className="error">{error}</div> : null}
+
+      {month ? (
+        <p className="muted admin-home__meta">
+          {month} · {officeCount} office{officeCount === 1 ? '' : 's'}
+        </p>
+      ) : null}
+
       <div className="stats sf-life__stats">
-        <div className="stat stat--desk">
+        <Link className={statTone(stats.active_documents, 'stat--desk')} to="/admin/offices" style={{ textDecoration: 'none' }}>
           <b>{stats.active_documents ?? '—'}</b>
           <span>Active</span>
-        </div>
-        <div className="stat stat--overdue">
+        </Link>
+        <Link className={statTone(stats.overdue, 'stat--overdue')} to="/admin/offices" style={{ textDecoration: 'none' }}>
           <b>{stats.overdue ?? '—'}</b>
           <span>Overdue</span>
-        </div>
-        <div className="stat stat--pending">
+        </Link>
+        <Link className={statTone(pending, 'stat--pending')} to="/admin/users" style={{ textDecoration: 'none' }}>
           <b>{pending || '—'}</b>
-          <span>Pending</span>
-        </div>
+          <span>Sign-ups</span>
+        </Link>
       </div>
+
       <div className="card sf-life__panel">
-        <h3 className="section-title">By office</h3>
+        <div className="admin-home__section-head">
+          <h3 className="section-title">By office</h3>
+          <Link className="linkish" to="/admin/offices">All offices</Link>
+        </div>
         {offices.length === 0 ? (
-          <LifeEmpty icon="users" tone="ok">No office totals yet.</LifeEmpty>
+          <LifeEmpty icon="users" tone="ok">Counts appear after an IN or OUT scan.</LifeEmpty>
         ) : (
-          <DocTable
-            columns={[
-              { key: 'office_name', label: 'Office' },
-              { key: 'in_office', label: 'On desk' },
-              { key: 'overdue', label: 'Overdue' },
-              { key: 'docs_processed', label: 'Processed' },
-            ]}
-            rows={offices}
-          />
+          <div className="admin-office-health">
+            {offices.map((o) => {
+              const overdue = Number(o.overdue || 0)
+              const onDesk = Number(o.in_office || 0)
+              const processed = Number(o.docs_processed || 0)
+              const quiet = overdue === 0 && onDesk === 0 && processed === 0
+              const code = String(o.office_code || '').toUpperCase()
+              const tone = overdue > 0 ? 'warn' : quiet ? 'neutral' : 'ok'
+              const label = overdue > 0 ? 'Follow up' : quiet ? 'No activity' : 'On track'
+              return (
+                <Link
+                  key={o.office_id || code}
+                  to="/admin/offices"
+                  className={`admin-office-tile office-accent--${code.toLowerCase() || 'eng'}`}
+                >
+                  <div className="admin-office-tile__main">
+                    <strong>{o.office_name || code}</strong>
+                    <span className="admin-office-tile__code">{code}</span>
+                    <span className="muted">{onDesk} on desk · {overdue} overdue</span>
+                  </div>
+                  <StatusPill tone={tone}>{label}</StatusPill>
+                </Link>
+              )
+            })}
+          </div>
         )}
       </div>
     </div>

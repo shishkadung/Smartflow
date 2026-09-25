@@ -143,6 +143,7 @@ class SfOfficeCodeBadge extends StatelessWidget {
     this.tooltip = 'Account menu',
     this.active = false,
     this.notificationCount,
+    this.onNavy = false,
   });
 
   final String code;
@@ -153,6 +154,9 @@ class SfOfficeCodeBadge extends StatelessWidget {
   final bool active;
   /// Optional count (e.g. alerts) shown as a red pill on the badge.
   final int? notificationCount;
+
+  /// Glass style when sitting on the navy shell top bar.
+  final bool onNavy;
 
   @override
   Widget build(BuildContext context) {
@@ -179,11 +183,17 @@ class SfOfficeCodeBadge extends StatelessWidget {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(8),
-                      color: SfColors.navy,
+                      color: onNavy
+                          ? Colors.white.withValues(alpha: 0.12)
+                          : SfColors.navy,
                       border: Border.all(
                         color: active
-                            ? SfColors.blue
-                            : Colors.white.withValues(alpha: 0.12),
+                            ? (onNavy
+                                ? const Color(0xFFE8D9B5)
+                                : SfColors.blue)
+                            : Colors.white.withValues(
+                                alpha: onNavy ? 0.28 : 0.12,
+                              ),
                         width: active ? 2 : 1,
                       ),
                     ),
@@ -245,6 +255,7 @@ class SfHeaderIconButton extends StatelessWidget {
     this.active = false,
     this.notificationCount,
     this.size = 40,
+    this.onNavy = false,
   });
 
   final IconData icon;
@@ -253,6 +264,9 @@ class SfHeaderIconButton extends StatelessWidget {
   final bool active;
   final int? notificationCount;
   final double size;
+
+  /// Light glass control for the navy shell top bar.
+  final bool onNavy;
 
   @override
   Widget build(BuildContext context) {
@@ -278,19 +292,25 @@ class SfHeaderIconButton extends StatelessWidget {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(12),
-                      color: active
-                          ? SfColors.navy.withValues(alpha: 0.08)
-                          : SfColors.paper,
+                      color: onNavy
+                          ? Colors.white.withValues(alpha: active ? 0.18 : 0.10)
+                          : active
+                              ? SfColors.navy.withValues(alpha: 0.08)
+                              : SfColors.paper,
                       border: Border.all(
-                        color: active
-                            ? SfColors.navy.withValues(alpha: 0.35)
-                            : SfColors.navy.withValues(alpha: 0.14),
+                        color: onNavy
+                            ? Colors.white.withValues(
+                                alpha: active ? 0.42 : 0.22,
+                              )
+                            : active
+                                ? SfColors.navy.withValues(alpha: 0.35)
+                                : SfColors.navy.withValues(alpha: 0.14),
                       ),
                     ),
                     child: Icon(
                       icon,
                       size: 20,
-                      color: SfColors.navy,
+                      color: onNavy ? Colors.white : SfColors.navy,
                     ),
                   ),
                   if (count > 0)
@@ -334,9 +354,16 @@ class SfHeaderIconButton extends StatelessWidget {
 
 /// SMART + FLOW wordmark — institutional navy/blue (government portal).
 class SfSmartFlowWordmark extends StatelessWidget {
-  const SfSmartFlowWordmark({super.key, this.fontSize = 17});
+  const SfSmartFlowWordmark({
+    super.key,
+    this.fontSize = 17,
+    this.onDark = false,
+  });
 
   final double fontSize;
+
+  /// White / soft-blue wordmark for navy chrome (web shell twin).
+  final bool onDark;
 
   @override
   Widget build(BuildContext context) {
@@ -351,7 +378,7 @@ class SfSmartFlowWordmark extends StatelessWidget {
             fontSize: fontSize,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.3,
-            color: SfColors.navy,
+            color: onDark ? Colors.white : SfColors.navy,
             height: 1.1,
             fontFamily: 'Source Serif 4',
           ),
@@ -362,7 +389,7 @@ class SfSmartFlowWordmark extends StatelessWidget {
             fontSize: fontSize,
             fontWeight: FontWeight.w700,
             letterSpacing: -0.3,
-            color: SfColors.blue,
+            color: onDark ? const Color(0xFF9EC0EA) : SfColors.blue,
             height: 1.1,
             fontFamily: 'Source Serif 4',
           ),
@@ -478,6 +505,7 @@ class SfAuthShell extends StatelessWidget {
     this.child,
     this.footer,
     this.leading,
+    this.showWordmark = true,
   });
 
   final String strap;
@@ -486,6 +514,7 @@ class SfAuthShell extends StatelessWidget {
   final Widget? child;
   final Widget? footer;
   final Widget? leading;
+  final bool showWordmark;
 
   @override
   Widget build(BuildContext context) {
@@ -510,6 +539,7 @@ class SfAuthShell extends StatelessWidget {
           strap: strap,
           headline: headline,
           body: body,
+          showWordmark: showWordmark,
           child: child,
         ),
       );
@@ -637,16 +667,19 @@ class _AuthPanel extends StatelessWidget {
     required this.strap,
     required this.headline,
     required this.body,
+    this.showWordmark = true,
     this.child,
   });
 
   final String strap;
   final String headline;
   final String body;
+  final bool showWordmark;
   final Widget? child;
 
   @override
   Widget build(BuildContext context) {
+    final hasBody = body.trim().isNotEmpty;
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
@@ -687,9 +720,12 @@ class _AuthPanel extends StatelessWidget {
                   height: 2,
                   color: SfColors.rule,
                 ),
-                const SizedBox(height: 14),
-                const SfSmartFlowWordmark(fontSize: 32),
-                const SizedBox(height: 10),
+                if (showWordmark) ...[
+                  const SizedBox(height: 14),
+                  const SfSmartFlowWordmark(fontSize: 32),
+                  const SizedBox(height: 10),
+                ] else
+                  const SizedBox(height: 14),
                 Text(
                   headline,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -699,15 +735,17 @@ class _AuthPanel extends StatelessWidget {
                         height: 1.25,
                       ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  body,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    color: SfColors.muted.withValues(alpha: 0.98),
-                    height: 1.5,
+                if (hasBody) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    body,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      color: SfColors.muted.withValues(alpha: 0.98),
+                      height: 1.5,
+                    ),
                   ),
-                ),
+                ],
                 const SizedBox(height: 16),
               ],
             ),
@@ -1038,23 +1076,12 @@ class _SfPrimaryButtonState extends State<SfPrimaryButton> {
           borderRadius: radius,
           child: Ink(
             decoration: BoxDecoration(
-              gradient: disabled || widget.navy ? null : SfGradients.primaryBtn,
               color: disabled
                   ? const Color(0xFFCBD5E1)
                   : widget.navy
                       ? SfColors.navy
-                      : null,
+                      : SfColors.blue,
               borderRadius: radius,
-              boxShadow: disabled
-                  ? null
-                  : [
-                      BoxShadow(
-                        color: (widget.navy ? SfColors.navy : SfColors.blue)
-                            .withValues(alpha: widget.navy ? 0.22 : 0.28),
-                        blurRadius: widget.navy ? 12 : 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
             ),
             child: Container(
               width: double.infinity,
@@ -1205,13 +1232,6 @@ class SfStatCard extends StatelessWidget {
           color: SfColors.paper,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: const Color(0x140F172A)),
-          boxShadow: [
-            BoxShadow(
-              color: SfColors.ink.withValues(alpha: 0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
         child: Column(
           children: [
@@ -1221,7 +1241,7 @@ class SfStatCard extends StatelessWidget {
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
                 fontFamily: 'monospace',
-                color: color ?? SfColors.blue,
+                color: color ?? SfColors.navy,
               ),
             ),
             const SizedBox(height: 4),
@@ -1465,21 +1485,14 @@ class SfUserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? SfColors.blue;
+    final c = color ?? SfColors.navy;
     final url = imageUrl?.trim();
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
         color: c,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: c.withValues(alpha: 0.35),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(8),
       ),
       clipBehavior: Clip.antiAlias,
       child: url != null && url.isNotEmpty

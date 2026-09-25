@@ -47,8 +47,9 @@ if ($stmtUser->fetch()) {
     json_response(['success' => false, 'message' => 'Username is already taken'], 409);
 }
 
+// Username match is case-insensitive under utf8mb4_unicode_ci.
 $stmtPending = $pdo->prepare("
-    SELECT id, status FROM signup_requests WHERE username = :u LIMIT 1
+    SELECT id, status, request_code FROM signup_requests WHERE username = :u LIMIT 1
 ");
 $stmtPending->execute([':u' => $username]);
 $existing = $stmtPending->fetch();
@@ -63,26 +64,64 @@ if ($existing) {
 
 $hash = password_hash($password, PASSWORD_DEFAULT);
 
-$nextId = (int)$pdo->query('SELECT COALESCE(MAX(id), 0) + 1 AS n FROM signup_requests')->fetch()['n'];
-$requestCode = 'REQ-' . str_pad((string)$nextId, 4, '0', STR_PAD_LEFT);
+// Rejected requests keep the username unique key — update in place so the user can re-apply.
+if ($existing && $existing['status'] === 'rejected') {
+    $id = (int)$existing['id'];
+    $requestCode = (string)$existing['request_code'];
+    $stmt = $pdo->prepare('
+        UPDATE signup_requests
+        SET full_name = :name,
+            username = :username,
+            email = :email,
+            password_hash = :hash,
+            office_id = :office_id,
+            requested_role = :role,
+            status = \'pending\',
+            approved_by = NULL,
+            approved_at = NULL
+        WHERE id = :id AND status = \'rejected\'
+    ');
+    $stmt->execute([
+        ':name'      => $fullName,
+        ':username'  => $username,
+        ':email'     => $email,
+        ':hash'      => $hash,
+        ':office_id' => $officeId,
+        ':role'      => $role,
+        ':id'        => $id,
+    ]);
+} else {
+    $nextId = (int)$pdo->query('SELECT COALESCE(MAX(id), 0) + 1 AS n FROM signup_requests')->fetch()['n'];
+    $requestCode = 'REQ-' . str_pad((string)$nextId, 4, '0', STR_PAD_LEFT);
 
-$stmt = $pdo->prepare('
-    INSERT INTO signup_requests
-        (request_code, full_name, username, email, password_hash, office_id, requested_role, status)
-    VALUES
-        (:code, :name, :username, :email, :hash, :office_id, :role, \'pending\')
-');
-$stmt->execute([
-    ':code'      => $requestCode,
-    ':name'      => $fullName,
-    ':username'  => $username,
-    ':email'     => $email,
-    ':hash'      => $hash,
-    ':office_id' => $officeId,
-    ':role'      => $role,
-]);
+    try {
+        $stmt = $pdo->prepare('
+            INSERT INTO signup_requests
+                (request_code, full_name, username, email, password_hash, office_id, requested_role, status)
+            VALUES
+                (:code, :name, :username, :email, :hash, :office_id, :role, \'pending\')
+        ');
+        $stmt->execute([
+            ':code'      => $requestCode,
+            ':name'      => $fullName,
+            ':username'  => $username,
+            ':email'     => $email,
+            ':hash'      => $hash,
+            ':office_id' => $officeId,
+            ':role'      => $role,
+        ]);
+    } catch (PDOException $e) {
+        if ((int)($e->errorInfo[1] ?? 0) === 1062) {
+            json_response([
+                'success' => false,
+                'message' => 'Username is already used by a pending or approved sign-up request',
+            ], 409);
+        }
+        throw $e;
+    }
 
-$id = (int)$pdo->lastInsertId();
+    $id = (int)$pdo->lastInsertId();
+}
 
 json_response([
     'success' => true,

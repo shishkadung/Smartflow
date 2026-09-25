@@ -229,9 +229,10 @@ export default function ScanPage() {
   return (
     <div className="sf-life">
       <Overview
-        title="Scan folder QR"
-        body={camNote || 'Look up a folder, then Mark IN or Mark OUT.'}
+        title="Scan"
+        body="Mark IN when a folder arrives · OUT when you send it."
       />
+      {camNote ? <p className="hint">{camNote}</p> : null}
       <div className="scan-layout">
         <div className="form-card sf-life__panel">
           <h3 className="section-title">Look up folder</h3>

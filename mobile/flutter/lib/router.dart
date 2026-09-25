@@ -175,6 +175,7 @@ GoRouter createRouter(AuthProvider auth) {
         builder: (_, __, child) => HeadShell(child: child),
         routes: [
           GoRoute(path: '/head', builder: (_, __) => const HeadDashboardScreen()),
+          GoRoute(path: '/head/scan', builder: (_, __) => const ScannerScreen()),
           GoRoute(
             path: '/head/register',
             builder: (_, __) => const DocumentRegisterScreen(homeRoute: '/head'),
@@ -214,6 +215,25 @@ GoRouter createRouter(AuthProvider auth) {
         builder: (_, __, child) => AdminShell(child: child),
         routes: [
           GoRoute(path: '/admin', builder: (_, __) => const AdminDashboardScreen()),
+          GoRoute(path: '/admin/scan', builder: (_, __) => const ScannerScreen()),
+          GoRoute(
+            path: '/admin/register',
+            builder: (_, __) => const DocumentRegisterScreen(homeRoute: '/admin'),
+          ),
+          GoRoute(
+            path: '/admin/alerts',
+            builder: (_, __) => const StaffAlertsScreen(municipal: true),
+          ),
+          GoRoute(
+            path: '/admin/history',
+            builder: (_, state) {
+              final extra = state.extra as Map<String, dynamic>? ?? {};
+              return StaffHistoryScreen(
+                initialDocumentId: extra['documentId']?.toString(),
+                monitorOnly: true,
+              );
+            },
+          ),
           GoRoute(path: '/admin/users', builder: (_, __) => const AdminUsersScreen()),
           GoRoute(path: '/admin/offices', builder: (_, __) => const AdminOfficesScreen()),
           GoRoute(path: '/admin/system', builder: (_, __) => const AdminSystemScreen()),

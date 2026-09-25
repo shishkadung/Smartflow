@@ -254,9 +254,12 @@ SfHelpPage? sfHelpPageForPath(String path) {
     case '/admin':
       return SfHelpPage.adminHome;
     case '/staff/scan':
+    case '/head/scan':
+    case '/admin/scan':
       return SfHelpPage.scan;
     case '/staff/register':
     case '/head/register':
+    case '/admin/register':
       return SfHelpPage.register;
     case '/staff/requests':
     case '/head/requests':
@@ -264,6 +267,7 @@ SfHelpPage? sfHelpPageForPath(String path) {
       return SfHelpPage.requests;
     case '/staff/history':
     case '/head/history':
+    case '/admin/history':
       return SfHelpPage.history;
     case '/staff/alerts':
     case '/head/alerts':

@@ -13,6 +13,8 @@ import '../staff/clerk_widgets.dart';
 /// Admin (LGU IT / Municipal Accountant) screens — shared overview layout.
 enum SfAdminScreen {
   home,
+  scan,
+  register,
   users,
   offices,
   system,
@@ -22,6 +24,7 @@ enum SfAdminScreen {
   thresholds,
   requests,
   qrMonitor,
+  alerts,
 }
 
 class SfAdminPageOverviewCard extends StatelessWidget {
@@ -42,12 +45,15 @@ class SfAdminPageOverviewCard extends StatelessWidget {
 
   static bool _defaultCompact(SfAdminScreen screen) {
     switch (screen) {
+      case SfAdminScreen.scan:
+      case SfAdminScreen.register:
       case SfAdminScreen.users:
       case SfAdminScreen.offices:
       case SfAdminScreen.system:
       case SfAdminScreen.thresholds:
       case SfAdminScreen.qrMonitor:
       case SfAdminScreen.requests:
+      case SfAdminScreen.alerts:
         return true;
       case SfAdminScreen.home:
       case SfAdminScreen.reports:
@@ -68,37 +74,45 @@ class SfAdminPageOverviewCard extends StatelessWidget {
     switch (screen) {
       case SfAdminScreen.home:
         title = 'Municipal dashboard';
-        body = 'Active custody across pilot offices.';
+        body = 'Active custody across municipal offices.';
+      case SfAdminScreen.scan:
+        title = 'Scan';
+        body = 'Mark IN when a folder arrives at your office, or OUT when you send it.';
+      case SfAdminScreen.register:
+        title = 'Register';
+        body = 'New folder for your office. Print the QR and attach it to the folder.';
       case SfAdminScreen.users:
-        title = 'Users & access';
+        title = 'Users';
         body = 'Approve sign-ups and activate or deactivate accounts.';
       case SfAdminScreen.offices:
-        title = 'Pilot offices';
-        body = 'Pilot offices and processing thresholds that drive alerts.';
+        title = 'Offices';
+        body = 'Municipal offices in the SmartFlow deployment.';
       case SfAdminScreen.system:
-        title = 'System status';
-        body = 'API and database health for the LGU LAN stack.';
+        title = 'System';
+        body = 'API and database health.';
       case SfAdminScreen.profile:
-        title = 'Your profile';
-        body =
-            'Municipal account snapshot. Photo and edits are under Account & security.';
+        title = 'Profile';
+        body = 'Your municipal account.';
       case SfAdminScreen.accountSecurity:
         title = 'Account & security';
-        body = 'Photo, name, email, password, or end this session.';
+        body = 'Photo, name, email, password, or sign out.';
       case SfAdminScreen.reports:
-        title = 'Custody support summary';
+        title = 'COA reports';
         body =
-            'Monthly handoff metrics from scan logs — not a COA financial review.';
+            'Monthly handoff metrics from scan logs — not a financial review.';
       case SfAdminScreen.thresholds:
-        title = 'Processing thresholds';
-        body = 'Set max hours per office and document type.';
+        title = 'Thresholds';
+        body = 'Max hours per office and document type.';
       case SfAdminScreen.qrMonitor:
-        title = 'QR scan monitor';
-        body = 'Accepted and rejected scan events from the last 48 hours.';
+        title = 'QR monitor';
+        body = 'Accepted and rejected scans (last 48 hours).';
       case SfAdminScreen.requests:
-        title = 'Document requests';
+        title = 'Requests';
         body =
             'Accepting does not move the folder — register or scan when it arrives.';
+      case SfAdminScreen.alerts:
+        title = 'Alerts';
+        body = 'Delays and unconfirmed handoffs across municipal offices.';
     }
 
     return SfPageOverviewCard(
@@ -143,8 +157,8 @@ class SfAdminStatRow extends StatelessWidget {
                 onTap: onActiveDocsTap,
                 child: SfStatCard(
                   value: '$activeDocs',
-                  label: 'Active docs',
-                  color: SfColors.blue,
+                  label: 'Active',
+                  color: SfColors.countInk(activeDocs, live: SfColors.blue),
                 ),
               ),
             ),
@@ -155,7 +169,7 @@ class SfAdminStatRow extends StatelessWidget {
                 child: SfStatCard(
                   value: '$overdue',
                   label: 'Overdue',
-                  color: overdue > 0 ? SfColors.red : SfColors.green,
+                  color: SfColors.countInk(overdue, live: SfColors.red),
                 ),
               ),
             ),
@@ -164,9 +178,9 @@ class SfAdminStatRow extends StatelessWidget {
               child: _tappable(
                 onTap: onPendingTap,
                 child: SfStatCard(
-                  value: '$pendingSignups',
-                  label: 'Pending users',
-                  color: pendingSignups > 0 ? SfColors.gold : SfColors.muted,
+                  value: pendingSignups > 0 ? '$pendingSignups' : '—',
+                  label: 'Sign-ups',
+                  color: SfColors.navy,
                 ),
               ),
             ),
@@ -242,7 +256,7 @@ class SfAdminSystemStatusBanner extends StatelessWidget {
               Expanded(
                 child: Text(
                   apiOnline
-                      ? 'API online · pilot stack reachable'
+                      ? 'API online · municipal system reachable'
                       : 'API offline · check XAMPP / LAN before demos',
                   style: TextStyle(
                     fontSize: 12,
@@ -417,26 +431,13 @@ class SfAdminOfficeHealthTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        '$docsProcessed movements this month · $inOffice in office now',
+                        '$inOffice on desk · $overdue overdue',
                         style: const TextStyle(
                           fontSize: 11,
                           color: SfColors.muted,
                           height: 1.35,
                         ),
                       ),
-                      if (overdue > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            '$overdue overdue (48h+ at desk)',
-                            style: const TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w700,
-                              color: SfColors.red,
-                              height: 1.3,
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),
@@ -445,6 +446,11 @@ class SfAdminOfficeHealthTile extends StatelessWidget {
                   const SfStatusPill(
                     label: 'Follow up',
                     tone: SfPillTone.warning,
+                  )
+                else if (inOffice == 0 && docsProcessed == 0)
+                  const SfStatusPill(
+                    label: 'No activity',
+                    tone: SfPillTone.neutral,
                   )
                 else
                   const SfStatusPill(label: 'On track', tone: SfPillTone.success),
@@ -757,57 +763,153 @@ class SfCoaExportHero extends StatelessWidget {
         children: [
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(16, 16, 12, 16),
-            decoration: const BoxDecoration(gradient: SfGradients.navyBand),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            clipBehavior: Clip.antiAlias,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0xFFFFFFFF),
+                  Color(0xFFF5F8FC),
+                  Color(0xFFEEF3FA),
+                ],
+                stops: [0.0, 0.55, 1.0],
+              ),
+            ),
+            child: Stack(
               children: [
-                Expanded(
-                  child: Column(
+                Positioned(
+                  right: -28,
+                  top: -36,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 110,
+                      height: 110,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            SfColors.blue.withValues(alpha: 0.10),
+                            SfColors.blue.withValues(alpha: 0.0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: -20,
+                  bottom: -28,
+                  child: IgnorePointer(
+                    child: Container(
+                      width: 88,
+                      height: 88,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: RadialGradient(
+                          colors: [
+                            SfColors.rule.withValues(alpha: 0.22),
+                            SfColors.rule.withValues(alpha: 0.0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 0,
+                  top: 12,
+                  bottom: 12,
+                  child: Container(
+                    width: 3,
+                    decoration: BoxDecoration(
+                      borderRadius: const BorderRadius.horizontal(
+                        right: Radius.circular(3),
+                      ),
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          SfColors.rule.withValues(alpha: 0.35),
+                          SfColors.gold,
+                          SfColors.rule.withValues(alpha: 0.45),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 16, 12, 16),
+                  child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'COA SUPPORT SUMMARY',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.0,
-                          color: SfColors.rule.withValues(alpha: 0.95),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        monthLabel,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              height: 1.15,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'COA SUPPORT SUMMARY',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 1.0,
+                                color: SfColors.gold.withValues(alpha: 0.95),
+                              ),
                             ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '$docsInPeriod documents with activity · municipal pilot',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.white.withValues(alpha: 0.72),
+                            const SizedBox(height: 6),
+                            Text(
+                              monthLabel,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    color: SfColors.navy,
+                                    height: 1.15,
+                                  ),
+                            ),
+                            const SizedBox(height: 6),
+                            Container(
+                              width: 28,
+                              height: 2,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(2),
+                                gradient: const LinearGradient(
+                                  colors: [SfColors.gold, Color(0x00B8860B)],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 7),
+                            Text(
+                              '$docsInPeriod documents with activity · municipal system',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: SfColors.muted,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
+                      if (onChangeMonth != null)
+                        TextButton(
+                          onPressed: onChangeMonth,
+                          style: TextButton.styleFrom(
+                            foregroundColor: SfColors.gold,
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                          ),
+                          child: const Text(
+                            'Month',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
-                if (onChangeMonth != null)
-                  TextButton(
-                    onPressed: onChangeMonth,
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFE8D9B5),
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                    child: const Text(
-                      'Month',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-                    ),
-                  ),
               ],
             ),
           ),

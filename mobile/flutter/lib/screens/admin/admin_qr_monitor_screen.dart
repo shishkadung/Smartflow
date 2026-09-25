@@ -116,16 +116,6 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
             screen: SfAdminScreen.qrMonitor,
             compact: true,
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Accepted vs rejected scans — export CSV for COA or IT review.',
-            style: TextStyle(
-              fontSize: 11.5,
-              height: 1.35,
-              color: SfColors.muted.withValues(alpha: 0.95),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
           if (_error != null) ...[
             const SizedBox(height: 12),
             SfErrorBanner(message: _error!),

@@ -109,6 +109,11 @@ export const smartflow = {
     api('auth-login.php', { method: 'POST', auth: false, body: { username, password } }),
   signup: (body) =>
     api('auth-signup.php', { method: 'POST', auth: false, body }),
+  signupStatus: ({ username, code } = {}) =>
+    api('signup-status.php', {
+      auth: false,
+      query: { username, request_code: code },
+    }),
   forgotPassword: (username) =>
     api('auth-forgot-password.php', { method: 'POST', auth: false, body: { username } }),
   resetPassword: (body) =>
@@ -147,6 +152,8 @@ export const smartflow = {
   documentMovements: (id) => api('documents-movements.php', { query: { id } }),
   verifyQr: (qr) => api('qr-verify.php', { method: 'POST', body: { qr } }),
   createDocument: (body) => api('documents-create.php', { method: 'POST', body }),
+  findByReference: (reference) =>
+    api('documents-find-by-reference.php', { query: { reference } }),
   recordMovement: (body) => api('movements-create.php', { method: 'POST', body }),
   reportsSummary: (officeId, month) =>
     api('reports-summary.php', { query: { office_id: officeId, month } }),

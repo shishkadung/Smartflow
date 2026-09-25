@@ -68,16 +68,16 @@ String registerSubtitleForOffice(String officeCode) {
 }
 
 String scanSubtitleForOffice(String officeCode) {
-  return 'Look up a folder, then Mark IN or Mark OUT.';
+  return 'Mark IN when a folder arrives · OUT when you send it.';
 }
 
 /// Head dashboard caption (office-agnostic).
 String headDashboardSubtitleForOffice(String officeCode) {
-  return 'Folders currently at your office.';
+  return 'Snapshot of folders at your office.';
 }
 
 String headQueueSubtitleForOffice(String officeCode) {
-  return 'Folders in your office — filter and open for history.';
+  return 'Filter and open folders currently in your office.';
 }
 
 /// Clerk document requests.

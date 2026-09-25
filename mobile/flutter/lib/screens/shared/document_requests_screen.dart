@@ -269,6 +269,7 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen>
       body: Container(
         decoration: const BoxDecoration(gradient: SfGradients.pageSky),
         child: SafeArea(
+          top: false,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -285,16 +286,6 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen>
                     _RequestsOverviewCard(
                       homeRoute: widget.homeRoute,
                       pendingInbox: _pendingInbox,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Ticket to another office — use Scan when the physical folder moves.',
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        height: 1.35,
-                        color: SfColors.muted.withValues(alpha: 0.95),
-                        fontWeight: FontWeight.w600,
-                      ),
                     ),
                     const SizedBox(height: 12),
                     SfPrimaryButton(
@@ -463,6 +454,7 @@ String _requestStatusLabel(String status) {
 }
 
 String _categoryLabel(String cat) {
+  if (cat.toLowerCase() == 'other') return 'Others';
   if (cat.isEmpty) return 'Document';
   return cat
       .split(RegExp(r'[_\s]+'))
@@ -832,6 +824,10 @@ class _CreateRequestSheetState extends State<_CreateRequestSheet> {
       setState(() => _error = 'Choose an office');
       return;
     }
+    if (_kind == 'access' && _category == 'other' && _targetOfficeId == null) {
+      setState(() => _error = 'Choose which office should receive this');
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -840,7 +836,9 @@ class _CreateRequestSheetState extends State<_CreateRequestSheet> {
       await context.read<AuthProvider>().api.documentRequestCreate(
             requestKind: _kind,
             documentCategory: _category,
-            targetOfficeId: _kind == 'pull' ? _targetOfficeId : null,
+            targetOfficeId: _kind == 'pull' || _category == 'other'
+                ? _targetOfficeId
+                : null,
             purpose: _purpose.text.trim(),
             requiredBy: _requiredByPayload()!,
           );
@@ -977,8 +975,31 @@ class _CreateRequestSheetState extends State<_CreateRequestSheet> {
                         onChanged: (v) => setState(
                           () => _category = v ?? categories.first.key,
                         ),
+                      ),
+              if (_kind == 'access' && _category == 'other') ...[
+                const SizedBox(height: 12),
+                DropdownButtonFormField<int>(
+                  value: _targetOfficeId,
+                  decoration: const InputDecoration(
+                    labelText: 'Send Others to office',
+                  ),
+                  items: _offices
+                      .where(
+                        (o) =>
+                            o['id'] !=
+                            context.read<AuthProvider>().user!.officeId,
                       )
-              else
+                      .map((o) {
+                    final id = o['id'] as int;
+                    return DropdownMenuItem(
+                      value: id,
+                      child: Text('${o['name']} (${o['code']})'),
+                    );
+                  }).toList(),
+                  onChanged: (v) => setState(() => _targetOfficeId = v),
+                ),
+              ],
+              if (_kind != 'access')
                 DropdownButtonFormField<int>(
                   value: _targetOfficeId,
                   decoration: const InputDecoration(

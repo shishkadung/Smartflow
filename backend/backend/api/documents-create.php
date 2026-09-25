@@ -28,25 +28,29 @@ $body = get_json_body();
 $title = trim((string)($body['title'] ?? ''));
 $type = trim((string)($body['type'] ?? ''));
 $originOfficeId = (int)($body['origin_office_id'] ?? 0);
-$description = isset($body['description']) ? trim((string)$body['description']) : null;
+$comment = isset($body['description']) ? trim((string)$body['description']) : '';
 $payee = trim((string)($body['payee'] ?? ''));
 $fundSource = trim((string)($body['fund_source'] ?? ''));
 $referenceNo = trim((string)($body['reference_no'] ?? ''));
 
-if ($description === null || $description === '') {
-    $logbookParts = [];
-    if ($referenceNo !== '') {
-        $logbookParts[] = 'Reference: ' . $referenceNo;
-    }
-    if ($payee !== '') {
-        $logbookParts[] = 'Payee: ' . $payee;
-    }
-    if ($fundSource !== '') {
-        $logbookParts[] = 'Fund source: ' . $fundSource;
-    }
-    if ($logbookParts !== []) {
-        $description = implode("\n", $logbookParts);
-    }
+$logbookParts = [];
+if ($referenceNo !== '') {
+    $logbookParts[] = 'Reference: ' . $referenceNo;
+}
+if ($payee !== '') {
+    $logbookParts[] = 'Payee: ' . $payee;
+}
+if ($fundSource !== '') {
+    $logbookParts[] = 'Fund source: ' . $fundSource;
+}
+
+$description = null;
+if ($comment !== '' && $logbookParts !== []) {
+    $description = $comment . "\n\n" . implode("\n", $logbookParts);
+} elseif ($comment !== '') {
+    $description = $comment;
+} elseif ($logbookParts !== []) {
+    $description = implode("\n", $logbookParts);
 }
 smartflow_ensure_documents_due_column($pdo);
 $dueAt = null;
@@ -84,6 +88,29 @@ if ($role !== 'admin' && $originOfficeId !== $creatorOfficeId) {
         'success' => false,
         'message' => 'You can only register documents for your assigned office',
     ], 403);
+}
+
+$stmtCode = $pdo->prepare('SELECT code FROM offices WHERE id = :id LIMIT 1');
+$stmtCode->execute([':id' => $originOfficeId]);
+$originCode = strtoupper((string)($stmtCode->fetchColumn() ?: ''));
+$typesByOffice = [
+    'ENG' => ['Disbursement Voucher'],
+    'HR' => [],
+    'BUD' => ['Approved Budget'],
+    'ACC' => ['Disbursement Voucher', 'Approved Budget'],
+    'TRE' => ['Disbursement Voucher'],
+    'MAY' => ['Disbursement Voucher'],
+];
+$knownTypes = $typesByOffice[$originCode] ?? ['Disbursement Voucher', 'Approved Budget'];
+$otherName = '';
+if (str_starts_with($type, 'Others:')) {
+    $otherName = trim(substr($type, strlen('Others:')));
+}
+if (!in_array($type, $knownTypes, true) && strlen($otherName) < 3) {
+    json_response([
+        'success' => false,
+        'message' => 'Choose Disbursement Voucher, Approved Budget, or name the folder under Others',
+    ], 400);
 }
 
 // Generate document id: DOC-YYYY-000001 (use max sequence, not COUNT — avoids duplicates after deletes/gaps)

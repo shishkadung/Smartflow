@@ -29,13 +29,25 @@ try {
     exit 1
 }
 
-$login = Invoke-RestMethod -Uri "$Api/auth-login.php" -Method POST `
-    -Body '{"username":"engineering.staff","password":"smartflow123"}' `
-    -ContentType "application/json"
-if (-not $login.success) {
-    Write-Host "  Login test failed" -ForegroundColor Red
+$loginUser = $null
+foreach ($u in @('kristofer.eng', 'neil.admin', 'engineering.staff')) {
+    try {
+        $login = Invoke-RestMethod -Uri "$Api/auth-login.php" -Method POST `
+            -Body (@{ username = $u; password = 'smartflow123' } | ConvertTo-Json) `
+            -ContentType "application/json"
+        if ($login.success) {
+            $loginUser = $u
+            break
+        }
+    } catch {
+        # try next username
+    }
+}
+if (-not $loginUser) {
+    Write-Host "  Login test failed (seed team users via setup-smartflow.ps1)" -ForegroundColor Red
     exit 1
 }
+Write-Host "  Login OK as $loginUser" -ForegroundColor Green
 $token = $login.token
 $oid = [int]$login.user.office_id
 

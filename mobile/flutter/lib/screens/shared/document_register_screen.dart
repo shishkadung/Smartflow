@@ -12,6 +12,7 @@ import '../../theme/smartflow_theme.dart';
 import '../../widgets/sf_pdf_chrome.dart';
 import '../../widgets/sf_qr_display.dart';
 import '../../widgets/sf_widgets.dart';
+import '../admin/admin_widgets.dart';
 import '../head/head_widgets.dart';
 import '../staff/clerk_widgets.dart';
 
@@ -28,6 +29,8 @@ class DocumentRegisterScreen extends StatefulWidget {
 
 class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
   final _titleCtrl = TextEditingController();
+  final _otherCtrl = TextEditingController();
+  final _commentCtrl = TextEditingController();
   final _refCtrl = TextEditingController();
   final _payeeCtrl = TextEditingController();
   final _fundCtrl = TextEditingController();
@@ -39,10 +42,14 @@ class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
   Map<String, dynamic>? _created;
 
   bool get _canSubmit =>
-      !_loading && _titleCtrl.text.trim().length >= 3;
+      !_loading &&
+      _titleCtrl.text.trim().length >= 3 &&
+      (_type != kOtherDocumentType || _otherCtrl.text.trim().length >= 3);
 
   bool get _formDirty =>
       _titleCtrl.text.trim().isNotEmpty ||
+      _otherCtrl.text.trim().isNotEmpty ||
+      _commentCtrl.text.trim().isNotEmpty ||
       _refCtrl.text.trim().isNotEmpty ||
       _payeeCtrl.text.trim().isNotEmpty ||
       _fundCtrl.text.trim().isNotEmpty ||
@@ -55,6 +62,8 @@ class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
     final types = documentTypesForOffice(user.officeCode);
     _type = types.isNotEmpty ? types.first : 'Disbursement Voucher';
     _titleCtrl.addListener(_onFormChanged);
+    _otherCtrl.addListener(_onFormChanged);
+    _commentCtrl.addListener(_onFormChanged);
     _refCtrl.addListener(_onFormChanged);
   }
 
@@ -65,6 +74,12 @@ class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
   @override
   void dispose() {
     _titleCtrl
+      ..removeListener(_onFormChanged)
+      ..dispose();
+    _otherCtrl
+      ..removeListener(_onFormChanged)
+      ..dispose();
+    _commentCtrl
       ..removeListener(_onFormChanged)
       ..dispose();
     _refCtrl
@@ -100,6 +115,8 @@ class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
     final types =
         documentTypesForOffice(context.read<AuthProvider>().user!.officeCode);
     _titleCtrl.clear();
+    _otherCtrl.clear();
+    _commentCtrl.clear();
     _refCtrl.clear();
     _payeeCtrl.clear();
     _fundCtrl.clear();
@@ -196,6 +213,13 @@ class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
       return;
     }
 
+    final otherName = _otherCtrl.text.trim();
+    if (_type == kOtherDocumentType && otherName.length < 3) {
+      setState(() => _error = 'Name the folder under Others (at least 3 characters).');
+      return;
+    }
+    final savedType = _type == kOtherDocumentType ? 'Others: $otherName' : _type;
+
     final ref = _refCtrl.text.trim();
 
     setState(() {
@@ -219,8 +243,11 @@ class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
     try {
       final data = await context.read<AuthProvider>().api.createDocument(
             title: title,
-            type: _type,
+            type: savedType,
             originOfficeId: user.officeId,
+            description: _commentCtrl.text.trim().isEmpty
+                ? null
+                : _commentCtrl.text.trim(),
             dueAt: _dueAtPayload(),
             referenceNo: ref.isEmpty ? null : ref,
             payee: _payeeCtrl.text.trim().isEmpty
@@ -275,16 +302,13 @@ class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
     final types = documentTypesForOffice(user.officeCode);
     final created = _created;
     final isHead = widget.homeRoute == '/head';
+    final isAdmin = widget.homeRoute == '/admin';
 
     if (types.isEmpty) {
       return ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
         children: [
-          const SfClerkTabTitle(
-            title: 'Register',
-            subtitle: 'Physical folder registration',
-            screen: SfClerkScreen.register,
-          ),
+          const SfClerkTabTitle(screen: SfClerkScreen.register),
           const SizedBox(height: 24),
           const SfEmptyState(
             icon: Icons.folder_off_outlined,
@@ -309,16 +333,18 @@ class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
       children: [
-        if (isHead) ...[
+        if (isAdmin) ...[
+          const SfAuthenticatedPageHeader(),
+          const SizedBox(height: 12),
+          const SfAdminPageOverviewCard(screen: SfAdminScreen.register),
+          const SizedBox(height: 14),
+        ] else if (isHead) ...[
           const SfAuthenticatedPageHeader(),
           const SizedBox(height: 12),
           const SfHeadPageOverviewCard(screen: SfHeadScreen.register),
           const SizedBox(height: 14),
         ] else ...[
-          const SfClerkTabTitle(
-            title: 'Register',
-            screen: SfClerkScreen.register,
-          ),
+          const SfClerkTabTitle(screen: SfClerkScreen.register),
           const SizedBox(height: 10),
           _RegisterGuidanceCard(officeCode: user.officeCode),
           const SizedBox(height: 12),
@@ -413,6 +439,29 @@ class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
                     ),
                   ),
                 ),
+              if (_type == kOtherDocumentType) ...[
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _otherCtrl,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: const InputDecoration(
+                    labelText: 'Others',
+                    hintText: 'What is this folder?',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+              TextField(
+                controller: _commentCtrl,
+                maxLines: 3,
+                textCapitalization: TextCapitalization.sentences,
+                decoration: const InputDecoration(
+                  labelText: 'Comment (optional)',
+                  hintText: 'Notes for the next office or for your logbook',
+                  border: OutlineInputBorder(),
+                ),
+              ),
               const SizedBox(height: 14),
               const Text(
                 'Logbook fields (optional)',

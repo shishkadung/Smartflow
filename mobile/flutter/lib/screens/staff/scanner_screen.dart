@@ -15,6 +15,8 @@ import '../../utils/tracking_id.dart';
 import '../../widgets/mark_out_destination_dialog.dart';
 import '../../widgets/sf_pdf_chrome.dart';
 import '../../widgets/sf_widgets.dart';
+import '../admin/admin_widgets.dart';
+import '../head/head_widgets.dart';
 import 'clerk_widgets.dart';
 
 class ScannerScreen extends StatefulWidget {
@@ -614,11 +616,20 @@ class _ScannerScreenState extends State<ScannerScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
       children: [
-        const SfClerkTabTitle(
-          title: 'Scan',
-          subtitle: 'Mark IN when a folder arrives · OUT when you send it',
-          screen: SfClerkScreen.scan,
-        ),
+        if (user.role == 'admin')
+          const SfAdminPageOverviewCard(
+            screen: SfAdminScreen.scan,
+            compact: true,
+          )
+        else if (user.role == 'head')
+          const SfHeadPageOverviewCard(
+            screen: SfHeadScreen.scan,
+            compact: true,
+          )
+        else
+          const SfClerkTabTitle(
+            screen: SfClerkScreen.scan,
+          ),
         const SizedBox(height: 14),
         if (manualFirst) ...[
           _buildManualLookup(primary: true),
