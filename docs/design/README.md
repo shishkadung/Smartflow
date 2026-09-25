@@ -14,7 +14,8 @@
 | Mirror | Path |
 |---|---|
 | Live web portal | `web/src/index.css` (`:root` `--sf-*`) |
-| HTML mock gallery | `web-mock/css/tokens.css` |
+| Mobile HTML mock (phone / Flutter twin) | `mobile-mock/css/tokens.css` |
+| Web HTML mock (desktop / React twin) | `web-mock/css/tokens.css` |
 
 Type: **Source Sans 3** (UI) + **Source Serif 4** (wordmark / titles). CTAs: blue primary, navy for auth/ceremonial.
 

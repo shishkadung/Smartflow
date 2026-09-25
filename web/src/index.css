@@ -1,8 +1,8 @@
 ﻿:root {
   /*
    * SOURCE OF TRUTH: mobile/flutter/lib/theme/smartflow_theme.dart
-   * Mirror: web-mock/css/tokens.css
-   * CTA: --sf-blue primary Â· --sf-navy auth/ceremonial
+   * Mirror: mobile-mock/css/tokens.css · web-mock/css/tokens.css
+   * CTA: --sf-blue primary · --sf-navy auth/ceremonial
    */
   --sf-bg: #eef2f7;
   --sf-bg2: #f7f9fc;

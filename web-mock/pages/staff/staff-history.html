@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1280" />
+  <title>SmartFlow Web — History</title>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;800&family=Source+Serif+4:opsz,wght@8..60,700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../../css/tokens.css" />
+  <link rel="stylesheet" href="../../css/layout.css" />
+</head>
+<body class="sf-web-page">
+  <div class="sf-web-canvas" id="figma-export">
+    <header class="sf-web-topbar">
+      <img src="../../assets/brand/urbiztondo_seal.png" width="34" height="34" alt="" />
+      <div><div class="sf-web-topbar__office">Engineering Office</div><div class="sf-web-topbar__brand"><span>Smart</span><span>Flow</span></div></div>
+      <div class="sf-web-topbar__spacer"></div><span class="sf-web-badge">ENG</span>
+    </header>
+    <div class="sf-web-body">
+      <nav class="sf-web-nav">
+        <a href="#">Home</a><a href="#">Scan</a><a href="#">Register</a><a href="#">Requests</a><a class="is-active" href="#">History</a><a href="#">Alerts</a><a href="#">Profile</a>
+      </nav>
+      <main class="sf-web-main">
+        <h1 class="sf-web-title">History</h1>
+        <p class="sf-web-sub">Search a tracking ID or open a folder trail.</p>
+        <div class="sf-web-card" style="display:flex;gap:10px;align-items:end;max-width:560px;">
+          <div class="sf-web-field" style="flex:1;margin:0;"><label>Tracking ID</label><input value="DOC-2026-000003" /></div>
+          <button class="sf-web-btn sf-web-btn--navy" type="button">Open trail</button>
+        </div>
+        <div class="sf-web-card" style="margin-top:12px;">
+          <h3 style="margin:0 0 10px;font-size:13px;">Today at your office</h3>
+          <table class="sf-web-table">
+            <thead><tr><th>Status</th><th>ID</th><th>Title</th><th>Time</th></tr></thead>
+            <tbody>
+              <tr><td><span class="sf-web-pill sf-web-pill--in">IN</span></td><td>DOC-2026-000003</td><td>DV — San Gregorio</td><td>9:12 AM</td></tr>
+              <tr><td><span class="sf-web-pill sf-web-pill--out">SENT</span></td><td>DOC-2026-000001</td><td>PR — supplies</td><td>8:41 AM</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

@@ -82,11 +82,12 @@ Before a full demo:
 |--------|----------|
 | **`mobile/flutter/`** | Flutter app — **run here** |
 | **`web/`** | React web portal |
+| **`mobile-mock/`** | Phone HTML twins (Flutter → Figma) |
+| **`web-mock/`** | Desktop HTML twins (React → Figma) |
 | `mobile/android/` | Jetpack Compose (optional second client) |
 | `backend/backend/api/` | PHP API (source) → sync to XAMPP |
 | `docs/` | Thesis, defense, client interview, product |
 | `scripts/` | `run-flutter.ps1`, `sync-backend-to-xampp.ps1`, setup |
-| `mockups/` | HTML mockups |
 
 Do not reshuffle folders right before defense — paths break easily.
 
