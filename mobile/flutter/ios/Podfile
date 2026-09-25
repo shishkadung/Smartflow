@@ -47,6 +47,23 @@ post_install do |installer|
       if config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'].to_f < 15.5
         config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.5'
       end
+      # CocoaPods < 1.13 writes DT_TOOLCHAIN_DIR, which Xcode 15+ rejects.
+      config.build_settings.each do |key, value|
+        if value.is_a?(String)
+          config.build_settings[key] = value.gsub('DT_TOOLCHAIN_DIR', 'TOOLCHAIN_DIR')
+        elsif value.is_a?(Array)
+          config.build_settings[key] = value.map do |item|
+            item.is_a?(String) ? item.gsub('DT_TOOLCHAIN_DIR', 'TOOLCHAIN_DIR') : item
+          end
+        end
+      end
     end
+  end
+
+  Dir.glob(File.join(installer.sandbox.root.to_s, '**', '*.xcconfig')).each do |file|
+    text = File.read(file)
+    next unless text.include?('DT_TOOLCHAIN_DIR')
+    File.chmod(0644, file)
+    File.write(file, text.gsub('DT_TOOLCHAIN_DIR', 'TOOLCHAIN_DIR'))
   end
 end
