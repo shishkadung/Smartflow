@@ -5,6 +5,7 @@
 
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/thresholds-helper.php';
+require_once __DIR__ . '/routing-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -24,6 +25,7 @@ if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
 $monthStart = $month . '-01 00:00:00';
 $monthEnd   = date('Y-m-t 23:59:59', strtotime($monthStart));
 smartflow_ensure_processing_thresholds($pdo);
+$analyticsTrailCompleteSql = smartflow_sql_trail_complete('m.document_id');
 
 $stmtProcessed = $pdo->prepare('
     SELECT COUNT(DISTINCT document_id) AS c
@@ -63,14 +65,14 @@ $stmtCounts = $pdo->prepare("
         SELECT
             m.document_id,
             m.scanned_at AS in_scanned_at,
-            (
+            COALESCE((
                 SELECT MIN(m2.scanned_at)
                 FROM movements m2
                 WHERE m2.document_id = m.document_id
                   AND m2.scanned_at > m.scanned_at
                   AND m2.status = 'OUT'
                   AND m2.office_id = m.office_id
-            ) AS out_min_scanned_at,
+            ), CASE WHEN {$analyticsTrailCompleteSql} THEN m.scanned_at END) AS out_min_scanned_at,
             COALESCE(pt.max_hours, 48) AS maxh
         FROM movements m
         JOIN documents d ON d.id = m.document_id
@@ -116,14 +118,14 @@ $stmtSlow = $pdo->prepare("
             SELECT
                 m.document_id,
                 m.scanned_at AS in_scanned_at,
-                (
+                COALESCE((
                     SELECT MIN(m2.scanned_at)
                     FROM movements m2
                     WHERE m2.document_id = m.document_id
                       AND m2.scanned_at > m.scanned_at
                       AND m2.status = 'OUT'
                       AND m2.office_id = m.office_id
-                ) AS out_min_scanned_at,
+                ), CASE WHEN {$analyticsTrailCompleteSql} THEN m.scanned_at END) AS out_min_scanned_at,
                 COALESCE(pt.max_hours, 48) AS maxh
             FROM movements m
             JOIN documents d ON d.id = m.document_id

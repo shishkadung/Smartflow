@@ -17,18 +17,18 @@ cd "C:\Users\nljhn\Downloads\Capstone 1 -Neil"
 
 ## Day 3 — Rehearse main story (Scenario A — **DV trail**, client priority)
 
-**ENG → BUD → ACC** (use `accounting.staff` for ACC scans, not `accountant.main`)
+**ENG → BUD → ACC** (use `neil.acc.staff` for ACC scans, not `neil.admin`)
 
 | # | User | Action |
 |---|------|--------|
-| 1 | `engineering.staff` | New → **DV** → Register → OUT → **BUD** |
-| 2 | `budget.staff` | IN → OUT → **ACC** |
-| 3 | `accounting.staff` | IN → History timeline |
-| 4 | `accountant.main` | Admin COA report (no scan) |
+| 1 | `kristofer.eng` | New → **DV** → Register → OUT → **BUD** |
+| 2 | `angel.bud` | IN → OUT → **ACC** |
+| 3 | `neil.acc.staff` | IN → History timeline |
+| 4 | `neil.admin` | Admin COA report (no scan) |
 
 **Backup — Budget request (Scenario B):** see [DEMO-SCRIPT.md](DEMO-SCRIPT.md) Part 3. Use **Accept** (not Approve), **required-by date** on new requests.
 
-**Optional:** Reject flow — Angel Reject with notes → Neil **declined** on Home hint + My requests.
+**Optional:** Reject flow — Angel Reject with notes → Kristofer **declined** on Home hint + My requests.
 
 Password: `smartflow123` (say: pilot only, not production).
 
@@ -59,9 +59,9 @@ Password: `smartflow123` (say: pilot only, not production).
 
 | Role | Username |
 |------|----------|
-| ENG staff | `engineering.staff` |
-| ENG head | `head.engineering` |
-| Budget | `budget.staff` |
-| HR | `hr.staff` |
-| Accounting clerk (scans) | `accounting.staff` |
-| Accountant / admin (COA) | `accountant.main` |
+| ENG staff | `kristofer.eng` |
+| ENG head | `neil.eng.head` |
+| Budget | `angel.bud` |
+| HR | `rainier.hr` |
+| Accounting clerk (scans) | `neil.acc.staff` |
+| Accountant / admin (COA) | `neil.admin` |

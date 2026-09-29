@@ -253,7 +253,7 @@ fs.writeFileSync(path.join(HEAD, 'head-alerts.html'), page('Head Alerts', `${hea
 
             <div class="sf-alert-card">
               <strong style="font-size:13px;">Infrastructure Voucher #2026-0135</strong>
-              <p style="font-size:11.5px;color:var(--sf-muted);line-height:1.4;margin:6px 0 8px;">DOC-ENG-2026-0135 · OUT from ENG, no receive at BUD · engineering.staff last scan</p>
+              <p style="font-size:11.5px;color:var(--sf-muted);line-height:1.4;margin:6px 0 8px;">DOC-ENG-2026-0135 · OUT from ENG, no receive at BUD · kristofer.eng last scan</p>
               <div class="sf-pill-row">
                 <span class="sf-pill sf-pill--sent">Needs follow-up</span>
                 <span class="sf-pill sf-pill--warning">2 days</span>
@@ -407,14 +407,14 @@ fs.writeFileSync(path.join(ADMIN, 'admin-users.html'), page('Admin Users', `${ad
             <div class="sf-list-row">
               <div style="flex:1">
                 <div class="sf-list-row__title">Engr. Juan Dela Cruz</div>
-                <div class="sf-list-row__subtitle">engineering.head · ENG · Head</div>
+                <div class="sf-list-row__subtitle">neil.eng.head · ENG · Head</div>
               </div>
               <span class="sf-pill sf-pill--warning">PENDING</span>
             </div>
             <div class="sf-list-row">
               <div style="flex:1">
                 <div class="sf-list-row__title">Maria Reyes</div>
-                <div class="sf-list-row__subtitle">budget.staff · BUD · Employee</div>
+                <div class="sf-list-row__subtitle">angel.bud · BUD · Employee</div>
               </div>
               <span class="sf-pill sf-pill--warning">PENDING</span>
             </div>
@@ -422,13 +422,13 @@ fs.writeFileSync(path.join(ADMIN, 'admin-users.html'), page('Admin Users', `${ad
             <div class="sf-section-header"><span>Active users (pilot)</span></div>
             <div class="sf-list-row">
               <div style="flex:1">
-                <div class="sf-list-row__title">engineering.staff</div>
+                <div class="sf-list-row__title">kristofer.eng</div>
                 <div class="sf-list-row__subtitle">ENG · Employee · Last login today</div>
               </div>
             </div>
             <div class="sf-list-row">
               <div style="flex:1">
-                <div class="sf-list-row__title">acc.admin</div>
+                <div class="sf-list-row__title">neil.admin</div>
                 <div class="sf-list-row__subtitle">ACC · Admin · Last login today</div>
               </div>
             </div>`, adminNav('admin-users.html')));
@@ -535,7 +535,7 @@ fs.writeFileSync(path.join(ADMIN, 'admin-profile.html'), page('Admin Profile', `
                 <div style="flex:1;">
                   <p style="font-weight:800;font-size:14px;margin-bottom:10px;">Account</p>
                   <div class="sf-summary-row"><span class="sf-summary-row__key">Role</span><span class="sf-summary-row__val">Admin / Accounting Head</span></div>
-                  <div class="sf-summary-row"><span class="sf-summary-row__key">Username</span><span class="sf-summary-row__val">acc.admin</span></div>
+                  <div class="sf-summary-row"><span class="sf-summary-row__key">Username</span><span class="sf-summary-row__val">neil.admin</span></div>
                 </div>
               </div>
             </div>

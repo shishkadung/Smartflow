@@ -10,7 +10,8 @@ Start here. Do not browse every file — pick **one folder** for the job you are
 | Understand request vs scan | [`product/SIMPLE-FLOW.md`](product/SIMPLE-FLOW.md) |
 | Client interview answers | [`client/CLIENT-DISCOVERY-RESPONSES-SUMMARY.md`](client/CLIENT-DISCOVERY-RESPONSES-SUMMARY.md) |
 | Figma / QR / use-case pictures | [`design/`](design/) |
-| Old copies | [`archive/`](archive/) |
+| Paper PDF / Word files | [`thesis/files/`](thesis/files/) |
+| Old copies | [`../_archive/`](../_archive/) |
 
 ---
 
@@ -23,8 +24,9 @@ docs/
   product/   how the app works + production deploy
   client/    Municipal Accountant discovery notes
   design/    PDF, diagrams, use-case HTML
-  archive/   deprecated — do not use for demo or Word
 ```
+
+Old copies live in `_archive/` at the project root — do not use for demo or Word.
 
 ---
 

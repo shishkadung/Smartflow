@@ -136,7 +136,8 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen>
     String? docId;
     if (action == 'reject' || action == 'fulfill') {
       notes = await _promptNotes(action);
-      if (!mounted) return;
+      if (!mounted || notes == null) return;
+      if (notes.isEmpty) notes = null;
       if (action == 'fulfill') {
         docId = await _promptDocId();
         if (!mounted) return;
@@ -200,37 +201,46 @@ class _DocumentRequestsScreenState extends State<DocumentRequestsScreen>
     }
   }
 
+  /// Returns null when cancelled, otherwise the trimmed notes (may be empty unless declining).
   Future<String?> _promptNotes(String action) async {
     final c = TextEditingController();
+    final requireNotes = action == 'reject';
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(
-          action == 'reject'
-              ? 'Decline request'
-              : action == 'fulfill'
-                  ? 'Mark complete'
-                  : 'Update request',
-        ),
-        content: TextField(
-          controller: c,
-          decoration: const InputDecoration(labelText: 'Notes (optional)'),
-          maxLines: 3,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(
+            action == 'reject'
+                ? 'Decline request'
+                : action == 'fulfill'
+                    ? 'Mark complete'
+                    : 'Update request',
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('OK'),
+          content: TextField(
+            controller: c,
+            decoration: InputDecoration(
+              labelText: requireNotes ? 'Reason (required)' : 'Notes (optional)',
+            ),
+            maxLines: 3,
+            onChanged: (_) => setDialogState(() {}),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: requireNotes && c.text.trim().isEmpty
+                  ? null
+                  : () => Navigator.pop(ctx, true),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
       ),
     );
     if (ok != true) return null;
-    return c.text.trim().isEmpty ? null : c.text.trim();
+    return c.text.trim();
   }
 
   Future<String?> _promptDocId() async {
@@ -434,7 +444,7 @@ bool _isDisbursement(Map<String, dynamic> request) =>
     (request['document_category']?.toString().toLowerCase() ?? '') ==
     'disbursement';
 
-String _requestStatusLabel(String status) {
+String _requestStatusLabel(String status, {bool disbursement = false}) {
   switch (status) {
     case 'pending':
       return 'Pending';
@@ -443,7 +453,7 @@ String _requestStatusLabel(String status) {
     case 'rejected':
       return 'Declined';
     case 'fulfilled':
-      return 'Closed';
+      return disbursement ? 'Payment released' : 'Closed';
     case 'cancelled':
       return 'Cancelled';
     default:
@@ -582,7 +592,8 @@ class _RequestCard extends StatelessWidget {
     if (status == 'rejected') tone = SfPillTone.danger;
     if (status == 'fulfilled') tone = SfPillTone.success;
 
-    final statusLabel = _requestStatusLabel(status);
+    final statusLabel =
+        _requestStatusLabel(status, disbursement: _isDisbursement(request));
     final requiredBy = request['required_by_display']?.toString();
     final isOverdue = request['is_overdue'] == true;
     final title = purpose.isNotEmpty ? purpose : _categoryLabel(cat);
@@ -958,7 +969,8 @@ class _CreateRequestSheetState extends State<_CreateRequestSheet> {
                         style: TextStyle(fontSize: 12, color: SfColors.muted),
                       )
                     : DropdownButtonFormField<String>(
-                        value: categories.any((e) => e.key == _category)
+                        key: ValueKey('category-$_category'),
+                        initialValue: categories.any((e) => e.key == _category)
                             ? _category
                             : categories.first.key,
                         decoration: const InputDecoration(
@@ -979,7 +991,8 @@ class _CreateRequestSheetState extends State<_CreateRequestSheet> {
               if (_kind == 'access' && _category == 'other') ...[
                 const SizedBox(height: 12),
                 DropdownButtonFormField<int>(
-                  value: _targetOfficeId,
+                  key: ValueKey('others-office-$_targetOfficeId'),
+                  initialValue: _targetOfficeId,
                   decoration: const InputDecoration(
                     labelText: 'Send Others to office',
                   ),
@@ -1001,7 +1014,8 @@ class _CreateRequestSheetState extends State<_CreateRequestSheet> {
               ],
               if (_kind != 'access')
                 DropdownButtonFormField<int>(
-                  value: _targetOfficeId,
+                  key: ValueKey('target-office-$_targetOfficeId'),
+                  initialValue: _targetOfficeId,
                   decoration: const InputDecoration(
                     labelText: 'Send request to office',
                   ),

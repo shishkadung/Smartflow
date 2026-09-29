@@ -133,7 +133,7 @@ SfHelpGuide sfHelpGuide(SfHelpPage page) {
           'Check active documents, overdue items, and pending sign-ups.',
           'Open office tiles to see health per department.',
           'Use COA reports and QR scan monitor for compliance views.',
-          'Do not use this account for everyday Mark IN/OUT — use accounting.staff.',
+          'Do not use this account for everyday Mark IN/OUT — use neil.acc.staff.',
         ],
       );
     case SfHelpPage.adminUsers:
@@ -144,7 +144,7 @@ SfHelpGuide sfHelpGuide(SfHelpPage page) {
         steps: [
           'Review pending sign-up requests first.',
           'Approve only people who belong to that office.',
-          'Keep accountant.main for oversight — clerks scan folders.',
+          'Keep neil.admin for oversight — clerks scan folders.',
         ],
       );
     case SfHelpPage.adminOffices:
@@ -214,7 +214,7 @@ SfRoleTip sfRoleTip({
             'You see municipal-wide status and COA reports. Clerks scan the folders — this account is not for everyday Mark IN/OUT.',
         bullets: [
           'Use dashboards, QR scan monitor, and COA reports.',
-          'For ACC handoffs, use accounting.staff (clerk) to scan.',
+          'For ACC handoffs, use neil.acc.staff (clerk) to scan.',
           'Tap the top-bar ? anytime for page help.',
         ],
       );

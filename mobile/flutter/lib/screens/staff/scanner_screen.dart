@@ -320,9 +320,12 @@ class _ScannerScreenState extends State<ScannerScreen> {
             destinationOfficeId: destination?.officeId,
             scanStartedAt: _scanStartedAt,
             qrPayload: _activeQrPayload,
+            isReturn: destination?.isReturn ?? false,
             remarks: status == 'IN'
                 ? 'Received at ${user.officeName}'
-                : 'Forwarded from ${user.officeName} → ${destination!.code}',
+                : destination!.isReturn
+                    ? destination.returnReason
+                    : 'Forwarded from ${user.officeName} → ${destination.code}',
           );
 
       await _lookup(doc['id'] as String, fromCamera: false);

@@ -2,7 +2,7 @@
 // POST /document-requests-create.php
 // Body: {
 //   "request_kind": "access|pull",
-//   "document_category": "budget|payroll|disbursement",
+//   "document_category": "budget|disbursement|other",
 //   "target_office_id": 1,   // required if pull
 //   "purpose": "..."
 // }
@@ -57,6 +57,13 @@ if (strtotime($requiredByDate) < strtotime('today')) {
 
 if (!smartflow_can_use_request_kind($user['role'], $kind)) {
     json_response(['success' => false, 'message' => 'Your role cannot create document requests'], 403);
+}
+
+if (strtolower($category) === 'payroll') {
+    json_response([
+        'success' => false,
+        'message' => 'Payroll is payslip access only in Phase 1 — Accounting prepares payroll',
+    ], 400);
 }
 
 $allowed = smartflow_allowed_categories_for_role($user['role']);

@@ -3,6 +3,8 @@
 
 declare(strict_types=1);
 
+require_once __DIR__ . '/audit-helper.php';
+
 /**
  * @return array{id: int, office_id: int, role: string, office_name: string, office_code: string}
  */
@@ -258,65 +260,24 @@ function smartflow_has_recent_duplicate_movement(
     int $userId,
     int $withinSeconds = 8
 ): bool {
+    // Only the latest movement counts: TRE → MAY → TRE can legitimately repeat an IN at the same office.
     $stmt = $pdo->prepare('
-        SELECT id
+        SELECT office_id, status, user_id,
+               scanned_at >= (NOW() - INTERVAL :secs SECOND) AS is_recent
         FROM movements
         WHERE document_id = :document_id
-          AND office_id = :office_id
-          AND status = :status
-          AND user_id = :user_id
-          AND scanned_at >= (NOW() - INTERVAL :secs SECOND)
-        ORDER BY id DESC
+        ORDER BY scanned_at DESC, id DESC
         LIMIT 1
     ');
     $stmt->execute([
         ':document_id' => $documentId,
-        ':office_id' => $officeId,
-        ':status' => $status,
-        ':user_id' => $userId,
         ':secs' => $withinSeconds,
     ]);
+    $last = $stmt->fetch();
 
-    return (bool)$stmt->fetch();
-}
-
-/**
- * Lightweight audit trail for scan actions and rejections.
- */
-function smartflow_write_audit_log(
-    PDO $pdo,
-    string $eventType,
-    ?string $documentId,
-    ?int $userId,
-    ?int $officeId,
-    ?string $status,
-    string $outcome,
-    string $message,
-    array $meta = []
-): void {
-    try {
-        $stmt = $pdo->prepare('
-            INSERT INTO audit_logs (
-                event_type, document_id, user_id, office_id, status,
-                outcome, message, meta_json, ip_address, user_agent
-            ) VALUES (
-                :event_type, :document_id, :user_id, :office_id, :status,
-                :outcome, :message, :meta_json, :ip_address, :user_agent
-            )
-        ');
-        $stmt->execute([
-            ':event_type' => $eventType,
-            ':document_id' => $documentId,
-            ':user_id' => $userId,
-            ':office_id' => $officeId,
-            ':status' => $status,
-            ':outcome' => $outcome,
-            ':message' => $message,
-            ':meta_json' => $meta ? json_encode($meta) : null,
-            ':ip_address' => trim((string)($_SERVER['REMOTE_ADDR'] ?? '')) ?: null,
-            ':user_agent' => trim((string)($_SERVER['HTTP_USER_AGENT'] ?? '')) ?: null,
-        ]);
-    } catch (Throwable $e) {
-        // Never block scan flow when audit insert fails.
-    }
+    return $last !== false
+        && (int)$last['office_id'] === $officeId
+        && strtoupper((string)$last['status']) === $status
+        && (int)$last['user_id'] === $userId
+        && (int)$last['is_recent'] === 1;
 }

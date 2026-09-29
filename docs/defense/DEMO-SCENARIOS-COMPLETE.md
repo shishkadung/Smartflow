@@ -15,11 +15,11 @@
 | **S3** | Wrong office IN blocked | **OO** | ~1 min | ENG + BUD |
 | **S4** | OUT without IN blocked | Optional | ~30 sec | ENG |
 | **S5** | Tampered QR rejected | **OO** | ~1 min | ENG |
-| **S6** | Admin QR scan monitor | **OO** | ~2 min | `accountant.main` |
+| **S6** | Admin QR scan monitor | **OO** | ~2 min | `neil.admin` |
 | **B** | Budget request trail | Optional | ~5 min | ENG → BUD → ACC → ENG |
-| **H** | Head monitor only | Optional | ~2 min | `head.engineering` |
-| **C** | COA summary + system | Recommended | ~2 min | `accountant.main` |
-| **C2** | COA custody exceptions | Optional | ~1 min | `accountant.main` |
+| **H** | Head monitor only | Optional | ~2 min | `neil.eng.head` |
+| **C** | COA summary + system | Recommended | ~2 min | `neil.admin` |
+| **C2** | COA custody exceptions | Optional | ~1 min | `neil.admin` |
 
 **HTTPS:** hindi kasama sa demo (LAN HTTP OK — sabihin “production = HTTPS later”).
 
@@ -91,16 +91,16 @@ flutter run
 
 | # | Login | Action | Sabihin |
 |---|--------|--------|---------|
-| A1 | `engineering.staff` | **New** → Title: `DV – Road Repair` · Type: **Disbursement Voucher** | *“Holder office ang nag-register.”* |
+| A1 | `kristofer.eng` | **New** → Title: `DV – Road Repair` · Type: **Disbursement Voucher** | *“Holder office ang nag-register.”* |
 | A2 | Same | Success screen: **secured QR** + expiry date · print/copy | *“Hindi raw ID lang — signed token may expiry.”* (**S1**) |
 | A3 | Same | **Scan** tab → scan QR → **“Secured QR verified”** banner | *“Server chine-check signature at expiry.”* |
 | A4 | Same | **Mark OUT** → destination **BUD** | |
-| A5 | `budget.staff` | **Scan** same label → **Mark IN** | *“Dumating sa Budget.”* |
+| A5 | `angel.bud` | **Scan** same label → **Mark IN** | *“Dumating sa Budget.”* |
 | A6 | Same | **Mark OUT** → **ACC** | |
-| A7 | `accounting.staff` | **Scan** → **Mark IN** · then **Mark OUT** → **TRE** | *“After supporting docs, folder goes to Treasury.”* |
-| A8 | `treasury.staff` | **Scan** → **Mark IN** · **Mark OUT** → **MAY** | *“Treasury processes payment path.”* |
-| A9 | `mayor.staff` | **Scan** → **Mark IN** · **Mark OUT** → **TRE** | *“Mayor signature, then back to Treasury for check release.”* |
-| A10 | `treasury.staff` | **Scan** → **Mark IN** — see **pilot_end_note** on Scan | *“Check release at Treasury — app tracks the folder, not the bank payment.”* |
+| A7 | `neil.acc.staff` | **Scan** → **Mark IN** · then **Mark OUT** → **TRE** | *“After supporting docs, folder goes to Treasury.”* |
+| A8 | `krizandra.tre` | **Scan** → **Mark IN** · **Mark OUT** → **MAY** | *“Treasury processes payment path.”* |
+| A9 | `neil.may.staff` | **Scan** → **Mark IN** · **Mark OUT** → **TRE** | *“Mayor signature, then back to Treasury for check release.”* |
+| A10 | `krizandra.tre` | **Scan** → **Mark IN** — see **pilot_end_note** on Scan | *“Check release at Treasury — app tracks the folder, not the bank payment.”* |
 | A11 | Any | **History** → timeline (user, time, IN/OUT) | *“Chain-of-custody para COA.”* |
 
 **Panel line:**  
@@ -127,7 +127,7 @@ flutter run
 
 | # | Login | Action | Dapat |
 |---|--------|--------|-------|
-| S2-1 | `engineering.staff` | Same doc → **Mark IN** ulit | Error: *“Already marked IN at your office…”* + hint |
+| S2-1 | `kristofer.eng` | Same doc → **Mark IN** ulit | Error: *“Already marked IN at your office…”* + hint |
 | S2-2 | | | **Hindi** dapat magdagdag ng bagong IN sa history |
 
 **Sabihin:** *“Duplicate at invalid state — rejected server-side, may reason code sa audit.”*
@@ -140,10 +140,10 @@ flutter run
 
 | # | Login | Action | Dapat |
 |---|--------|--------|-------|
-| S3-1 | `engineering.staff` | Scan → try **Mark IN** | *“Already forwarded…”* o *“receiving office must scan IN”* |
-| S3-2 | `budget.staff` | Scan → **Mark IN** | **Success** — tamang receiver |
+| S3-1 | `kristofer.eng` | Scan → try **Mark IN** | *“Already forwarded…”* o *“receiving office must scan IN”* |
+| S3-2 | `angel.bud` | Scan → **Mark IN** | **Success** — tamang receiver |
 
-**Optional wrong destination:** OUT to ACC, try IN sa **HR** (`hr.staff`) → *“sent to ACC… Only that office can mark IN.”*
+**Optional wrong destination:** OUT to ACC, try IN sa **HR** (`rainier.hr`) → *“sent to ACC… Only that office can mark IN.”*
 
 ---
 
@@ -176,7 +176,7 @@ flutter run
 
 | # | Login | Action | Dapat |
 |---|--------|--------|-------|
-| S6-1 | `accountant.main` | Home → **QR scan monitor** | Overview card |
+| S6-1 | `neil.admin` | Home → **QR scan monitor** | Overview card |
 | S6-2 | Same | Filter **48h** · **Rejected** | Lista ng S2, S3, S5 |
 | S6-3 | Same | Filter **All** · tingnan **Accepted** | Successful IN/OUT |
 | S6-4 | Same | **Needs review** (kung may 3+ rejects sa isang user) | Training flag |
@@ -192,13 +192,13 @@ flutter run
 
 | # | Login | Action |
 |---|--------|--------|
-| B1 | `engineering.staff` | **Document requests** → Budget → purpose + required-by date |
-| B2 | `budget.staff` | Inbox → **Approve** → **New** Approved Budget → QR → OUT → ACC |
-| B3 | `accounting.staff` | IN → OUT → ENG |
-| B4 | `engineering.staff` | IN → receive |
-| B5 | `budget.staff` | Fulfill + link DOC ID |
+| B1 | `kristofer.eng` | **Document requests** → Budget → purpose + required-by date |
+| B2 | `angel.bud` | Inbox → **Approve** → **New** Approved Budget → QR → OUT → ACC |
+| B3 | `neil.acc.staff` | IN → OUT → ENG |
+| B4 | `kristofer.eng` | IN → receive |
+| B5 | `angel.bud` | Fulfill + link DOC ID |
 
-**Reject variant:** B2 **Reject** + notes → Neil sees declined.
+**Reject variant:** B2 **Reject** + notes → Kristofer sees declined.
 
 ---
 
@@ -206,7 +206,7 @@ flutter run
 
 | # | Login | Action | Sabihin |
 |---|--------|--------|---------|
-| H1 | `head.engineering` | Home / Queue / Alerts | *“Monitor — clerks ang scanner.”* |
+| H1 | `neil.eng.head` | Home / Queue / Alerts | *“Monitor — clerks ang scanner.”* |
 | H2 | Same | History → DOC ID | Read-only trail |
 
 ---
@@ -215,12 +215,12 @@ flutter run
 
 | # | Login | Action | Sabihin |
 |---|--------|--------|---------|
-| C1 | `accountant.main` | Home — all offices | Municipal view |
+| C1 | `neil.admin` | Home — all offices | Municipal view |
 | C2 | Same | **COA monthly summary** | Export / compliance |
 | C3 | Same | **System** — API online | XAMPP health |
 | C4 | Same | **QR scan monitor** (kung hindi pa sa S6) | Audit trail |
 
-**Note:** `accountant.main` **hindi** frontline scanner — gamit `accounting.staff` sa ACC scans.
+**Note:** `neil.admin` **hindi** frontline scanner — gamit `neil.acc.staff` sa ACC scans.
 
 ---
 
@@ -231,7 +231,7 @@ Nasa **COA monthly summary** screen (baba), hindi hiwalay na app.
 
 | # | Login | Action | Sabihin |
 |---|--------|--------|---------|
-| C2-1 | `accountant.main` | **COA summary** → scroll **Audit exceptions (custody gaps)** | *“Unforwarded OUT o wrong-office IN — bago mag-report.”* |
+| C2-1 | `neil.admin` | **COA summary** → scroll **Audit exceptions (custody gaps)** | *“Unforwarded OUT o wrong-office IN — bago mag-report.”* |
 | C2-2 | Same | Kung may row: basahin *wrong_receiver* / *unforwarded* | *“Hindi financial audit — physical custody gaps.”* |
 | C2-3 | Same | Kung empty: *“No exceptions (24h)”* | *“Maayos ang trail sa demo window.”* |
 
@@ -246,7 +246,7 @@ Nasa **COA monthly summary** screen (baba), hindi hiwalay na app.
 3. ACC clerk: IN → History  
 4. ENG: duplicate IN → **reject**  
 5. Admin: QR monitor → rejected row  
-6. *“Treasury after ACC — outside pilot.”*
+6. *“Full DV path ENG → BUD → ACC → TRE → MAY → TRE is tracked in the app; the payment itself stays manual.”*
 
 ---
 
@@ -254,12 +254,14 @@ Nasa **COA monthly summary** screen (baba), hindi hiwalay na app.
 
 | Name | Username | Office | Scan? | Admin? |
 |------|----------|--------|-------|--------|
-| Neil | `engineering.staff` | ENG | Yes | No |
-| Tofers | `head.engineering` | ENG | Yes | No |
-| Angel | `budget.staff` | BUD | Yes | No |
-| Zandra | `hr.staff` | HR | Yes | No |
-| Maria | `accounting.staff` | ACC | Yes | No |
-| Rainier | `accountant.main` | ACC | No | Yes |
+| Kristofer | `kristofer.eng` | ENG | Yes | No |
+| Neil | `neil.eng.head` | ENG (head) | Yes | No |
+| Angel | `angel.bud` | BUD | Yes | No |
+| Rainier | `rainier.hr` | HR | Yes | No |
+| Neil | `neil.acc.staff` | ACC | Yes | No |
+| Zandra | `krizandra.tre` | TRE | Yes | No |
+| Neil | `neil.may.staff` | MAY | Yes | No |
+| Neil | `neil.admin` | ACC | No | Yes |
 
 ---
 
@@ -282,7 +284,7 @@ Nasa **COA monthly summary** screen (baba), hindi hiwalay na app.
 | Invalid server response | `.\scripts\sync-backend-to-xampp.ps1` · restart Apache |
 | Walang “Secured QR verified” | Reprint/register bagong doc — luma plain QR = legacy warning lang |
 | Cannot Mark IN | Previous office OUT muna; tamang receiving office |
-| Admin cannot scan | Normal — use `accounting.staff` |
+| Admin cannot scan | Normal — use `neil.acc.staff` |
 | QR monitor empty | Gawin muna S2/S3/S5 rejects · pull to refresh · try 48h |
 | Purge masyadong aggressive | Purge documents only kung kailangan — users naiwan |
 

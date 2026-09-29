@@ -311,13 +311,17 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
             officeId: user.officeId,
             status: 'OUT',
             destinationOfficeId: destination.officeId,
-            remarks:
-                'Forwarded from ${user.officeName} → ${destination.code}',
+            isReturn: destination.isReturn,
+            remarks: destination.isReturn
+                ? destination.returnReason
+                : 'Forwarded from ${user.officeName} → ${destination.code}',
           );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$documentId marked OUT'),
+          content: Text(destination.isReturn
+              ? '$documentId returned to ${destination.code}'
+              : '$documentId marked OUT'),
           backgroundColor: SfColors.blue,
         ),
       );

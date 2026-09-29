@@ -21,7 +21,7 @@ Goal: prove Messenger-style chrome (⇄ Requests + ENG menu) and bottom `Home ·
 
 ## B. Clerk navigation + path (3–4 min)
 
-Login: `engineering.staff`
+Login: `kristofer.eng`
 
 **Header:** `⇄` Document requests · `ENG` **Profile**  
 **Bottom:** Home · **Scan** (raised) · Alerts (badge) · Menu (Register · History)

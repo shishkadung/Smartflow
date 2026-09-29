@@ -36,10 +36,19 @@ class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
   final _fundCtrl = TextEditingController();
   final _titleFocus = FocusNode();
   late String _type;
+  late String _officeCode;
   DateTime? _dueDate;
+  int? _receivedFromOfficeId;
+  List<Map<String, dynamic>> _offices = const [];
   bool _loading = false;
   String? _error;
   Map<String, dynamic>? _created;
+
+  bool get _isDv => _type == 'Disbursement Voucher';
+  bool get _needsReference => _isDv || _type == 'Approved Budget';
+
+  /// Accounting does not originate project DVs — it only registers DVs that arrived without a QR.
+  bool get _needsReceivedFrom => _isDv && _officeCode == 'ACC';
 
   bool get _canSubmit =>
       !_loading &&
@@ -59,12 +68,30 @@ class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
   void initState() {
     super.initState();
     final user = context.read<AuthProvider>().user!;
+    _officeCode = user.officeCode.toUpperCase();
     final types = documentTypesForOffice(user.officeCode);
     _type = types.isNotEmpty ? types.first : 'Disbursement Voucher';
     _titleCtrl.addListener(_onFormChanged);
     _otherCtrl.addListener(_onFormChanged);
     _commentCtrl.addListener(_onFormChanged);
     _refCtrl.addListener(_onFormChanged);
+    if (_officeCode == 'ACC') {
+      _loadOffices(user.officeId);
+    }
+  }
+
+  Future<void> _loadOffices(int myOfficeId) async {
+    try {
+      final list = await context.read<AuthProvider>().api.offices();
+      if (!mounted) return;
+      setState(() {
+        _offices = list
+            .where((o) => (o['id'] as num?)?.toInt() != myOfficeId)
+            .toList(growable: false);
+      });
+    } catch (_) {
+      // Dropdown stays empty; the API still rejects ACC DV registration without a sender office.
+    }
   }
 
   void _onFormChanged() {
@@ -123,6 +150,7 @@ class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
     setState(() {
       _type = types.isNotEmpty ? types.first : _type;
       _dueDate = null;
+      _receivedFromOfficeId = null;
       _error = null;
     });
     _titleFocus.requestFocus();
@@ -221,6 +249,21 @@ class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
     final savedType = _type == kOtherDocumentType ? 'Others: $otherName' : _type;
 
     final ref = _refCtrl.text.trim();
+    if (_needsReference && ref.isEmpty) {
+      setState(() => _error = 'Enter the reference number from the logbook.');
+      return;
+    }
+    if (_isDv &&
+        (_payeeCtrl.text.trim().isEmpty || _fundCtrl.text.trim().isEmpty)) {
+      setState(() => _error =
+          'Payee and fund source are required for a Disbursement Voucher.');
+      return;
+    }
+    if (_needsReceivedFrom && _receivedFromOfficeId == null) {
+      setState(() => _error =
+          'Choose the office that sent this DV folder to Accounting.');
+      return;
+    }
 
     setState(() {
       _loading = true;
@@ -256,6 +299,8 @@ class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
             fundSource: _fundCtrl.text.trim().isEmpty
                 ? null
                 : _fundCtrl.text.trim(),
+            receivedFromOfficeId:
+                _needsReceivedFrom ? _receivedFromOfficeId : null,
           );
       if (!mounted) return;
       HapticFeedback.mediumImpact();
@@ -463,44 +508,85 @@ class _DocumentRegisterScreenState extends State<DocumentRegisterScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
-                'Logbook fields (optional)',
-                style: TextStyle(
+              Text(
+                _isDv
+                    ? 'Logbook fields (required for DV)'
+                    : _needsReference
+                        ? 'Logbook fields'
+                        : 'Logbook fields (optional)',
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: SfColors.muted,
                 ),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'Mirror municipal logbook — reference, payee, fund source.',
-                style: TextStyle(fontSize: 11, color: SfColors.muted, height: 1.35),
+              Text(
+                _needsReference && !_isDv
+                    ? 'Reference no. is required; payee and fund source are optional.'
+                    : 'Mirror municipal logbook — reference, payee, fund source.',
+                style: const TextStyle(fontSize: 11, color: SfColors.muted, height: 1.35),
               ),
               const SizedBox(height: 10),
+              if (_needsReceivedFrom) ...[
+                InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Received from office (required)',
+                    border: OutlineInputBorder(),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<int>(
+                      value: _receivedFromOfficeId,
+                      isExpanded: true,
+                      isDense: true,
+                      hint: const Text('Select office'),
+                      items: _offices
+                          .map(
+                            (o) => DropdownMenuItem<int>(
+                              value: (o['id'] as num).toInt(),
+                              child: Text('${o['name']} (${o['code']})'),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: _loading
+                          ? null
+                          : (v) => setState(() => _receivedFromOfficeId = v),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Accounting does not originate project DVs. Register only a DV folder that arrived without a QR label.',
+                  style: TextStyle(fontSize: 11, color: SfColors.muted, height: 1.35),
+                ),
+                const SizedBox(height: 10),
+              ],
               TextField(
                 controller: _refCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Reference / DV no.',
+                decoration: InputDecoration(
+                  labelText: _needsReference
+                      ? 'Reference / DV no. (required)'
+                      : 'Reference / DV no.',
                   hintText: 'LGU reference number',
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                 ),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _payeeCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Payee',
-                  border: OutlineInputBorder(),
+                decoration: InputDecoration(
+                  labelText: _isDv ? 'Payee (required)' : 'Payee',
+                  border: const OutlineInputBorder(),
                 ),
                 textCapitalization: TextCapitalization.words,
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: _fundCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Fund source',
+                decoration: InputDecoration(
+                  labelText: _isDv ? 'Fund source (required)' : 'Fund source',
                   hintText: 'e.g. MOOE, PS',
-                  border: OutlineInputBorder(),
+                  border: const OutlineInputBorder(),
                 ),
                 textCapitalization: TextCapitalization.characters,
               ),
@@ -563,7 +649,7 @@ class _RegisterGuidanceCard extends StatelessWidget {
         break;
       case 'ACC':
         body =
-            'After supporting-doc check, Mark OUT → Treasury. Do not treat Scan IN as payment approval.';
+            'Accounting does not originate project DVs — register a DV only if it arrived without a QR label. After supporting-doc check, Mark OUT → Treasury.';
         break;
       case 'TRE':
         body =

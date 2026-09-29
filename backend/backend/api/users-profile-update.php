@@ -4,6 +4,7 @@
 
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/users-helper.php';
+require_once __DIR__ . '/audit-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -69,6 +70,23 @@ $upd->execute([
     ':email'    => $email,
     ':id'       => $userId,
 ]);
+
+$changes = [];
+foreach (['name' => $name, 'username' => $username, 'email' => $email] as $field => $newValue) {
+    $oldValue = (string)($current[$field] ?? '');
+    if ($oldValue !== $newValue) {
+        $changes[$field] = ['from' => $oldValue, 'to' => $newValue];
+    }
+}
+if ($changes) {
+    smartflow_audit_action(
+        $pdo,
+        'user.profile_update',
+        $userId,
+        'Updated own profile (' . implode(', ', array_keys($changes)) . ')',
+        ['changes' => $changes]
+    );
+}
 
 $updated = smartflow_fetch_user_by_id($pdo, $userId);
 if (!$updated) {

@@ -1,9 +1,10 @@
 <?php
 // GET /documents-find-by-reference.php?reference=DV-2026-1234
-// Returns documents whose description contains "Reference: <value>".
+// Returns documents with this reference_no (or legacy "Reference: <value>" in description).
 // Used by mobile Register form to warn the clerk about duplicates before submit.
 
 require __DIR__ . '/config.php';
+require_once __DIR__ . '/documents-logbook-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response([
@@ -23,6 +24,7 @@ if ($reference === '') {
     ]);
 }
 
+smartflow_ensure_documents_logbook_columns($pdo);
 $needle = '%Reference: ' . $reference . '%';
 
 $stmt = $pdo->prepare('
@@ -36,11 +38,11 @@ $stmt = $pdo->prepare('
         o.code AS origin_office_code
     FROM documents d
     JOIN offices o ON o.id = d.origin_office_id
-    WHERE d.description LIKE :needle
+    WHERE d.reference_no = :ref OR d.description LIKE :needle
     ORDER BY d.date_registered DESC
     LIMIT 5
 ');
-$stmt->execute([':needle' => $needle]);
+$stmt->execute([':ref' => $reference, ':needle' => $needle]);
 $rows = $stmt->fetchAll();
 
 $matches = array_map(static function ($r) {

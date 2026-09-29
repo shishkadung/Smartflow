@@ -24,7 +24,7 @@ $results['email_test'] = $emailResult;
 
 // Test 3: Check if user has email
 $stmt = $pdo->prepare('SELECT username, email FROM users WHERE username = :username');
-$stmt->execute([':username' => 'engineering.staff']);
+$stmt->execute([':username' => 'kristofer.eng']);
 $user = $stmt->fetch();
 
 $results['user_check'] = [

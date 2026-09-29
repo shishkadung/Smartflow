@@ -65,13 +65,13 @@ Practice bawat figure **2–3 beses** nang malakas. **Ituro** ang diagram habang
 | Approve ba ang app ng DV? | **Hindi** — custody log lang; Accounting checks docs, hindi payment approval |
 | Bakit 0 on desk pagkatapos OUT? | On desk = still IN here; forwarded = Sent count |
 | Treasury? | Phase 2; pilot ends sa ACC — may note sa app |
-| COA export sino? | Accounting admin lang (`accountant.main`) |
+| COA export sino? | Accounting admin lang (`neil.admin`) |
 
 ---
 
 ## G. Closing — 20 segundo
 
-> SmartFlow ay nagbibigay ng **chain-of-custody** para sa pisikal na DV at budget folders hanggang Accounting, **sumusuporta sa COA preparation** habang nananatiling **manual ang payment release** sa Treasury at Mayor. Salamat po.
+> SmartFlow ay nagbibigay ng **chain-of-custody** para sa pisikal na DV at budget folders mula Engineering hanggang Treasury at Mayor, **sumusuporta sa COA preparation** habang nananatiling **manual ang mismong bayad** — folder lang ang tina-track, hindi ang pera. Salamat po.
 
 ---
 

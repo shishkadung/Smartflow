@@ -24,7 +24,7 @@
 
 ---
 
-## Neil (Engineering) — examples
+## Kristofer (Engineering) — examples
 
 | Situation | Gawin |
 |-----------|--------|
@@ -62,9 +62,9 @@
 
 ## Demo bukas (main = DV, 5–10 min)
 
-1. Neil: **New** → **DV** → Register → **OUT** → BUD  
+1. Kristofer: **New** → **DV** → Register → **OUT** → BUD  
 2. Angel: **IN** → **OUT** → ACC  
-3. **`accounting.staff`**: **IN** → History *(hindi accountant.main — admin hindi makakapag-scan)*  
-4. Sabihin: Treasury pagkatapos ACC — labas ng pilot  
+3. **`neil.acc.staff`**: **IN** → History *(hindi neil.admin — admin hindi makakapag-scan)*  
+4. **`neil.acc.staff`** → **OUT** → TRE → **`krizandra.tre`** → MAY → **`neil.may.staff`** → TRE (check release — tapos ang trail)  
 
 **Backup:** budget request — BUD → ACC → ENG (see `IKAW-LANG-BASAHIN.md`).

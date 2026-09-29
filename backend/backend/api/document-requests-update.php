@@ -9,6 +9,7 @@
 
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/document-requests-helper.php';
+require_once __DIR__ . '/audit-helper.php';
 
 smartflow_ensure_document_requests($pdo);
 
@@ -91,6 +92,9 @@ if ($action === 'cancel') {
         if ($row['status'] !== 'pending') {
             json_response(['success' => false, 'message' => 'Only pending requests can be rejected'], 409);
         }
+        if ($notes === '') {
+            json_response(['success' => false, 'message' => 'A reason is required when declining a request'], 400);
+        }
         $pdo->prepare("
             UPDATE document_requests
             SET status = 'rejected', reviewed_by = :uid, reviewed_at = NOW(), review_notes = :n
@@ -146,8 +150,31 @@ if ($action === 'cancel') {
 $stmtReq->execute([':id' => $requestId]);
 $updated = $stmtReq->fetch();
 
+$requestLabel = (string)($row['request_code'] ?? ('#' . $requestId));
+smartflow_audit_action(
+    $pdo,
+    'request.' . $action,
+    $userId,
+    ucfirst($action) . ' request ' . $requestLabel . ($notes !== '' ? ': ' . $notes : ''),
+    [
+        'request_id'        => $requestId,
+        'request_code'      => $row['request_code'] ?? null,
+        'category'          => $row['document_category'] ?? null,
+        'previous_status'   => $row['status'],
+        'new_status'        => $updated['status'] ?? null,
+        'handler_office_id' => (int)$row['handler_office_id'],
+        'as_admin'          => $isAdmin,
+    ],
+    $docId !== '' ? $docId : null
+);
+
 json_response([
     'success' => true,
-    'message' => 'Request ' . $action . 'd',
+    'message' => 'Request ' . [
+        'approve' => 'approved',
+        'reject'  => 'rejected',
+        'fulfill' => 'fulfilled',
+        'cancel'  => 'cancelled',
+    ][$action],
     'request' => smartflow_format_document_request_row($updated),
 ]);

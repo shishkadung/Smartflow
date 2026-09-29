@@ -18,7 +18,7 @@ Native Android rebuild matching **Capstone SmartFlow.pdf** and the PHP API.
 
 ## Demo accounts
 
-Same as Flutter — `engineering.staff` / `head.engineering` / `accountant.main` · password `smartflow123`.
+Same as Flutter — `kristofer.eng` / `neil.eng.head` / `neil.admin` · password `smartflow123`.
 
 ## Note
 

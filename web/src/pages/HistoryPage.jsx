@@ -185,6 +185,9 @@ export default function HistoryPage() {
               <p className="register-kv"><span>Title</span><strong>{doc.title}</strong></p>
               <p className="register-kv"><span>Type</span><strong>{doc.type}</strong></p>
               <p className="register-kv"><span>Origin</span><strong>{doc.origin_office_name}</strong></p>
+              {doc.trail_complete ? (
+                <p className="register-kv"><span>Status</span><strong>Completed — at {doc.current_office_name || 'final office'}</strong></p>
+              ) : null}
               {doc.due_at_display && doc.due_at_display !== '—' ? (
                 <p className="register-kv"><span>Due</span><strong>{doc.due_at_display}</strong></p>
               ) : null}

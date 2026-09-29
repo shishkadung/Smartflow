@@ -32,6 +32,7 @@ export default function RequestsPage() {
   const [notes, setNotes] = useState('')
   const [relatedId, setRelatedId] = useState('')
   const [saving, setSaving] = useState(false)
+  const [noticeOpen, setNoticeOpen] = useState(false)
 
   const categories = useMemo(
     () => documentRequestCategoriesForOffice(user.office_code),
@@ -68,10 +69,15 @@ export default function RequestsPage() {
         action,
         ...extra,
       })
-      setOk(data.message || 'Updated')
+      setOk(
+        action === 'reject'
+          ? 'Declined — also notify the requester by phone or memo'
+          : data.message || 'Updated',
+      )
       setDialog(null)
       setNotes('')
       setRelatedId('')
+      if (action === 'reject') setNoticeOpen(true)
       await load()
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not update request')
@@ -175,7 +181,7 @@ export default function RequestsPage() {
           <article key={req.id} className="request-card">
             <div className="request-card__top">
               <div className="request-card__code">{req.request_code}</div>
-              <StatusPill tone={toneForStatus(req.status)}>{statusLabel(req.status)}</StatusPill>
+              <StatusPill tone={toneForStatus(req.status)}>{statusLabel(req.status, req.document_category)}</StatusPill>
             </div>
             <div className="request-card__meta">
               <span>{req.document_category}</span>
@@ -248,6 +254,25 @@ export default function RequestsPage() {
           <label>{dialog?.action === 'reject' ? 'Decline notes (required)' : 'Closing notes (optional)'}</label>
           <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} required={dialog?.action === 'reject'} />
         </div>
+        {dialog?.action === 'reject' ? (
+          <p className="hint" style={{ margin: 0 }}>
+            A separate notice (phone call or memo) to the requester is also required.
+          </p>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={noticeOpen}
+        title="Separate notice required"
+        onClose={() => setNoticeOpen(false)}
+        footer={(
+          <button type="button" className="btn" onClick={() => setNoticeOpen(false)}>OK</button>
+        )}
+      >
+        <p style={{ margin: 0 }}>
+          Per Municipal Accountant practice, also inform the requester outside the app
+          (phone call or memo). In-app status alone is not enough.
+        </p>
       </Modal>
     </div>
   )

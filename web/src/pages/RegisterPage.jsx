@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { QRCodeSVG } from 'qrcode.react'
 import { smartflow, ApiError } from '../api.js'
@@ -10,7 +10,7 @@ const OFFICE_TIPS = {
   ENG: 'Register your DV packet here. If you asked Budget for a file, use Document request — then Scan IN when it arrives (do not register as DV).',
   BUD: 'After approving a budget request, register Approved Budget, then OUT → ACC.',
   HR: 'Physical payroll folders are not registered in Phase 1. Accounting prepares payroll; HR supports plantilla.',
-  ACC: 'After supporting-doc check, Mark OUT → Treasury. Do not treat Scan IN as payment approval.',
+  ACC: 'Accounting does not originate project DVs — register a DV only if it arrived without a QR label. After supporting-doc check, Mark OUT → Treasury.',
   TRE: 'Scan IN from Accounting, then OUT → Mayor. After Mayor returns the folder, Scan IN and release the check.',
   MAY: 'Scan IN when Treasury delivers the DV. After signature, Mark OUT back to Treasury.',
 }
@@ -39,12 +39,25 @@ export default function RegisterPage() {
   const [reference, setReference] = useState('')
   const [payee, setPayee] = useState('')
   const [fundSource, setFundSource] = useState('')
+  const [receivedFrom, setReceivedFrom] = useState('')
+  const [offices, setOffices] = useState([])
   const [dueDate, setDueDate] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [created, setCreated] = useState(null)
   const [copyNote, setCopyNote] = useState('')
   const [dupMatches, setDupMatches] = useState(null)
+
+  const isDv = type === 'Disbursement Voucher'
+  const needsReference = isDv || type === 'Approved Budget'
+  const needsReceivedFrom = isDv && String(user.office_code || '').toUpperCase() === 'ACC'
+
+  useEffect(() => {
+    if (!needsReceivedFrom || offices.length) return
+    smartflow.offices()
+      .then((d) => setOffices((d.offices || []).filter((o) => o.id !== user.office_id)))
+      .catch(() => {})
+  }, [needsReceivedFrom, offices.length, user.office_id])
 
   const formDirty = Boolean(
     title.trim()
@@ -63,6 +76,7 @@ export default function RegisterPage() {
     setReference('')
     setPayee('')
     setFundSource('')
+    setReceivedFrom('')
     setDueDate('')
     setType(types[0] || '')
     setError('')
@@ -93,6 +107,7 @@ export default function RegisterPage() {
       reference_no: reference.trim() || undefined,
       payee: payee.trim() || undefined,
       fund_source: fundSource.trim() || undefined,
+      received_from_office_id: needsReceivedFrom ? Number(receivedFrom) : undefined,
       due_at: dueDate || undefined,
     })
     setCreated(data.document)
@@ -111,6 +126,18 @@ export default function RegisterPage() {
     }
     if (type === OTHER_DOCUMENT_TYPE && otherName.trim().length < 3) {
       setError('Name the folder under Others (at least 3 characters).')
+      return
+    }
+    if (needsReference && !reference.trim()) {
+      setError('Enter the reference number from the logbook.')
+      return
+    }
+    if (isDv && (!payee.trim() || !fundSource.trim())) {
+      setError('Payee and fund source are required for a Disbursement Voucher.')
+      return
+    }
+    if (needsReceivedFrom && !receivedFrom) {
+      setError('Choose the office that sent this DV folder to Accounting.')
       return
     }
 
@@ -286,26 +313,44 @@ export default function RegisterPage() {
               />
             </div>
             <p className="muted profile-card-lead register-logbook-note">
-              Logbook fields (optional). Mirror municipal logbook — reference, payee, fund source.
+              {isDv
+                ? 'Logbook fields (required for DV). Mirror municipal logbook — reference, payee, fund source.'
+                : needsReference
+                  ? 'Logbook fields. Reference no. is required; payee and fund source are optional.'
+                  : 'Logbook fields (optional). Mirror municipal logbook — reference, payee, fund source.'}
             </p>
+            {needsReceivedFrom ? (
+              <div className="field">
+                <label>Received from office (required)</label>
+                <select value={receivedFrom} onChange={(e) => setReceivedFrom(e.target.value)} required>
+                  <option value="">Select office</option>
+                  {offices.map((o) => <option key={o.id} value={o.id}>{o.name} ({o.code})</option>)}
+                </select>
+                <p className="muted profile-readonly__hint">
+                  Accounting does not originate project DVs. Register only a DV folder that arrived without a QR label.
+                </p>
+              </div>
+            ) : null}
             <div className="field">
-              <label>Reference / DV no.</label>
+              <label>Reference / DV no.{needsReference ? ' (required)' : ''}</label>
               <input
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
                 placeholder="LGU reference number"
+                required={needsReference}
               />
             </div>
             <div className="field">
-              <label>Payee</label>
-              <input value={payee} onChange={(e) => setPayee(e.target.value)} />
+              <label>Payee{isDv ? ' (required)' : ''}</label>
+              <input value={payee} onChange={(e) => setPayee(e.target.value)} required={isDv} />
             </div>
             <div className="field">
-              <label>Fund source</label>
+              <label>Fund source{isDv ? ' (required)' : ''}</label>
               <input
                 value={fundSource}
                 onChange={(e) => setFundSource(e.target.value)}
                 placeholder="e.g. MOOE, PS"
+                required={isDv}
               />
             </div>
             <div className="field">

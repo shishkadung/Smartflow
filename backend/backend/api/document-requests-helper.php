@@ -2,7 +2,8 @@
 
 /**
  * Document request routing — validated with Municipal Accountant (Urbiztondo):
- *   budget → BUD, disbursement → ACC, payroll → ACC (not used in pilot UI)
+ *   budget → BUD, disbursement → ACC
+ *   payroll requests are not accepted in Phase 1 (payslip access only; ACC prepares payroll)
  *   pull → target office handles the request
  *   ACC must not submit disbursement requests to itself
  */
@@ -80,9 +81,9 @@ function smartflow_category_owner_code(string $category): ?string
 function smartflow_allowed_categories_for_role(string $role): array
 {
     return match ($role) {
-        'admin' => ['budget', 'payroll', 'disbursement', 'general', 'other'],
-        'head'  => ['budget', 'payroll', 'disbursement', 'general', 'other'],
-        'staff' => ['budget', 'payroll', 'disbursement', 'general', 'other'],
+        'admin' => ['budget', 'disbursement', 'general', 'other'],
+        'head'  => ['budget', 'disbursement', 'general', 'other'],
+        'staff' => ['budget', 'disbursement', 'general', 'other'],
         default => [],
     };
 }
@@ -104,7 +105,6 @@ function smartflow_resolve_document_request(PDO $pdo, array $user, string $kind,
     if ($category === '') {
         $category = 'general';
     }
-
     if ($kind === 'pull') {
         if ($targetOfficeId === null || $targetOfficeId <= 0) {
             json_response(['success' => false, 'message' => 'target_office_id is required for pull requests'], 400);
@@ -143,7 +143,7 @@ function smartflow_resolve_document_request(PDO $pdo, array $user, string $kind,
     if ($ownerCode === null && $category !== 'general') {
         json_response([
             'success' => false,
-            'message' => 'document_category must be budget, payroll, or disbursement',
+            'message' => 'document_category must be budget, disbursement, or other',
         ], 400);
     }
 

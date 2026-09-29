@@ -81,26 +81,26 @@ Inbox ng **handler office** — staff/head ng BUD, HR, ACC, o ENG (kapag pull).
 
 ## Scenario: ENG humingi ng budget file (wala pa sa ENG)
 
-1. **Neil** (ENG) → Request `access` + category **budget** → inbox **BUD**  
-2. **Angel** → Approve **or Reject** (reject → Neil sees `rejected` in **My requests**)  
-3. **Angel (BUD)** → **Register + QR** (nasa Budget ang dokumento — **hindi** Neil)  
+1. **Kristofer** (ENG) → Request `access` + category **budget** → inbox **BUD**  
+2. **Angel** → Approve **or Reject** (reject → Kristofer sees `rejected` in **My requests**)  
+3. **Angel (BUD)** → **Register + QR** (nasa Budget ang dokumento — **hindi** Kristofer)  
 4. **Angel** → **OUT** → **ACC** → **IN** (Accounting)  
-5. **Rainier (ACC)** → **OUT** → **ENG** → **Neil IN** (only ENG can IN — enforced if OUT had destination)  
+5. **Neil (ACC)** → **OUT** → **ENG** → **Kristofer IN** (only ENG can IN — enforced if OUT had destination)  
 6. **Angel** → Fulfill (+ link `DOC-2026-xxx`)
 
 **Reject:** Hindi automatic — Budget staff taps **Reject** with notes; status `rejected` (not “decline” in DB).
 
 ## Scenario: ENG may sariling DV packet (review / payment trail)
 
-1. **Neil** → Register DV sa **ENG** (may hawak na siya)  
+1. **Kristofer** → Register DV sa **ENG** (may hawak na siya)  
 2. Optional: budget request = “pakicheck ang DV” (ticket lang)  
 3. Pisikal: **ENG → BUD → ACC** (hindi HR para sa DV)  
 
 ## Scenario: ACC needs file from ENG
 
-1. **Rainier** (ACC admin) → Request `pull` + **target ENG** + category disbursement  
-2. Inbox **Neil / Tofers (ENG)**  
-3. Accept → Neil **OUT** (scan) → **`accounting.staff` IN** (admin cannot scan)  
+1. **Neil** (ACC admin) → Request `pull` + **target ENG** + category disbursement  
+2. Inbox **Kristofer / ENG head (ENG)**  
+3. Accept → Kristofer **OUT** (scan) → **`neil.acc.staff` IN** (admin cannot scan)  
 4. Fulfill request  
 
 ---

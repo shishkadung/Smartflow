@@ -6,6 +6,7 @@
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/users-helper.php';
 require_once __DIR__ . '/thresholds-helper.php';
+require_once __DIR__ . '/routing-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -21,6 +22,8 @@ $monthEnd   = date('Y-m-t 23:59:59', strtotime($monthStart));
 $todayStart = date('Y-m-d 00:00:00');
 $maxInHours = 48;
 $maxOutHours = 24;
+$trailCompleteSql = smartflow_sql_trail_complete('t.document_id');
+$latestTrailCompleteSql = smartflow_sql_trail_complete('latest.document_id');
 
 $apiOnline = true;
 $dbConnected = isset($pdo);
@@ -71,6 +74,7 @@ $stmtActive = $pdo->query("
         GROUP BY m.document_id
     ) t
     WHERE t.last_status = 'IN'
+      AND NOT {$trailCompleteSql}
 ");
 $activeDocuments = (int)($stmtActive->fetch()['c'] ?? 0);
 
@@ -88,6 +92,7 @@ $stmtOverdue = $pdo->prepare("
         GROUP BY m.document_id
     ) t
     WHERE t.last_status = 'IN'
+      AND NOT {$trailCompleteSql}
       AND TIMESTAMPDIFF(HOUR, t.last_scanned, NOW()) >= :maxh
 ");
 $stmtOverdue->execute([':maxh' => $maxInHours]);
@@ -139,6 +144,7 @@ $stmtOffices = $pdo->query("
             )
         ) latest
         WHERE latest.status = 'IN'
+          AND NOT {$latestTrailCompleteSql}
         GROUP BY latest.office_id
     ) t ON t.office_id = o.id
     ORDER BY o.name ASC

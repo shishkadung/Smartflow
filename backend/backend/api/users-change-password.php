@@ -4,6 +4,7 @@
 
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/users-helper.php';
+require_once __DIR__ . '/audit-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -39,6 +40,8 @@ if (!password_verify($current, (string)$row['password_hash'])) {
 $hash = password_hash($new, PASSWORD_DEFAULT);
 $pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id')
     ->execute([':hash' => $hash, ':id' => $userId]);
+
+smartflow_audit_action($pdo, 'user.password_change', $userId, 'Changed own password');
 
 json_response([
     'success' => true,

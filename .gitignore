@@ -30,4 +30,10 @@ Desktop.ini
 # Local dumps / screenshots
 sf-screen*.png
 sf-screen*.jpg
-new ver_SmartFlow_Capstone2.docx.pdf
+
+# Paper PDFs / Word files (kept locally, not in git)
+docs/thesis/files/
+
+# Figma import scratch output (regenerate with node mobile-mock/_build-batch.js)
+mobile-mock/_figma-batch/
+_archive/mobile-mock-figma-batch/

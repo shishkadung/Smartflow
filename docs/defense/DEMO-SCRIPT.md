@@ -1,7 +1,7 @@
 # SmartFlow — Demo Script (~12–15 min)
 
 **Audience:** Panel / Municipal Accountant / class  
-**Cast:** Neil · Tofers · Angel · Zandra · Rainier  
+**Cast:** Kristofer · Angel · Neil · Zandra · Rainier  
 **Password:** `smartflow123`
 
 > **Lahat ng scenario (A, S1–S6, B, H, C, C2, 5-min script, Q&A, panel mapping):**  
@@ -26,9 +26,9 @@ May **dalawang layer** — huwag isahing pipeline:
 
 **Tama sa Urbiztondo practice (client + thesis):**
 
-| Document type | Pilot QR trail (SmartFlow) | Buong LGU path (labas ng pilot) |
-|---------------|---------------------------|----------------------------------|
-| **Disbursement Voucher** | **ENG → BUD → ACC** | Pagkatapos ACC: **Treasury → Mayor → Treasury** (check release) — **hindi pa sa app** |
+| Document type | Pilot QR trail (SmartFlow) | Labas ng app |
+|---------------|---------------------------|--------------|
+| **Disbursement Voucher** | **ENG → BUD → ACC → TRE → MAY → TRE** (check release) | Ang mismong bayad / check — manual; folder lang ang tina-track |
 | **Approved budget** | **BUD → ACC → ENG** (kung hinihingi ng ENG) | — |
 | **Payroll** | *Payslip access — hindi physical QR sa Phase 1* | Accounting ang naghahanda ng payroll |
 
@@ -46,10 +46,10 @@ May **dalawang layer** — huwag isahing pipeline:
 | | **A — DV trail** (**main demo** — client priority) | **B — Hingi ng budget docs** (optional, 2nd) |
 |---|------------------------------------------------------|-----------------------------------------------|
 | Request | Optional: ENG → BUD ticket “pakireview ang DV” | ENG → BUD: kailangan ng budget file / pondo |
-| Sino mag-register + QR? | **Neil (ENG)** — nasa Eng ang DV folder | **Angel (BUD)** — nasa Budget ang dokumento |
-| Pisikal (pilot) | **ENG → BUD → ACC** | **BUD → ACC → ENG** |
+| Sino mag-register + QR? | **Kristofer (ENG)** — nasa Eng ang DV folder | **Angel (BUD)** — nasa Budget ang dokumento |
+| Pisikal (pilot) | **ENG → BUD → ACC → TRE → MAY → TRE** | **BUD → ACC → ENG** |
 
-**Panel line (Treasury):** *“SmartFlow ay hanggang Accounting sa pilot — ang **payment release** sa Treasury at Mayor ay manual pa; hindi ‘approve’ ng DV ang app, **track lang** ng pisikal na folder.”*
+**Panel line (Treasury):** *“Kasama ang Treasury at Mayor sa pilot trail — tapos ang DV trail pag bumalik sa Treasury para sa check release. Hindi ‘approve’ ng DV ang app at hindi nito nilalabas ang bayad; **track lang** ng pisikal na folder, at Treasury ang nagma-mark ng ‘Payment released’ sa request ticket.”*
 
 ---
 
@@ -77,19 +77,19 @@ May **dalawang layer** — huwag isahing pipeline:
 | Step | Action | Say |
 |------|--------|-----|
 | 1 | Get Started → Login | |
-| 2 | **`engineering.staff`** | *“Neil, Engineering clerk.”* |
+| 2 | **`kristofer.eng`** | *“Kristofer, Engineering clerk.”* |
 
 ---
 
 ## Part 2 — Scenario A: DV trail (**main demo**)
 
-**Story:** May **Disbursement Voucher folder** na sa Engineering (end user). I-track ang pisikal na lipat hanggang Accounting. **Hindi** dadaan sa HR. Pagkatapos ACC, ang folder ay **Treasury / Mayor** na — labas ng pilot.
+**Story:** May **Disbursement Voucher folder** na sa Engineering (end user). I-track ang pisikal na lipat **ENG → BUD → ACC → TRE → MAY → TRE** (check release). **Hindi** dadaan sa HR.
 
-### Neil — register DV sa ENG
+### Kristofer — register DV sa ENG
 
 | Step | Action | Say |
 |------|--------|-----|
-| 1 | (Naka-login na **`engineering.staff`**) **New** → Title: `DV – Road Repair Project` · Type: **Disbursement Voucher** | *“End user ang naghahanda ng DV packet — nasa desk nila kaya sila mag-register.”* |
+| 1 | (Naka-login na **`kristofer.eng`**) **New** → Title: `DV – Road Repair Project` · Type: **Disbursement Voucher** | *“End user ang naghahanda ng DV packet — nasa desk nila kaya sila mag-register.”* |
 | 2 | Copy **DOC-…** · **secured QR** + expiry · auto **IN** sa ENG | *“Signed QR — hindi raw ID; custody log, hindi approval ng bayad.”* |
 | 2b | **Scan** tab → scan label → **Secured QR verified** | *“Server: signature + expiry.”* |
 | 3 | *(Optional)* **Document requests** → Budget: `Please review DV for fund availability` | Ticket lang — hiwalay sa scan trail |
@@ -99,22 +99,30 @@ May **dalawang layer** — huwag isahing pipeline:
 
 | Step | Action | Say |
 |------|--------|-----|
-| 5 | Login **`budget.staff`** | |
+| 5 | Login **`angel.bud`** | |
 | 6 | **Scan** → same DOC ID → **Mark IN** | *“Dumating sa Budget — wrong office blocked kung maling IN.”* |
 | 7 | **Scan** → **Mark OUT** → **ACC** (suggested) | *“Supporting docs complete sa Budget → Accounting.”* |
 | 8 | Logout | |
 
-### Rainier — Accounting receives (end of pilot trail)
+### Neil — Accounting receives at forwards
 
 | Step | Action | Say |
 |------|--------|-----|
-| 9 | Login **`accounting.staff`** (ACC clerk — **hindi** accountant.main) | |
-| 10 | **Scan** → **Mark IN** | *“Accounting: completeness at legality ng supporting docs — **hindi** DV approval sa app.”* |
-| 11 | **History** → timeline (named user, date/time) | *“Chain-of-custody para sa COA prep.”* |
-| 12 | Login **`accountant.main`** → Admin → **COA report** | *“Head/accountant view — hindi siya frontline scanner.”* |
+| 9 | Login **`neil.acc.staff`** (ACC clerk — **hindi** neil.admin) | |
+| 10 | **Scan** → **Mark IN** → **Mark OUT** → **TRE** | *“Accounting: completeness at legality ng supporting docs — **hindi** DV approval sa app.”* |
+
+### Zandra → Neil → Zandra — Treasury, Mayor, check release
+
+| Step | Action | Say |
+|------|--------|-----|
+| 11 | Login **`krizandra.tre`** → **Scan** → **Mark IN** → **Mark OUT** → **MAY** | *“Treasury processes the payment path.”* |
+| 12 | Login **`neil.may.staff`** → **Scan** → **Mark IN** → **Mark OUT** → **TRE** | *“Pirma ng Mayor, balik sa Treasury.”* |
+| 13 | Login **`krizandra.tre`** → **Scan** → **Mark IN** → basahin ang **trail complete** note | *“Check release sa Treasury — tapos na ang DV trail. Ang mismong bayad ay hindi sa app.”* |
+| 14 | **History** → timeline (named user, date/time) | *“Chain-of-custody para sa COA prep.”* |
+| 15 | Login **`neil.admin`** → Admin → **COA report** | *“Head/accountant view — hindi siya frontline scanner.”* |
 
 **Panel line:**  
-> *“DV path na validated ng Municipal Accountant: **ENG → BUD → ACC**, tapos **Treasury → Mayor → Treasury** para sa check release — yung huli wala pa sa SmartFlow pilot. Hindi HR ang dadaan para sa DV.”*
+> *“DV path na validated ng Municipal Accountant: **ENG → BUD → ACC → TRE → MAY → TRE** — buong trail naka-track sa SmartFlow. Hindi HR ang dadaan para sa DV.”*
 
 **Kung tanong “bakit hindi HR?”** — payroll hiwalay; DV = project/end-user folder.
 
@@ -124,32 +132,32 @@ May **dalawang layer** — huwag isahing pipeline:
 
 **Gamitin kung may extra oras** — hiwalay na story sa Part 2. **Huwag** isabay sa DV demo.
 
-**Story:** Neil kailangan ng **approved budget / allotment** — **hindi** siya mag-QR ng file na nasa Budget pa.
+**Story:** Kristofer kailangan ng **approved budget / allotment** — **hindi** siya mag-QR ng file na nasa Budget pa.
 
-### Neil — request lang
+### Kristofer — request lang
 
 | Step | Action | Say |
 |------|--------|-----|
-| 1 | **`engineering.staff`** → **Document requests** → **Budget (→ BUD)** | *“Formal request sa owner office.”* |
+| 1 | **`kristofer.eng`** → **Document requests** → **Budget (→ BUD)** | *“Formal request sa owner office.”* |
 | 2 | Purpose: `Need approved budget allotment for road repair` → Submit → Logout | |
 
 ### Angel — approve, register, send
 
 | Step | Action | Say |
 |------|--------|-----|
-| 3 | **`budget.staff`** → **Inbox** → **Approve** | |
+| 3 | **`angel.bud`** → **Inbox** → **Approve** | |
 | 4 | **New** → **Approved Budget** → Register + QR sa **BUD** | *“Holder office ang nag-register.”* |
 | 5 | **OUT** → **ACC** → Logout | |
 
-### Rainier → Neil — ACC then ENG
+### Neil → Kristofer — ACC then ENG
 
 | Step | Action | Say |
 |------|--------|-----|
-| 6 | **`accounting.staff`** → **IN** → **OUT** → **ENG** | *“Client: dadaan muna sa Accounting.”* |
-| 7 | **`engineering.staff`** → **IN** (receive) | |
+| 6 | **`neil.acc.staff`** → **IN** → **OUT** → **ENG** | *“Client: dadaan muna sa Accounting.”* |
+| 7 | **`kristofer.eng`** → **IN** (receive) | |
 | 8 | Angel: **Fulfill** + link DOC ID | |
 
-**Optional reject:** Angel **Reject** + notes → Neil sees **declined**; *“Sa totoong opisina, hiwalay na tawag/memo rin.”*
+**Optional reject:** Angel **Reject** + notes → Kristofer sees **declined**; *“Sa totoong opisina, hiwalay na tawag/memo rin.”*
 
 ---
 
@@ -163,7 +171,7 @@ May **dalawang layer** — huwag isahing pipeline:
 
 | Step | Action | Say |
 |------|--------|-----|
-| 1 | **`head.engineering`** (Tofers) | |
+| 1 | **`neil.eng.head`** (Neil) | |
 | 2 | **Home** / **Queue** / **Alerts** | *“Monitor lang — hindi araw-araw na scanner ang head.”* |
 | 3 | **History** → DOC ID → timeline | |
 
@@ -175,10 +183,10 @@ Gawin **pagkatapos** ng partial DV trail (may DOC na IN/OUT) o sa dulo. Detalye:
 
 | Step | Login | Action | Say |
 |------|--------|--------|-----|
-| 1 | `engineering.staff` | Same doc → **Mark IN** ulit | *“Duplicate blocked — may reason code.”* |
-| 2 | `engineering.staff` | Doc OUT to BUD, **huwag** pa BUD IN → try **Mark IN** sa ENG | *“Wrong office — state rules.”* |
-| 3 | `engineering.staff` | Paste secured QR sa manual field · **1 char** baguhin | *“Tampered label rejected.”* |
-| 4 | `accountant.main` | Home → **QR scan monitor** → Rejected / All · **Copy CSV** | *“Audit monitor para COA.”* |
+| 1 | `kristofer.eng` | Same doc → **Mark IN** ulit | *“Duplicate blocked — may reason code.”* |
+| 2 | `kristofer.eng` | Doc OUT to BUD, **huwag** pa BUD IN → try **Mark IN** sa ENG | *“Wrong office — state rules.”* |
+| 3 | `kristofer.eng` | Paste secured QR sa manual field · **1 char** baguhin | *“Tampered label rejected.”* |
+| 4 | `neil.admin` | Home → **QR scan monitor** → Rejected / All · **Copy CSV** | *“Audit monitor para COA.”* |
 
 ---
 
@@ -186,7 +194,7 @@ Gawin **pagkatapos** ng partial DV trail (may DOC na IN/OUT) o sa dulo. Detalye:
 
 | Step | Action | Say |
 |------|--------|-----|
-| 1 | **`accountant.main`** | |
+| 1 | **`neil.admin`** | |
 | 2 | **Home** — lahat ng office | |
 | 3 | **COA report** — buwanang summary | |
 | 4 | **System** | |
@@ -204,22 +212,24 @@ Gawin **pagkatapos** ng partial DV trail (may DOC na IN/OUT) o sa dulo. Detalye:
 
 | Name | Username | Office |
 |------|----------|--------|
-| Neil | `engineering.staff` | ENG |
-| Tofers | `head.engineering` | ENG |
-| Angel | `budget.staff` | BUD |
-| Zandra | `hr.staff` | HR |
-| Maria (ACC clerk) | `accounting.staff` | ACC (scans) |
-| Rainier | `accountant.main` | ACC (admin / COA) |
+| Kristofer | `kristofer.eng` | ENG |
+| Neil | `neil.eng.head` | ENG (head) |
+| Angel | `angel.bud` | BUD |
+| Rainier | `rainier.hr` | HR |
+| Neil (ACC clerk) | `neil.acc.staff` | ACC (scans) |
+| Neil | `neil.admin` | ACC (admin / COA) |
+| Zandra | `krizandra.tre` | TRE |
+| Neil | `neil.may.staff` | MAY |
 
 ---
 
 ## Short demo (5 min) — DV + security
 
-1. Neil: **New** → **DV** → secured QR → scan verify → **OUT** → BUD  
+1. Kristofer: **New** → **DV** → secured QR → scan verify → **OUT** → BUD  
 2. Angel: **IN** → **OUT** → ACC  
-3. `accounting.staff`: **IN** → **History**  
-4. Neil: duplicate **IN** → reject  
-5. `accountant.main`: **QR scan monitor**  
+3. `neil.acc.staff`: **IN** → **History**  
+4. Kristofer: duplicate **IN** → reject  
+5. `neil.admin`: **QR scan monitor**  
 6. *“Treasury and Mayor are in the pilot — ENG → BUD → ACC → TRE → MAY → TRE. Treasury marks payment released on the ticket.”*
 
 ---

@@ -8,6 +8,7 @@
 
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/thresholds-helper.php';
+require_once __DIR__ . '/routing-helper.php';
 
 smartflow_ensure_documents_due_column($pdo);
 
@@ -49,6 +50,7 @@ if (!$office) {
     json_response(['success' => false, 'message' => 'Office not found'], 404);
 }
 
+$trailCompleteSql = smartflow_sql_trail_complete('d.id');
 $sql = "
     SELECT
         d.id AS document_id,
@@ -74,6 +76,7 @@ $sql = "
         )
     ) latest ON latest.document_id = d.id
     WHERE latest.office_id = :oid
+      AND NOT {$trailCompleteSql}
     ORDER BY latest.scanned_at ASC
 ";
 

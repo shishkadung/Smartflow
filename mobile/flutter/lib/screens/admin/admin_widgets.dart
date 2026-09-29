@@ -99,7 +99,7 @@ class SfAdminPageOverviewCard extends StatelessWidget {
       case SfAdminScreen.reports:
         title = 'COA reports';
         body =
-            'Monthly handoff metrics from scan logs — not a financial review.';
+            'Monthly or annual handoff metrics from scan logs — not a financial review.';
       case SfAdminScreen.thresholds:
         title = 'Thresholds';
         body = 'Max hours per office and document type.';
@@ -730,6 +730,7 @@ class SfCoaExportHero extends StatelessWidget {
     required this.onExport,
     this.submissionNote = '',
     this.onChangeMonth,
+    this.pickerLabel = 'Month',
   });
 
   final String monthLabel;
@@ -740,6 +741,7 @@ class SfCoaExportHero extends StatelessWidget {
   final VoidCallback onExport;
   final String submissionNote;
   final VoidCallback? onChangeMonth;
+  final String pickerLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -899,9 +901,9 @@ class SfCoaExportHero extends StatelessWidget {
                             foregroundColor: SfColors.gold,
                             padding: const EdgeInsets.symmetric(horizontal: 8),
                           ),
-                          child: const Text(
-                            'Month',
-                            style: TextStyle(
+                          child: Text(
+                            pickerLabel,
+                            style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 12,
                             ),

@@ -1,6 +1,8 @@
 <?php
 // POST /movements-create.php
 // Body: { "document_id": "DOC-2026-000001", "office_id": 1, "status": "IN|OUT", "remarks": "..." }
+// Return (incomplete / sent back): { ..., "status": "OUT", "is_return": true, "remarks": "<reason>" }
+//   destination must be an office that already held the folder; reason is required.
 // Auth: Bearer token required (user id extracted from token)
 
 require __DIR__ . '/config.php';
@@ -27,11 +29,19 @@ $destinationOfficeId = isset($body['destination_office_id'])
     : 0;
 $scanStartedAtRaw = trim((string)($body['scan_started_at'] ?? ''));
 $qrPayloadRaw = trim((string)($body['qr_payload'] ?? ''));
+$isReturn = !empty($body['is_return']);
 
 if ($documentId === '' || $officeId <= 0 || ($status !== 'IN' && $status !== 'OUT')) {
     json_response([
         'success' => false,
         'message' => 'document_id, office_id, and status (IN or OUT) are required',
+        'scan_error' => 'invalid_request',
+    ], 400);
+}
+if ($isReturn && $status !== 'OUT') {
+    json_response([
+        'success' => false,
+        'message' => 'Returns are recorded as Mark OUT',
         'scan_error' => 'invalid_request',
     ], 400);
 }
@@ -184,7 +194,41 @@ if ($status === 'OUT') {
     }
 }
 
-if ($remarks === null || $remarks === '') {
+if ($isReturn) {
+    if ($remarks === null || mb_strlen($remarks) < 5) {
+        smartflow_reject_scan(
+            $pdo,
+            'movement.scan',
+            $documentId,
+            $userId,
+            $officeId,
+            $status,
+            'return_reason_required',
+            'Enter the reason for returning this folder (at least 5 characters).',
+            400
+        );
+    }
+    $stmtHeld = $pdo->prepare("
+        SELECT 1 FROM movements
+        WHERE document_id = :doc AND office_id = :dest AND status = 'IN'
+        LIMIT 1
+    ");
+    $stmtHeld->execute([':doc' => $documentId, ':dest' => $destinationOfficeId]);
+    if (!$stmtHeld->fetch()) {
+        smartflow_reject_scan(
+            $pdo,
+            'movement.scan',
+            $documentId,
+            $userId,
+            $officeId,
+            $status,
+            'return_not_previous_holder',
+            'A folder can only be returned to an office that already received it.',
+            400
+        );
+    }
+    $remarks = 'Returned to ' . $destOffice['name'] . ' (' . $destOffice['code'] . '): ' . $remarks;
+} elseif ($remarks === null || $remarks === '') {
     if ($status === 'IN') {
         $remarks = 'Received at ' . $user['office_name'];
     } else {
@@ -229,7 +273,7 @@ $last = smartflow_last_movement($pdo, $documentId);
 
 $message = $status === 'IN'
     ? 'Document received (IN) at ' . $user['office_code']
-    : 'Document forwarded (OUT) from ' . $user['office_code']
+    : 'Document ' . ($isReturn ? 'returned' : 'forwarded') . ' (OUT) from ' . $user['office_code']
         . ' → ' . ($destOffice['code'] ?? '?');
 
 smartflow_write_audit_log(
@@ -243,6 +287,7 @@ smartflow_write_audit_log(
     $message,
     [
         'destination_office_id' => $status === 'OUT' ? $destinationOfficeId : null,
+        'is_return' => $isReturn,
     ]
 );
 
@@ -252,6 +297,7 @@ json_response([
     'movement_id' => (int)$pdo->lastInsertId(),
     'document_id' => $documentId,
     'status'      => $status,
+    'is_return'   => $isReturn,
     'office_id'   => $officeId,
     'office_code' => $user['office_code'],
     'destination_office_id' => $status === 'OUT' ? $destinationOfficeId : null,

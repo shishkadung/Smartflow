@@ -1,12 +1,15 @@
 <?php
 // GET /reports-summary.php?month=2026-04&office_id=4
-// Builds the COA Support Summary numbers:
+// GET /reports-summary.php?period=quarter&year=2026&quarter=2&office_id=4
+// GET /reports-summary.php?period=year&year=2026&office_id=4
+// Builds the COA Support Summary numbers (monthly, quarterly, or annual):
 //   - compliance: completed-on-time / unforwarded / delayed (% of total docs)
 //   - office_totals: documents processed by each office in the month
 //   - this_office: spotlight counts for the requesting office
 // Auth: Bearer token required.
 
 require __DIR__ . '/config.php';
+require_once __DIR__ . '/report-period-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response([
@@ -26,27 +29,30 @@ $stmtUser = $pdo->prepare('
 ');
 $stmtUser->execute([':id' => $userId]);
 $caller = $stmtUser->fetch();
-$exportAllowed = $caller
-    && $caller['role'] === 'admin'
-    && strtoupper((string)$caller['office_code']) === 'ACC';
+if (!$caller || $caller['role'] !== 'admin') {
+    json_response([
+        'success' => false,
+        'message' => 'COA summaries are available to administrators only',
+    ], 403);
+}
+$exportAllowed = strtoupper((string)$caller['office_code']) === 'ACC';
 
 $officeId = (int)($_GET['office_id'] ?? 0);
-$month = trim((string)($_GET['month'] ?? date('Y-m'))); // YYYY-MM
 if ($officeId <= 0) {
     json_response([
         'success' => false,
         'message' => 'office_id is required',
     ], 400);
 }
-if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
-    json_response([
-        'success' => false,
-        'message' => 'month must be YYYY-MM',
-    ], 400);
-}
 
-$monthStart = $month . '-01 00:00:00';
-$monthEnd   = date('Y-m-t 23:59:59', strtotime($monthStart));
+$range = smartflow_report_period($_GET);
+$period = $range['period'];
+$month = $range['month'];
+$quarter = $range['quarter'];
+$year = $range['year'];
+$monthStart = $range['start'];
+$monthEnd = $range['end'];
+$periodLabel = $range['label'];
 
 // Total documents that had any activity this month.
 $stmtTotal = $pdo->prepare('
@@ -158,10 +164,18 @@ $thisOfficeDocs = (int)($stmtThis->fetch()['c'] ?? 0);
 
 json_response([
     'success' => true,
+    'period'  => $period,
     'month'   => $month,
+    'quarter' => $quarter,
+    'year'    => $year,
+    'period_label' => $periodLabel,
     'office_id' => $officeId,
     'export_allowed' => $exportAllowed,
-    'submission_note' => 'DV and collection reports are typically submitted by the 10th day of the following month (client practice).',
+    'submission_note' => match ($period) {
+        'year'    => 'Annual custody summary for COA preparation — pair with the monthly DV and collection reports already submitted.',
+        'quarter' => 'Quarterly custody summary for COA preparation — covers the three monthly DV and collection report periods.',
+        default   => 'DV and collection reports are typically submitted by the 10th day of the following month (client practice).',
+    },
     'totals' => [
         'documents_in_period' => $totalDocs,
         'this_office_documents' => $thisOfficeDocs,

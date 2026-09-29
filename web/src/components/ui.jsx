@@ -67,8 +67,19 @@ export function CoaSummaryHero({
   docsInPeriod = 0,
   onChangeMonth,
   monthValue,
+  period = 'month',
   children,
 }) {
+  const isYear = period === 'year'
+  const isQuarter = period === 'quarter'
+  const currentYear = new Date().getFullYear()
+  const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3)
+  const quarterOptions = []
+  for (let y = currentYear; y >= currentYear - 5; y -= 1) {
+    for (let q = y === currentYear ? currentQuarter : 4; q >= 1; q -= 1) {
+      quarterOptions.push(`${y}-Q${q}`)
+    }
+  }
   return (
     <section className="coa-hero">
       <div className="coa-hero__band">
@@ -82,12 +93,30 @@ export function CoaSummaryHero({
         </div>
         {onChangeMonth ? (
           <label className="coa-hero__month">
-            <span>Month</span>
-            <input
-              type="month"
-              value={monthValue}
-              onChange={(e) => onChangeMonth(e.target.value)}
-            />
+            <span>{isYear ? 'Year' : isQuarter ? 'Quarter' : 'Month'}</span>
+            {isYear ? (
+              <input
+                type="number"
+                min={currentYear - 15}
+                max={currentYear}
+                step={1}
+                value={monthValue}
+                onChange={(e) => onChangeMonth(e.target.value)}
+              />
+            ) : isQuarter ? (
+              <select value={monthValue} onChange={(e) => onChangeMonth(e.target.value)}>
+                {quarterOptions.map((value) => {
+                  const [y, q] = value.split('-')
+                  return <option key={value} value={value}>{`${q} ${y}`}</option>
+                })}
+              </select>
+            ) : (
+              <input
+                type="month"
+                value={monthValue}
+                onChange={(e) => onChangeMonth(e.target.value)}
+              />
+            )}
           </label>
         ) : null}
       </div>

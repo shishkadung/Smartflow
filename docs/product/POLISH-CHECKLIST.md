@@ -112,12 +112,12 @@ Gawin after Phase 1–2 batches. One login per row; **30 sec** lang each.
 
 | # | User | Quick check | API (May 27) |
 |---|------|-------------|--------------|
-| 1 | `engineering.staff` | Home stats → Register DV → Scan OUT → History | ✅ dashboard + requests |
-| 2 | `budget.staff` | Scan IN → OUT → Home | ✅ dashboard |
-| 3 | `accounting.staff` | Scan IN → History timeline | ✅ dashboard + alerts |
-| 4 | `accountant.main` | Admin → COA Reports → copy summary | ✅ admin + COA export |
-| 5 | `head.engineering` | Queue → filter → History (monitor) | ✅ queue + analytics |
-| 6 | `hr.staff` | Register empty state message (expected) | ✅ login + HR office |
+| 1 | `kristofer.eng` | Home stats → Register DV → Scan OUT → History | ✅ dashboard + requests |
+| 2 | `angel.bud` | Scan IN → OUT → Home | ✅ dashboard |
+| 3 | `neil.acc.staff` | Scan IN → History timeline | ✅ dashboard + alerts |
+| 4 | `neil.admin` | Admin → COA Reports → copy summary | ✅ admin + COA export |
+| 5 | `neil.eng.head` | Queue → filter → History (monitor) | ✅ queue + analytics |
+| 6 | `rainier.hr` | Register empty state message (expected) | ✅ login + HR office |
 
 - [x] **API smoke** — 6/6 pass (`fix-api.ps1` + per-user endpoints)
 - [ ] **UI smoke** — tap-through on emulator/device — use [`UI-VALIDATION-5MIN.md`](UI-VALIDATION-5MIN.md) (seal · Scan · COA heroes + clerk Mark OUT/IN)

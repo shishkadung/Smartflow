@@ -30,7 +30,7 @@ try {
 }
 
 $loginUser = $null
-foreach ($u in @('kristofer.eng', 'neil.admin', 'engineering.staff')) {
+foreach ($u in @('kristofer.eng', 'neil.admin')) {
     try {
         $login = Invoke-RestMethod -Uri "$Api/auth-login.php" -Method POST `
             -Body (@{ username = $u; password = 'smartflow123' } | ConvertTo-Json) `

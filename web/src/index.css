@@ -1276,7 +1276,8 @@ a.office-seal.active,
   font-weight: 700;
   color: var(--sf-gold);
 }
-.coa-hero__month input {
+.coa-hero__month input,
+.coa-hero__month select {
   min-width: 9.5rem;
   padding: 6px 8px;
   border-radius: 8px;

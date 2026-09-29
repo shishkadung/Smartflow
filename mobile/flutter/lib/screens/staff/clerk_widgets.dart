@@ -2948,7 +2948,9 @@ class SfHistoryDocumentSummary extends StatelessWidget {
                   ],
                 ),
               ),
-              if (isOverdue)
+              if (doc['trail_complete'] == true)
+                const SfStatusPill(label: 'Completed', tone: SfPillTone.success)
+              else if (isOverdue)
                 const SfStatusPill(label: 'Overdue', tone: SfPillTone.danger),
             ],
           ),

@@ -57,7 +57,7 @@ flutter pub get
 flutter run
 ```
 
-**Demo logins** (password `smartflow123`): `engineering.staff`, `budget.staff`, `accounting.staff`, `treasury.staff`, `mayor.staff`, `accountant.main` (admin / COA — does not scan).
+**Demo logins** (password `smartflow123`): `kristofer.eng`, `angel.bud`, `neil.acc.staff`, `krizandra.tre`, `neil.may.staff`, `neil.admin` (admin / COA — does not scan).
 
 If the app shows **API not found**:
 
@@ -87,7 +87,9 @@ Before a full demo:
 | `mobile/android/` | Jetpack Compose (optional second client) |
 | `backend/backend/api/` | PHP API (source) → sync to XAMPP |
 | `docs/` | Thesis, defense, client interview, product |
-| `scripts/` | `run-flutter.ps1`, `sync-backend-to-xampp.ps1`, setup |
+| `docs/thesis/files/` | Paper PDF/Word files, template, highlighted revision PDFs |
+| `scripts/` | `run-flutter.ps1`, `sync-backend-to-xampp.ps1`, `smoke-test.ps1`, setup |
+| `_archive/` | Unused files — ignore |
 
 Do not reshuffle folders right before defense — paths break easily.
 
@@ -102,7 +104,7 @@ Do not reshuffle folders right before defense — paths break easily.
 | [`docs/product/`](docs/product/) | App rules + production deploy |
 | [`docs/client/`](docs/client/) | Accountant interview → implementation |
 | [`docs/design/`](docs/design/) | Figma PDF, diagrams, use cases |
-| [`docs/archive/`](docs/archive/) | Old copies — ignore |
+| [`_archive/`](_archive/) | Old copies — ignore |
 
 **Figma PDF:** [`docs/design/Capstone SmartFlow.pdf`](docs/design/Capstone%20SmartFlow.pdf) · how-to: [`docs/design/PDF-README.md`](docs/design/PDF-README.md)
 

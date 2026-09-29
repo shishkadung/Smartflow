@@ -4,6 +4,7 @@
 // Auth: Bearer token required.
 
 require __DIR__ . '/config.php';
+require_once __DIR__ . '/routing-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response([
@@ -41,7 +42,8 @@ $stmtOut = $pdo->prepare("
 $stmtOut->execute([':oid' => $officeId, ':today' => $today]);
 $outFlow = (int)($stmtOut->fetch()['c'] ?? 0);
 
-// Active = documents whose latest movement is IN at this office (still here).
+// Active = documents whose latest movement is IN at this office (still here), excluding finished trails.
+$activeTrailCompleteSql = smartflow_sql_trail_complete('t.document_id');
 $stmtActive = $pdo->prepare("
     SELECT COUNT(*) AS c
     FROM (
@@ -60,11 +62,13 @@ $stmtActive = $pdo->prepare("
         GROUP BY m.document_id
     ) t
     WHERE t.last_status = 'IN' AND t.last_office = :oid
+      AND NOT {$activeTrailCompleteSql}
 ");
 $stmtActive->execute([':oid' => $officeId]);
 $activeTags = (int)($stmtActive->fetch()['c'] ?? 0);
 
 // Documents currently IN at this office (clerk tray).
+$trayTrailCompleteSql = smartflow_sql_trail_complete('d.id');
 $stmtTray = $pdo->prepare("
     SELECT d.id AS document_id, d.title, d.type,
            latest.scanned_at AS last_scanned_at,
@@ -81,6 +85,7 @@ $stmtTray = $pdo->prepare("
         )
     ) latest ON latest.document_id = d.id
     WHERE latest.status = 'IN' AND latest.office_id = :oid
+      AND NOT {$trayTrailCompleteSql}
     ORDER BY latest.scanned_at DESC
     LIMIT 12
 ");

@@ -1,49 +1,41 @@
 # SmartFlow — Mobile HTML mock (Flutter twin for Figma)
 
-Static **414px phone frames** that mirror the **live Flutter app**
-(`mobile/flutter/`). Use these screens as the visual source when building **mobile** Figma frames.
+Static **390px app screens** (UI only — no phone bezel) that mirror the **live Flutter app** (`mobile/flutter/`).
 
-> Desktop / browser Figma mocks live in **`web-mock/`** (twins of `web/` React).
+> Desktop / React mocks: **`web-mock/`**
 
-## Twin rules (keep in sync with Flutter)
+## Figma import (html.to.design)
 
-| Piece | Flutter source | Mock |
-|-------|----------------|------|
-| Colors / type | `lib/theme/smartflow_theme.dart` | `css/tokens.css` |
-| Navy top chrome | `lib/widgets/sf_shell_chrome.dart` (`SfShellTopBar`) | `.sf-shell-chrome` |
-| Overview card | `SfPageOverviewCard` in `clerk_widgets.dart` | `.sf-overview-card` |
-| Desk stats | `SfDashboardStatRow` | `.sf-stat-cell` + `__sublabel` |
-| Bottom nav | `SfBottomNav` in `sf_page.dart` | `.sf-bottom-nav` |
-| Captions | `utils/format_time.dart` + role overview cards | page copy |
+**Do not import `index.html` or `galleries/admin.html` (etc.)** — those use iframes. html.to.design shows “Not Found!” and gallery padding looks like a white border.
 
-## Role bottom nav (live)
+| Do this | File |
+|---------|------|
+| Auth (4) | `galleries/auth-figma.html` |
+| Employee (10) | `galleries/employee-figma.html` |
+| Head (4) | `galleries/head-figma.html` |
+| Admin (6) | `galleries/admin-figma.html` |
+| Extras (12) | `galleries/extras-figma.html` |
 
-| Role | Tabs |
-|------|------|
-| **staff** | Home · **Scan** · Alerts · Menu |
-| **head** | Home · **Queue** · Alerts · Menu |
-| **admin** | Home · **Scan** · COA · Menu |
+These boards **inline** the phone UIs (no iframes), with **zero page padding**. Use the **html.to.design browser extension** for `file://` / local pages. Frame look is white app content only (no device bezel). Browse `index.html` in Chrome for the iframe viewer only.
 
-Top bar (all roles): seal · **office name** · SmartFlow wordmark · help · requests (⇄) · office badge.
+**Extras board** covers: signup step 2 · scan blocked · history trail · requests create/mine · account & security · employee/head/admin menus · head register · admin profile · admin system.
 
-## Quick start
+Rebuild after UI edits:
 
-Double-click **`index.html`** in Chrome (no server).
+```bash
+node mobile-mock/_build-batch.js
+```
 
-Or: File → Open → `mobile-mock/index.html`.
+## Twin rules
 
-## Re-sync after Flutter UI changes
+| Piece | Flutter | Mock |
+|-------|---------|------|
+| Colors | `smartflow_theme.dart` | `css/tokens.css` |
+| Top chrome | `SfShellTopBar` | `.sf-shell-chrome` |
+| Bottom nav | `SfBottomNav` | `.sf-bottom-nav` |
+
+## Re-sync chrome after Flutter UI changes
 
 ```bash
 node mobile-mock/scripts/sync-flutter-twin.js
 ```
-
-Then hand-fix any screen that needs content-level twinning.
-
-## Import into Figma
-
-1. Open a screen full-size in Chrome.
-2. DevTools → right-click `#figma-export` → **Capture node screenshot**.
-3. Or use **html.to.design** with the local file URL.
-
-Frame: **414 px** wide; height grows with content.

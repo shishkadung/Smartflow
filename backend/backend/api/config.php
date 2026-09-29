@@ -17,6 +17,12 @@ if (file_exists($envFile)) {
     }
 }
 
+// PHP and MySQL must share one clock — XAMPP defaults PHP to Europe/Berlin, which skews due/overdue math.
+$appTimezone = $_ENV['APP_TIMEZONE'] ?? 'Asia/Manila';
+if (!@date_default_timezone_set($appTimezone)) {
+    date_default_timezone_set('Asia/Manila');
+}
+
 $db_host = $_ENV['DB_HOST'] ?? 'localhost';
 $db_name = $_ENV['DB_NAME'] ?? 'smartflow';
 $db_user = $_ENV['DB_USER'] ?? 'root';
@@ -31,6 +37,7 @@ try {
         // Avoid HY093 when the same named placeholder appears twice in one SQL.
         PDO::ATTR_EMULATE_PREPARES   => true,
     ]);
+    $pdo->exec("SET time_zone = '" . (new DateTime())->format('P') . "'");
 } catch (PDOException $e) {
     http_response_code(500);
     header('Content-Type: application/json');
@@ -279,8 +286,12 @@ function require_user_id(): int
     return $userId;
 }
 
-/** Set ALLOW_DEV_TOOLS=false in .env on municipal LAN before go-live. */
-define('SMARTFLOW_ALLOW_DEV_TOOLS', ($_ENV['ALLOW_DEV_TOOLS'] ?? 'true') === 'true');
+/** Set ALLOW_DEV_TOOLS=false in .env on municipal LAN before go-live. Always off when APP_ENV=production. */
+define(
+    'SMARTFLOW_ALLOW_DEV_TOOLS',
+    ($_ENV['APP_ENV'] ?? 'development') !== 'production'
+        && ($_ENV['ALLOW_DEV_TOOLS'] ?? 'true') === 'true'
+);
 
 /**
  * Blocks dev-only endpoints when SMARTFLOW_ALLOW_DEV_TOOLS is false.
@@ -305,6 +316,27 @@ function smartflow_require_dev_admin(PDO $pdo): void
         json_response([
             'success' => false,
             'message' => 'Admin login required for developer tools',
+        ], 403);
+    }
+}
+
+/**
+ * Destructive dev tools (purge/reset) — same machine only, never over the network.
+ * Movement and audit-trail records must be retained for 15 years (client).
+ */
+function smartflow_dev_localhost_only(): void
+{
+    if (!SMARTFLOW_ALLOW_DEV_TOOLS) {
+        json_response([
+            'success' => false,
+            'message' => 'Developer tools are disabled on this server',
+        ], 403);
+    }
+    $ip = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    if (!in_array($ip, ['127.0.0.1', '::1'], true)) {
+        json_response([
+            'success' => false,
+            'message' => 'Only allowed on the server machine (localhost)',
         ], 403);
     }
 }

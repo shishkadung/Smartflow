@@ -7,6 +7,7 @@ require __DIR__ . '/config.php';
 require_once __DIR__ . '/thresholds-helper.php';
 require_once __DIR__ . '/document-requests-helper.php';
 require_once __DIR__ . '/routing-helper.php';
+require_once __DIR__ . '/documents-logbook-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response([
@@ -25,11 +26,17 @@ if ($id === '') {
     ], 400);
 }
 
+smartflow_ensure_documents_logbook_columns($pdo);
+
 // Fetch document
 $stmt = $pdo->prepare('
-    SELECT d.id, d.title, d.type, d.origin_office_id, d.due_at, o.name AS origin_office_name
+    SELECT d.id, d.title, d.type, d.origin_office_id, d.due_at,
+           d.reference_no, d.payee, d.fund_source,
+           o.name AS origin_office_name,
+           rf.code AS received_from_office_code
     FROM documents d
     JOIN offices o ON o.id = d.origin_office_id
+    LEFT JOIN offices rf ON rf.id = d.received_from_office_id
     WHERE d.id = :id
     LIMIT 1
 ');
@@ -101,6 +108,18 @@ if ($last && strtoupper((string)$last['status']) === 'IN') {
     }
 }
 
+$trailComplete = smartflow_document_trail_complete($pdo, (string)$doc['id']);
+if ($trailComplete) {
+    $due = [
+        'due_at'          => '',
+        'due_at_display'  => '—',
+        'hours_until_due' => 0,
+        'is_overdue'      => false,
+        'threshold_rule'  => 'Trail complete — no further processing due',
+        'is_manual_due'   => false,
+    ];
+}
+
 $pilotEndNote = null;
 if (
     $last
@@ -110,14 +129,11 @@ if (
     $at = strtoupper((string)$last['office_code']);
     $isDv = str_contains($typeLower, 'disbursement') || str_contains($typeLower, 'voucher');
     if ($isDv && $at === 'TRE' && in_array('MAY', $visitedOfficeCodes, true)) {
-        $pilotEndNote = 'Check release at Treasury. After payment, OUT → ACC if Accounting needs the folder back.';
-    } elseif (
-        $isDv
-        && $at === 'ACC'
-        && in_array('TRE', $visitedOfficeCodes, true)
-        && in_array('MAY', $visitedOfficeCodes, true)
-    ) {
-        $pilotEndNote = 'DV trail complete (ENG → BUD → ACC → TRE → MAY → TRE). Payment is at Treasury — SmartFlow only tracks the folder.';
+        $pilotEndNote = 'DV trail complete at Treasury (check release). If the folder returns to Accounting, Mark OUT → ACC. SmartFlow only tracks the folder.';
+    } elseif ($trailComplete && $isDv) {
+        $pilotEndNote = 'DV trail complete (ENG → BUD → ACC → TRE → MAY → TRE → ACC). Folder returned to Accounting.';
+    } elseif ($trailComplete) {
+        $pilotEndNote = 'Approved Budget trail complete (BUD → ACC). Folder is filed at Accounting.';
     }
 }
 
@@ -128,13 +144,19 @@ json_response([
         'title' => $doc['title'],
         'type' => $doc['type'],
         'origin_office_name' => $doc['origin_office_name'],
+        'reference_no' => $doc['reference_no'],
+        'payee' => $doc['payee'],
+        'fund_source' => $doc['fund_source'],
+        'received_from_office_code' => $doc['received_from_office_code'],
         'current_status' => $last ? $last['status'] : null,
         'current_office_id' => $last ? (int)$last['office_id'] : null,
         'current_office_name' => $last ? $last['office_name'] : null,
         'current_office_code' => $last ? $last['office_code'] : null,
         'last_scanned_at' => $last ? $last['scanned_at'] : null,
         'suggested_forward' => $suggestedForward,
+        'visited_office_codes' => $visitedOfficeCodes,
         'pilot_end_note' => $pilotEndNote,
+        'trail_complete' => $trailComplete,
         'due_at' => $due['due_at'] ?: null,
         'due_at_display' => $due['due_at_display'],
         'hours_until_due' => $due['hours_until_due'],

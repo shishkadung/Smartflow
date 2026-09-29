@@ -1091,6 +1091,10 @@ class AdminReportsScreen extends StatefulWidget {
 class _AdminReportsScreenState extends State<AdminReportsScreen> {
   Map<String, dynamic>? _report;
   String _month = DateFormat('yyyy-MM').format(DateTime.now());
+  String _period = 'month';
+  int _year = DateTime.now().year;
+  int _quarterYear = DateTime.now().year;
+  int _quarter = ((DateTime.now().month - 1) ~/ 3) + 1;
   String? _error;
   bool _loading = true;
   List<Map<String, dynamic>> _exceptions = [];
@@ -1109,10 +1113,16 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     });
     try {
       final user = context.read<AuthProvider>().user!;
-      final data = await context
-          .read<AuthProvider>()
-          .api
-          .reportsSummary(user.officeId, _month);
+      final api = context.read<AuthProvider>().api;
+      final data = switch (_period) {
+        'year' => await api.reportsSummaryAnnual(user.officeId, _year),
+        'quarter' => await api.reportsSummaryQuarterly(
+            user.officeId,
+            _quarterYear,
+            _quarter,
+          ),
+        _ => await api.reportsSummary(user.officeId, _month),
+      };
       if (!mounted) return;
       setState(() {
         _report = data;
@@ -1142,9 +1152,20 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
       return;
     }
     setState(() => _loadingExceptions = true);
+    final period = switch (_period) {
+      'year' => {'period': 'year', 'year': '$_year'},
+      'quarter' => {
+          'period': 'quarter',
+          'year': '$_quarterYear',
+          'quarter': '$_quarter',
+        },
+      _ => {'period': 'month', 'month': _month},
+    };
     try {
-      final data =
-          await context.read<AuthProvider>().api.auditExceptions(hours: 24);
+      final data = await context
+          .read<AuthProvider>()
+          .api
+          .auditExceptions(hours: 24, period: period);
       if (!mounted) return;
       setState(() {
         _exceptions = (data['exceptions'] as List<dynamic>? ?? [])
@@ -1171,11 +1192,94 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     await _load();
   }
 
+  Future<void> _pickYear() async {
+    final now = DateTime.now();
+    final picked = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Report year'),
+        content: SizedBox(
+          width: 300,
+          height: 300,
+          child: YearPicker(
+            firstDate: DateTime(now.year - 5),
+            lastDate: now,
+            selectedDate: DateTime(_year),
+            onChanged: (d) => Navigator.pop(ctx, d.year),
+          ),
+        ),
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _year = picked);
+    await _load();
+  }
+
+  Future<void> _pickQuarter() async {
+    final now = DateTime.now();
+    final currentQuarter = ((now.month - 1) ~/ 3) + 1;
+    final options = <(int, int)>[
+      for (var y = now.year; y >= now.year - 5; y--)
+        for (var q = y == now.year ? currentQuarter : 4; q >= 1; q--) (y, q),
+    ];
+    final picked = await showDialog<(int, int)>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Report quarter'),
+        children: [
+          SizedBox(
+            width: 300,
+            height: 300,
+            child: ListView(
+              children: [
+                for (final (y, q) in options)
+                  ListTile(
+                    title: Text('Q$q $y'),
+                    selected: y == _quarterYear && q == _quarter,
+                    onTap: () => Navigator.pop(ctx, (y, q)),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _quarterYear = picked.$1;
+      _quarter = picked.$2;
+    });
+    await _load();
+  }
+
+  Future<void> _setPeriod(String period) async {
+    if (period == _period) return;
+    setState(() => _period = period);
+    await _load();
+  }
+
+  Future<void> Function() get _pickPeriod => switch (_period) {
+        'year' => _pickYear,
+        'quarter' => _pickQuarter,
+        _ => _pickMonth,
+      };
+
+  String get _pickerLabel => switch (_period) {
+        'year' => 'Year',
+        'quarter' => 'Quarter',
+        _ => 'Month',
+      };
+
+  String get _periodLabel => switch (_period) {
+        'year' => 'Annual $_year',
+        'quarter' => 'Q$_quarter $_quarterYear',
+        _ => DateFormat('MMMM yyyy').format(DateTime.parse('$_month-01')),
+      };
+
   void _shareSummary() {
     final comp = _report?['compliance'] as Map<String, dynamic>?;
     final totals = _report?['totals'] as Map<String, dynamic>?;
-    final monthLabel =
-        _report?['month']?.toString() ?? _month;
+    final monthLabel = _periodLabel;
     final onTime = (comp?['on_time']?['percent'] as num?)?.round() ?? 0;
     final unforwarded =
         (comp?['unforwarded']?['percent'] as num?)?.round() ?? 0;
@@ -1206,8 +1310,7 @@ Generated from SmartFlow mobile (admin / accountant view).
     final comp = _report?['compliance'] as Map<String, dynamic>?;
     final offices = _report?['office_totals'] as List<dynamic>? ?? [];
     final totals = _report?['totals'] as Map<String, dynamic>?;
-    final monthLabel = DateFormat('MMMM yyyy')
-        .format(DateTime.parse('$_month-01'));
+    final monthLabel = _periodLabel;
     final onTime = (comp?['on_time']?['percent'] as num?)?.round() ?? 0;
     final unforwarded =
         (comp?['unforwarded']?['percent'] as num?)?.round() ?? 0;
@@ -1230,6 +1333,17 @@ Generated from SmartFlow mobile (admin / accountant view).
             SfErrorBanner(message: _error!),
           ],
           const SizedBox(height: 12),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'month', label: Text('Monthly')),
+              ButtonSegment(value: 'quarter', label: Text('Quarterly')),
+              ButtonSegment(value: 'year', label: Text('Annual')),
+            ],
+            selected: {_period},
+            showSelectedIcon: false,
+            onSelectionChanged: (s) => _setPeriod(s.first),
+          ),
+          const SizedBox(height: 12),
           if (_loading)
             const SfLoadingCard()
           else if (comp != null) ...[
@@ -1240,7 +1354,8 @@ Generated from SmartFlow mobile (admin / accountant view).
               delayedPercent: delayed,
               docsInPeriod: (totals?['documents_in_period'] as int?) ?? 0,
               submissionNote: submissionNote,
-              onChangeMonth: _pickMonth,
+              onChangeMonth: _pickPeriod,
+              pickerLabel: _pickerLabel,
               onExport: _shareSummary,
             ),
             const SizedBox(height: 14),
@@ -1268,8 +1383,8 @@ Generated from SmartFlow mobile (admin / accountant view).
                     ),
                   ),
                   TextButton(
-                    onPressed: _pickMonth,
-                    child: const Text('Change month'),
+                    onPressed: _pickPeriod,
+                    child: Text('Change ${_pickerLabel.toLowerCase()}'),
                   ),
                 ],
               ),
@@ -1281,9 +1396,10 @@ Generated from SmartFlow mobile (admin / accountant view).
             style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Unforwarded OUT scans or wrong-office IN — review before COA reporting.',
-            style: TextStyle(fontSize: 11, color: SfColors.muted),
+          Text(
+            'Unforwarded OUT, wrong-office IN, or skipped Budget/Accounting — '
+            '$_periodLabel. Review before COA reporting.',
+            style: const TextStyle(fontSize: 11, color: SfColors.muted),
           ),
           const SizedBox(height: 8),
           if (_loadingExceptions)
@@ -1292,10 +1408,10 @@ Generated from SmartFlow mobile (admin / accountant view).
               child: LinearProgressIndicator(),
             )
           else if (_exceptions.isEmpty)
-            const SfEmptyState(
+            SfEmptyState(
               icon: Icons.verified_outlined,
-              title: 'No exceptions (24h)',
-              subtitle: 'No unforwarded or wrong-receiver scans detected.',
+              title: 'No exceptions · $_periodLabel',
+              subtitle: 'No unforwarded, wrong-receiver, or skipped-office trails detected.',
             )
           else
             ..._exceptions.take(12).map(
@@ -1304,9 +1420,9 @@ Generated from SmartFlow mobile (admin / accountant view).
                     child: SfListTile(
                       title: ex['document_id']?.toString() ?? '',
                       subtitle: ex['detail']?.toString() ?? '',
-                      accent: ex['exception_type'] == 'wrong_receiver'
-                          ? SfColors.red
-                          : SfColors.gold,
+                      accent: ex['exception_type'] == 'unforwarded'
+                          ? SfColors.gold
+                          : SfColors.red,
                     ),
                   ),
                 ),
@@ -1321,16 +1437,16 @@ Generated from SmartFlow mobile (admin / accountant view).
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Documents touched per office this month',
-              style: TextStyle(fontSize: 11, color: SfColors.muted, height: 1.35),
+            Text(
+              'Documents touched per office this ${_pickerLabel.toLowerCase()}',
+              style: const TextStyle(fontSize: 11, color: SfColors.muted, height: 1.35),
             ),
             const SizedBox(height: 8),
             if (offices.isEmpty)
-              const SfEmptyState(
+              SfEmptyState(
                 icon: Icons.assessment_outlined,
                 title: 'No office data',
-                subtitle: 'No movements recorded for this month yet.',
+                subtitle: 'No movements recorded for this ${_pickerLabel.toLowerCase()} yet.',
               )
             else
               ...offices.map((o) {
@@ -1340,7 +1456,7 @@ Generated from SmartFlow mobile (admin / accountant view).
                 return SfListTile(
                   title: m['office_name']?.toString() ?? code,
                   subtitle:
-                      '$count document${count == 1 ? '' : 's'} with movement this month',
+                      '$count document${count == 1 ? '' : 's'} with movement this ${_pickerLabel.toLowerCase()}',
                   accent: SfColors.dept(code),
                 );
               }),

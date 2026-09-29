@@ -2,9 +2,25 @@ import { useEffect, useState } from 'react'
 import { smartflow, ApiError } from '../api.js'
 import { DocTable, LifeEmpty, Overview, Segmented, StatusPill } from '../components/ui.jsx'
 
+const ACTIVITY_LABELS = {
+  'signup.approve': 'Sign-up approved',
+  'signup.reject': 'Sign-up rejected',
+  'user.deactivate': 'User deactivated',
+  'user.reactivate': 'User reactivated',
+  'user.profile_update': 'Profile updated',
+  'user.password_change': 'Password changed',
+  'user.password_reset': 'Password reset',
+  'threshold.update': 'Threshold changed',
+  'request.approve': 'Request accepted',
+  'request.reject': 'Request declined',
+  'request.fulfill': 'Request fulfilled',
+  'request.cancel': 'Request cancelled',
+}
+
 export default function AdminQrMonitorPage() {
   const [rows, setRows] = useState([])
   const [exceptions, setExceptions] = useState([])
+  const [activity, setActivity] = useState([])
   const [outcome, setOutcome] = useState('all')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -13,12 +29,14 @@ export default function AdminQrMonitorPage() {
     setLoading(true)
     setError('')
     try {
-      const [scans, ex] = await Promise.all([
+      const [scans, ex, act] = await Promise.all([
         smartflow.auditScans({ hours: 48, outcome, limit: 200 }),
         smartflow.auditExceptions(48),
+        smartflow.auditActivity({ hours: 168, limit: 100 }),
       ])
       setRows(scans.events || scans.scans || scans.logs || [])
       setExceptions(ex.exceptions || ex.items || [])
+      setActivity(act.events || [])
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not load QR monitor')
     } finally {
@@ -41,7 +59,7 @@ export default function AdminQrMonitorPage() {
           onChange={setOutcome}
           options={[
             { value: 'all', label: 'All' },
-            { value: 'accepted', label: 'Accepted' },
+            { value: 'success', label: 'Accepted' },
             { value: 'rejected', label: 'Rejected' },
           ]}
         />
@@ -81,6 +99,30 @@ export default function AdminQrMonitorPage() {
                 { key: 'message', label: 'Detail', render: (r) => r.message || r.reason || r.event_type },
               ]}
               rows={rows}
+            />
+          )}
+        </div>
+        <div className="card sf-life__panel">
+          <h3 className="section-title">Admin &amp; account activity · last 7 days</h3>
+          {!loading && activity.length === 0 ? (
+            <LifeEmpty icon="coaSupport" tone="ok">No admin or account actions in the last 7 days.</LifeEmpty>
+          ) : (
+            <DocTable
+              columns={[
+                { key: 'created_at', label: 'When' },
+                {
+                  key: 'username',
+                  label: 'Who',
+                  render: (r) => [r.username, r.office_code].filter(Boolean).join(' · ') || '—',
+                },
+                {
+                  key: 'event_type',
+                  label: 'Action',
+                  render: (r) => ACTIVITY_LABELS[r.event_type] || r.event_type,
+                },
+                { key: 'message', label: 'Detail' },
+              ]}
+              rows={activity}
             />
           )}
         </div>

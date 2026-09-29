@@ -26,8 +26,8 @@ flutter run --dart-define=API_BASE=http://10.0.2.2/your-path/backend/backend/api
 
 | Username | Role |
 |----------|------|
-| engineering.staff | Clerk |
-| head.engineering | Head |
-| accountant.main | Admin |
+| kristofer.eng | Clerk |
+| neil.eng.head | Head |
+| neil.admin | Admin |
 
 Password: `smartflow123`

@@ -7,7 +7,7 @@ require __DIR__ . '/config.php';
 require __DIR__ . '/dev-block.php';
 require_once __DIR__ . '/document-requests-helper.php';
 
-smartflow_dev_localhost_or_admin($pdo);
+smartflow_dev_localhost_only();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);

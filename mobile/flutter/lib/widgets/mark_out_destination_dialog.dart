@@ -12,11 +12,17 @@ class MarkOutDestination {
     required this.officeId,
     required this.code,
     required this.name,
+    this.isReturn = false,
+    this.returnReason,
   });
 
   final int officeId;
   final String code;
   final String name;
+
+  /// Sent back to an office that already held the folder (incomplete / needs correction).
+  final bool isReturn;
+  final String? returnReason;
 }
 
 /// Dialog: select receiving department; pre-selects LGU routing suggestion when known.
@@ -80,37 +86,49 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
   String? _error;
   String? _suggestReason;
   int? _suggestId;
+  Set<String> _previousHolderCodes = {};
+  bool _isReturn = false;
+  final _reasonCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
+    _reasonCtrl.addListener(() => setState(() {}));
     _loadOffices();
   }
 
+  @override
+  void dispose() {
+    _reasonCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadOffices() async {
+    final api = context.read<AuthProvider>().api;
     try {
       var docType = widget.documentType;
       var suggestId = widget.suggestedOfficeId;
       var suggestReason = widget.suggestedReason;
+      var previousHolders = <String>{};
 
-      if ((docType == null || docType.isEmpty) || suggestId == null) {
-        try {
-          final show = await context.read<AuthProvider>().api.documentShow(
-                widget.documentId,
-              );
-          final doc = show['document'] as Map<String, dynamic>?;
-          docType ??= doc?['type']?.toString();
-          final sf = doc?['suggested_forward'] as Map<String, dynamic>?;
-          if (sf != null) {
-            suggestId ??= sf['office_id'] as int?;
-            suggestReason ??= sf['reason']?.toString();
-          }
-        } catch (_) {
-          // Offices list still works without document detail.
+      try {
+        final show = await api.documentShow(widget.documentId);
+        final doc = show['document'] as Map<String, dynamic>?;
+        docType ??= doc?['type']?.toString();
+        final sf = doc?['suggested_forward'] as Map<String, dynamic>?;
+        if (sf != null) {
+          suggestId ??= sf['office_id'] as int?;
+          suggestReason ??= sf['reason']?.toString();
         }
+        previousHolders = {
+          for (final c in doc?['visited_office_codes'] as List<dynamic>? ?? [])
+            c.toString().toUpperCase(),
+        }..remove(widget.myOfficeCode.toUpperCase());
+      } catch (_) {
+        // Offices list still works without document detail (returns unavailable).
       }
 
-      final list = await context.read<AuthProvider>().api.offices();
+      final list = await api.offices();
       if (!mounted) return;
 
       final filtered = list
@@ -146,6 +164,7 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
 
       setState(() {
         _offices = sorted;
+        _previousHolderCodes = previousHolders;
         _suggestId = sid;
         _suggestReason = sreason;
         if (sid != null && sorted.any((o) => o['id'] == sid)) {
@@ -163,9 +182,33 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
     }
   }
 
+  List<Map<String, dynamic>> get _visibleOffices => _isReturn
+      ? _offices
+          .where((o) => _previousHolderCodes.contains(o['code'] as String))
+          .toList()
+      : _offices;
+
+  bool get _canConfirm =>
+      !_loading &&
+      _selectedId != null &&
+      _visibleOffices.any((o) => o['id'] == _selectedId) &&
+      (!_isReturn || _reasonCtrl.text.trim().length >= 5);
+
+  void _setReturn(bool value) {
+    setState(() {
+      _isReturn = value;
+      if (value) {
+        final holders = _visibleOffices;
+        _selectedId = holders.length == 1 ? holders.first['id'] as int : null;
+      } else {
+        _selectedId = _suggestId;
+      }
+    });
+  }
+
   void _confirm() {
-    final id = _selectedId;
-    if (id == null) return;
+    if (!_canConfirm) return;
+    final id = _selectedId!;
     final office = _offices.firstWhere((o) => o['id'] == id);
     Navigator.pop(
       context,
@@ -173,6 +216,8 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
         officeId: id,
         code: office['code'] as String,
         name: office['name'] as String,
+        isReturn: _isReturn,
+        returnReason: _isReturn ? _reasonCtrl.text.trim() : null,
       ),
     );
   }
@@ -192,7 +237,8 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
     }
 
     return AlertDialog(
-      title: const Text('Forward to which office?'),
+      scrollable: true,
+      title: Text(_isReturn ? 'Return to which office?' : 'Forward to which office?'),
       content: SizedBox(
         width: double.maxFinite,
         child: _loading
@@ -210,7 +256,41 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
                         'Mark ${widget.documentId} as OUT from ${widget.myOfficeName}.',
                         style: const TextStyle(fontSize: 13, height: 1.45),
                       ),
-                      if (widget.myOfficeCode.toUpperCase() == 'ACC' &&
+                      if (_previousHolderCodes.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          value: _isReturn,
+                          onChanged: _setReturn,
+                          title: const Text(
+                            'Return to a previous office',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          subtitle: const Text(
+                            'Incomplete or needs correction — a reason is required.',
+                            style: TextStyle(fontSize: 11),
+                          ),
+                        ),
+                      ],
+                      if (_isReturn) ...[
+                        const SizedBox(height: 4),
+                        TextField(
+                          controller: _reasonCtrl,
+                          maxLines: 2,
+                          maxLength: 200,
+                          decoration: const InputDecoration(
+                            labelText: 'Reason for return',
+                            hintText: 'e.g. Missing obligation request (ObR)',
+                            helperText: 'At least 5 characters',
+                          ),
+                        ),
+                      ],
+                      if (!_isReturn &&
+                          widget.myOfficeCode.toUpperCase() == 'ACC' &&
                           (widget.documentType ?? '')
                               .toLowerCase()
                               .contains('disbursement')) ...[
@@ -236,7 +316,8 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
                           ),
                         ),
                       ],
-                      if (suggestOffice != null &&
+                      if (!_isReturn &&
+                          suggestOffice != null &&
                           _suggestReason != null) ...[
                         const SizedBox(height: 12),
                         Container(
@@ -286,12 +367,12 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
                         ),
                       ],
                       const SizedBox(height: 14),
-                      ..._offices.map((o) {
+                      ..._visibleOffices.map((o) {
                         final id = o['id'] as int;
                         final code = o['code'] as String;
                         final name = o['name'] as String;
                         final selected = _selectedId == id;
-                        final isSuggested = id == _suggestId;
+                        final isSuggested = !_isReturn && id == _suggestId;
                         final dept = _deptColor(code);
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
@@ -402,8 +483,8 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
           child: const Text('Cancel'),
         ),
         FilledButton(
-          onPressed: _selectedId == null || _loading ? null : _confirm,
-          child: const Text('Mark OUT'),
+          onPressed: _canConfirm ? _confirm : null,
+          child: Text(_isReturn ? 'Return (OUT)' : 'Mark OUT'),
         ),
       ],
     );

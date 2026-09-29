@@ -157,6 +157,10 @@ export const smartflow = {
   recordMovement: (body) => api('movements-create.php', { method: 'POST', body }),
   reportsSummary: (officeId, month) =>
     api('reports-summary.php', { query: { office_id: officeId, month } }),
+  reportsSummaryQuarterly: (officeId, year, quarter) =>
+    api('reports-summary.php', { query: { office_id: officeId, period: 'quarter', year, quarter } }),
+  reportsSummaryAnnual: (officeId, year) =>
+    api('reports-summary.php', { query: { office_id: officeId, period: 'year', year } }),
 
   documentRequestsList: (view, status) =>
     api('document-requests-list.php', { query: { view, ...(status ? { status } : {}) } }),
@@ -175,10 +179,12 @@ export const smartflow = {
   updateThreshold: (body) =>
     api('admin-thresholds-update.php', { method: 'POST', body }),
   systemStatus: () => api('system-status.php'),
-  auditExceptions: (hours = 24) =>
-    api('audit-exceptions.php', { query: { hours } }),
+  auditExceptions: (hours = 24, period = {}) =>
+    api('audit-exceptions.php', { query: { hours, ...period } }),
   auditScans: ({ hours = 48, outcome = 'all', limit = 200 } = {}) =>
     api('audit-scans.php', { query: { hours, outcome, limit } }),
+  auditActivity: ({ hours = 168, type = 'all', limit = 100 } = {}) =>
+    api('audit-activity.php', { query: { hours, type, limit } }),
 
   qrLabelUrl: (documentId, token) => {
     const q = new URLSearchParams({ id: documentId })

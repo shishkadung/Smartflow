@@ -22,7 +22,7 @@ function smartflow_ensure_processing_thresholds(PDO $pdo): void
 
     $defaults = [
         'ENG' => [['Disbursement Voucher', 48, 24]],
-        'HR'  => [['Payroll Record', 24, 12]],
+        'HR'  => [],
         'BUD' => [['Approved Budget', 72, 24]],
         'ACC' => [
             ['Disbursement Voucher', 48, 24],

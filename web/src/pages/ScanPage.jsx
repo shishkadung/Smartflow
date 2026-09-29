@@ -34,6 +34,8 @@ export default function ScanPage() {
   const [qrPayload, setQrPayload] = useState('')
   const [scanStartedAt, setScanStartedAt] = useState(null)
   const [destId, setDestId] = useState('')
+  const [isReturn, setIsReturn] = useState(false)
+  const [returnReason, setReturnReason] = useState('')
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
   const [loading, setLoading] = useState(false)
@@ -121,6 +123,8 @@ export default function ScanPage() {
     setError('')
     setOk('')
     setDoc(null)
+    setIsReturn(false)
+    setReturnReason('')
     try {
       let id = null
       let payload = ''
@@ -199,6 +203,13 @@ export default function ScanPage() {
         const dest = Number(destId)
         if (!dest) throw new ApiError('Choose a destination office for Mark OUT.')
         body.destination_office_id = dest
+        if (isReturn) {
+          if (returnReason.trim().length < 5) {
+            throw new ApiError('Enter the reason for returning this folder (at least 5 characters).')
+          }
+          body.is_return = true
+          body.remarks = returnReason.trim()
+        }
       }
       const result = await smartflow.recordMovement(body)
       const label = status === 'IN' ? 'Marked IN' : 'Marked OUT'
@@ -207,7 +218,11 @@ export default function ScanPage() {
       const shown = await smartflow.documentShow(doc.id)
       setDoc(shown.document)
       setScanStartedAt(new Date().toISOString())
-      if (status === 'OUT') setDestId('')
+      if (status === 'OUT') {
+        setDestId('')
+        setIsReturn(false)
+        setReturnReason('')
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not record scan')
     } finally {
@@ -225,6 +240,17 @@ export default function ScanPage() {
     : null
 
   const busy = loading || fileBusy
+  const previousHolders = (doc?.visited_office_codes || []).filter(
+    (code) => code !== String(user.office_code || '').toUpperCase(),
+  )
+  const destOptions = offices.filter((o) =>
+    o.id !== user.office_id && (!isReturn || previousHolders.includes(String(o.code).toUpperCase())),
+  )
+
+  function toggleReturn(checked) {
+    setIsReturn(checked)
+    setDestId(checked ? '' : String(doc?.suggested_forward?.office_id || ''))
+  }
 
   return (
     <div className="sf-life">
@@ -300,17 +326,39 @@ export default function ScanPage() {
               {actions?.blockReason ? <div className="error">{actions.blockReason}</div> : null}
 
               {actions?.canOut ? (
-                <div className="field" style={{ marginTop: 14 }}>
-                  <label>Forward to</label>
-                  <select value={destId} onChange={(e) => setDestId(e.target.value)}>
-                    <option value="">Select office</option>
-                    {offices
-                      .filter((o) => o.id !== user.office_id)
-                      .map((o) => (
+                <>
+                  {previousHolders.length > 0 ? (
+                    <label className="muted" style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 14 }}>
+                      <input
+                        type="checkbox"
+                        checked={isReturn}
+                        onChange={(e) => toggleReturn(e.target.checked)}
+                      />
+                      Return to a previous office (incomplete / needs correction)
+                    </label>
+                  ) : null}
+                  <div className="field" style={{ marginTop: 14 }}>
+                    <label>{isReturn ? 'Return to' : 'Forward to'}</label>
+                    <select value={destId} onChange={(e) => setDestId(e.target.value)}>
+                      <option value="">Select office</option>
+                      {destOptions.map((o) => (
                         <option key={o.id} value={o.id}>{o.code} — {o.name}</option>
                       ))}
-                  </select>
-                </div>
+                    </select>
+                  </div>
+                  {isReturn ? (
+                    <div className="field">
+                      <label>Reason for return</label>
+                      <textarea
+                        rows={2}
+                        maxLength={200}
+                        value={returnReason}
+                        onChange={(e) => setReturnReason(e.target.value)}
+                        placeholder="e.g. Missing obligation request (ObR)"
+                      />
+                    </div>
+                  ) : null}
+                </>
               ) : null}
 
               <div className="row-btns" style={{ marginTop: 8 }}>
@@ -318,7 +366,7 @@ export default function ScanPage() {
                   {busy && actions?.canIn ? 'Recording…' : 'Mark IN'}
                 </button>
                 <button className="btn-secondary btn--mark-out" type="button" disabled={!actions?.canOut || busy} onClick={() => mark('OUT')} style={{ marginTop: 0 }}>
-                  {busy && actions?.canOut ? 'Recording…' : 'Mark OUT'}
+                  {busy && actions?.canOut ? 'Recording…' : isReturn ? 'Return (OUT)' : 'Mark OUT'}
                 </button>
               </div>
             </div>

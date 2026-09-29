@@ -56,7 +56,7 @@ $ping('login', static function () use ($pdo, &$token, &$officeId, &$userId): voi
     // Prefer current team seed; fall back to legacy demo username.
     $stmt = $pdo->prepare('SELECT id, office_id, password_hash FROM users WHERE username = :u LIMIT 1');
     $row = null;
-    foreach (['kristofer.eng', 'neil.admin', 'engineering.staff'] as $username) {
+    foreach (['kristofer.eng', 'neil.admin'] as $username) {
         $stmt->execute([':u' => $username]);
         $candidate = $stmt->fetch();
         if ($candidate && password_verify('smartflow123', $candidate['password_hash'])) {

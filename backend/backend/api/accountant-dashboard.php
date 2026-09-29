@@ -4,6 +4,7 @@
 // Auth: Bearer token required.
 
 require __DIR__ . '/config.php';
+require_once __DIR__ . '/routing-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -14,6 +15,7 @@ require_user_id();
 $monthStart = date('Y-m-01 00:00:00');
 $monthEnd   = date('Y-m-t 23:59:59', strtotime($monthStart));
 $maxHours   = 48;
+$trailCompleteSql = smartflow_sql_trail_complete('t.document_id');
 
 $stmtActive = $pdo->query("
     SELECT COUNT(*) AS c
@@ -26,6 +28,7 @@ $stmtActive = $pdo->query("
         GROUP BY m.document_id
     ) t
     WHERE t.last_status = 'IN'
+      AND NOT {$trailCompleteSql}
 ");
 $activeDocs = (int)($stmtActive->fetch()['c'] ?? 0);
 
@@ -43,6 +46,7 @@ $stmtOverdue = $pdo->prepare("
         GROUP BY m.document_id
     ) t
     WHERE t.last_status = 'IN'
+      AND NOT {$trailCompleteSql}
       AND TIMESTAMPDIFF(HOUR, t.last_scanned, NOW()) >= :maxh
 ");
 $stmtOverdue->execute([':maxh' => $maxHours]);
@@ -81,6 +85,7 @@ $stmtPerOffice = $pdo->prepare("
         GROUP BY m.document_id
     ) t
     WHERE t.last_status = 'IN'
+      AND NOT {$trailCompleteSql}
     GROUP BY t.last_office
 ");
 $stmtPerOffice->execute([':maxh' => $maxHours]);

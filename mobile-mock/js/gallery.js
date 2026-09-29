@@ -3,6 +3,7 @@
     try {
       var doc = iframe.contentDocument;
       if (!doc) return;
+      if (doc.body) doc.body.classList.add('sf-page--embed');
       var root = doc.getElementById('figma-export');
       var h = root ? root.offsetHeight : doc.documentElement.scrollHeight;
       if (h > 0) iframe.style.height = h + 'px';

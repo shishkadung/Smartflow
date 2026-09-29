@@ -85,10 +85,12 @@ export function homePath(role) {
   return '/home'
 }
 
-export function statusLabel(status) {
+export function statusLabel(status, category) {
   const s = String(status || '').toLowerCase()
   if (s === 'rejected') return 'Declined'
   if (s === 'approved') return 'Accepted'
-  if (s === 'fulfilled') return 'Closed'
+  if (s === 'fulfilled') {
+    return String(category || '').toLowerCase() === 'disbursement' ? 'Payment released' : 'Closed'
+  }
   return s ? s[0].toUpperCase() + s.slice(1) : '—'
 }

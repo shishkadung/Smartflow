@@ -33,6 +33,22 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
   List<Map<String, dynamic>> _events = const [];
   List<Map<String, dynamic>> _suspicious = const [];
   List<Map<String, dynamic>> _topReasons = const [];
+  List<Map<String, dynamic>> _activity = const [];
+
+  static const _activityLabels = {
+    'signup.approve': 'Sign-up approved',
+    'signup.reject': 'Sign-up rejected',
+    'user.deactivate': 'User deactivated',
+    'user.reactivate': 'User reactivated',
+    'user.profile_update': 'Profile updated',
+    'user.password_change': 'Password changed',
+    'user.password_reset': 'Password reset',
+    'threshold.update': 'Threshold changed',
+    'request.approve': 'Request accepted',
+    'request.reject': 'Request declined',
+    'request.fulfill': 'Request fulfilled',
+    'request.cancel': 'Request cancelled',
+  };
 
   @override
   void initState() {
@@ -46,10 +62,13 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
       _error = null;
     });
     try {
-      final data = await context.read<AuthProvider>().api.auditScans(
-            hours: _hours,
-            outcome: _outcome,
-          );
+      final api = context.read<AuthProvider>().api;
+      final results = await Future.wait([
+        api.auditScans(hours: _hours, outcome: _outcome),
+        api.auditActivity(hours: 168, limit: 50),
+      ]);
+      final data = results[0];
+      final activity = results[1];
       if (!mounted) return;
       setState(() {
         _summary = data['summary'] as Map<String, dynamic>?;
@@ -59,6 +78,8 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
         _topReasons = List<Map<String, dynamic>>.from(
           data['top_reject_reasons'] as List? ?? [],
         );
+        _activity =
+            List<Map<String, dynamic>>.from(activity['events'] as List? ?? []);
         _loading = false;
       });
     } on ApiException catch (e) {
@@ -226,6 +247,25 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
               )
             else
               ..._events.map(_eventTile),
+            const SizedBox(height: 16),
+            const Text(
+              'Admin & account activity · last 7 days',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Sign-up reviews, user changes, thresholds, and request decisions.',
+              style: TextStyle(fontSize: 11, color: SfColors.muted),
+            ),
+            const SizedBox(height: 8),
+            if (_activity.isEmpty)
+              const SfEmptyState(
+                icon: SfIcons.clerkScan,
+                title: 'No admin actions',
+                subtitle: 'Nothing was approved, changed, or decided in the last 7 days.',
+              )
+            else
+              ..._activity.map(_activityTile),
           ],
         ],
       ),
@@ -255,6 +295,25 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
         title: name,
         subtitle: '$office · $count rejected scans',
         trailing: const Icon(Icons.warning_amber_rounded, color: SfColors.gold),
+      ),
+    );
+  }
+
+  Widget _activityTile(Map<String, dynamic> ev) {
+    final type = ev['event_type']?.toString() ?? '';
+    final who = [
+      ev['username']?.toString() ?? '',
+      ev['office_code']?.toString() ?? '',
+    ].where((s) => s.isNotEmpty).join(' · ');
+    final when = formatMovementListTime(ev['created_at']?.toString());
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SfListTile(
+        title: _activityLabels[type] ?? type,
+        subtitle: [
+          ev['message']?.toString() ?? '',
+          [if (who.isNotEmpty) who, when].join(' · '),
+        ].where((s) => s.isNotEmpty).join('\n'),
       ),
     );
   }

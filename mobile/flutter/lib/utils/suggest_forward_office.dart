@@ -21,20 +21,10 @@ ForwardSuggestion? suggestForwardOffice({
   final from = fromOfficeCode.trim().toUpperCase();
   final visited = visitedOfficeCodes.map((c) => c.trim().toUpperCase()).toList();
 
-  if (type.contains('payroll')) {
-    if (from == 'HR') {
-      return const ForwardSuggestion(
-        officeCode: 'ACC',
-        reason: 'Payroll records typically go to Accounting for payment.',
-      );
-    }
-    return const ForwardSuggestion(
-      officeCode: 'ACC',
-      reason: 'Payroll documents are usually routed to Accounting.',
-    );
-  }
-
   if (type.contains('approved budget') || type == 'budget') {
+    if (from == 'ACC' && visited.contains('BUD')) {
+      return null;
+    }
     if (from == 'BUD') {
       return const ForwardSuggestion(
         officeCode: 'ACC',

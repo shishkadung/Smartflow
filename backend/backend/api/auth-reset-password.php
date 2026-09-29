@@ -4,6 +4,7 @@
 // Validates the reset code and updates the password
 
 require __DIR__ . '/config.php';
+require_once __DIR__ . '/audit-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -63,6 +64,8 @@ $pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id')
 // Mark the reset token as used
 $pdo->prepare('UPDATE password_resets SET used_at = NOW() WHERE id = :id')
     ->execute([':id' => $resetRecord['id']]);
+
+smartflow_audit_action($pdo, 'user.password_reset', $userId, 'Reset password with emailed code');
 
 json_response([
     'success' => true,

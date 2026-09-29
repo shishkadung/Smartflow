@@ -98,6 +98,27 @@ class SmartflowApi {
         query: {'office_id': '$officeId', 'month': month},
       );
 
+  Future<Map<String, dynamic>> reportsSummaryQuarterly(
+    int officeId,
+    int year,
+    int quarter,
+  ) =>
+      _client.get(
+        'reports-summary.php',
+        query: {
+          'office_id': '$officeId',
+          'period': 'quarter',
+          'year': '$year',
+          'quarter': '$quarter',
+        },
+      );
+
+  Future<Map<String, dynamic>> reportsSummaryAnnual(int officeId, int year) =>
+      _client.get(
+        'reports-summary.php',
+        query: {'office_id': '$officeId', 'period': 'year', 'year': '$year'},
+      );
+
   Future<Map<String, dynamic>> documentShow(String id) => _client.get(
         'documents-show.php',
         query: {'id': id},
@@ -176,6 +197,7 @@ class SmartflowApi {
     String? referenceNo,
     String? payee,
     String? fundSource,
+    int? receivedFromOfficeId,
   }) {
     return _client.post(
       'documents-create.php',
@@ -191,6 +213,8 @@ class SmartflowApi {
         if (payee != null && payee.isNotEmpty) 'payee': payee,
         if (fundSource != null && fundSource.isNotEmpty)
           'fund_source': fundSource,
+        if (receivedFromOfficeId != null)
+          'received_from_office_id': receivedFromOfficeId,
       },
     );
   }
@@ -211,6 +235,7 @@ class SmartflowApi {
     int? destinationOfficeId,
     DateTime? scanStartedAt,
     String? qrPayload,
+    bool isReturn = false,
   }) {
     return _client.post(
       'movements-create.php',
@@ -218,8 +243,9 @@ class SmartflowApi {
         'document_id': documentId,
         'office_id': officeId,
         'status': status,
+        if (isReturn) 'is_return': true,
         if (remarks != null) 'remarks': remarks,
-        if (scanStartedAt != null) 'scan_started_at': scanStartedAt.toIso8601String(),
+        if (scanStartedAt != null) 'scan_started_at': scanStartedAt.toUtc().toIso8601String(),
         if (destinationOfficeId != null && destinationOfficeId > 0)
           'destination_office_id': destinationOfficeId,
         if (qrPayload != null && qrPayload.isNotEmpty) 'qr_payload': qrPayload,
@@ -264,9 +290,14 @@ class SmartflowApi {
     );
   }
 
-  Future<Map<String, dynamic>> auditExceptions({int hours = 24}) => _client.get(
+  /// [period] uses the same keys as the COA summary (`period`, `month`, `quarter`, `year`).
+  Future<Map<String, dynamic>> auditExceptions({
+    int hours = 24,
+    Map<String, String> period = const {},
+  }) =>
+      _client.get(
         'audit-exceptions.php',
-        query: {'hours': '$hours'},
+        query: {'hours': '$hours', ...period},
       );
 
   Future<Map<String, dynamic>> auditScans({
@@ -302,6 +333,18 @@ class SmartflowApi {
         'limit': '500',
         if (officeId != null && officeId > 0) 'office_id': '$officeId',
       },
+    );
+  }
+
+  /// Admin/account actions: sign-up review, user changes, thresholds, request decisions.
+  Future<Map<String, dynamic>> auditActivity({
+    int hours = 168,
+    String type = 'all',
+    int limit = 100,
+  }) {
+    return _client.get(
+      'audit-activity.php',
+      query: {'hours': '$hours', 'type': type, 'limit': '$limit'},
     );
   }
 

@@ -164,7 +164,7 @@ put(
       <div class="sf-web-auth__form-wrap">
         <h1 class="sf-web-title">Forgot password</h1>
         <p class="sf-web-sub">Enter username or email.</p>
-        <div class="sf-web-field"><label>Username or email</label><input placeholder="engineering.staff" /></div>
+        <div class="sf-web-field"><label>Username or email</label><input placeholder="kristofer.eng" /></div>
         <button class="sf-web-btn" type="button" style="width:100%;">Send reset link</button>
       </div>
     </div>

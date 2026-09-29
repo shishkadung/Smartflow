@@ -5,6 +5,7 @@
 
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/users-helper.php';
+require_once __DIR__ . '/audit-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -44,6 +45,13 @@ if ($action === 'reject') {
         WHERE id = :id
     ")->execute([':admin' => $adminId, ':id' => $requestId]);
 
+    smartflow_audit_action($pdo, 'signup.reject', $adminId, 'Rejected sign-up for ' . $req['username'], [
+        'request_code'   => $req['request_code'],
+        'username'       => $req['username'],
+        'office_id'      => (int)$req['office_id'],
+        'requested_role' => $req['requested_role'],
+    ]);
+
     json_response(['success' => true, 'message' => 'Sign-up request rejected']);
 }
 
@@ -80,6 +88,13 @@ try {
     $pdo->rollBack();
     json_response(['success' => false, 'message' => 'Could not approve request'], 500);
 }
+
+smartflow_audit_action($pdo, 'signup.approve', $adminId, 'Approved sign-up for ' . $req['username'] . ' (' . $req['requested_role'] . ')', [
+    'request_code'   => $req['request_code'],
+    'username'       => $req['username'],
+    'office_id'      => (int)$req['office_id'],
+    'requested_role' => $req['requested_role'],
+]);
 
 json_response([
     'success' => true,

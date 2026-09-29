@@ -23,7 +23,7 @@ Kung fail → buksan XAMPP, ulitin.
 Browser:  
 `http://localhost/Smartflow/backend/backend/api/dev-seed-demo-users.php`
 
-Dapat may **`accounting.staff`** — ito ang mag-**scan** sa Accounting, **hindi** `accountant.main`.
+Dapat may **`neil.acc.staff`** — ito ang mag-**scan** sa Accounting, **hindi** `neil.admin`.
 
 ### 4. Purge old test data (optional pero recommended)
 `http://localhost/Smartflow/backend/backend/api/dev-purge-demo-documents.php?all=1`
@@ -34,14 +34,14 @@ Sundin: **[DEMO-SCENARIOS-COMPLETE.md](DEMO-SCENARIOS-COMPLETE.md)**
 
 | # | Login | Gawin |
 |---|--------|--------|
-| 1 | `engineering.staff` | **New** DV → **secured QR** → scan **verified** → **OUT** → BUD |
-| 2 | `budget.staff` | **IN** → **OUT** → ACC |
-| 3 | `accounting.staff` | **IN** → **History** |
-| 4 | `engineering.staff` | Duplicate **IN** → dapat **reject** |
-| 5 | `engineering.staff` | OUT to BUD, ENG try **IN** → **reject** |
-| 6 | `engineering.staff` | Tampered QR paste (1 char) → **reject** |
-| 7 | `accountant.main` | **QR scan monitor** + **Copy CSV** |
-| 8 | `accountant.main` | **COA report** (optional) |
+| 1 | `kristofer.eng` | **New** DV → **secured QR** → scan **verified** → **OUT** → BUD |
+| 2 | `angel.bud` | **IN** → **OUT** → ACC |
+| 3 | `neil.acc.staff` | **IN** → **History** |
+| 4 | `kristofer.eng` | Duplicate **IN** → dapat **reject** |
+| 5 | `kristofer.eng` | OUT to BUD, ENG try **IN** → **reject** |
+| 6 | `kristofer.eng` | Tampered QR paste (1 char) → **reject** |
+| 7 | `neil.admin` | **QR scan monitor** + **Copy CSV** |
+| 8 | `neil.admin` | **COA report** (optional) |
 
 **Sabihin:** *“DV trail hanggang Treasury at Mayor (TRE → MAY → TRE); payment release is marked by Treasury on the request ticket. Secured QR + audit monitor para sa panel.”*
 
@@ -49,11 +49,11 @@ Sundin: **[DEMO-SCENARIOS-COMPLETE.md](DEMO-SCENARIOS-COMPLETE.md)**
 
 | # | Login | Gawin |
 |---|--------|--------|
-| 1 | `engineering.staff` | Requests → Budget + **required-by date** |
-| 2 | `budget.staff` | Accept → Register Approved Budget → OUT → ACC |
-| 3 | `accounting.staff` | IN → OUT → ENG |
-| 4 | `engineering.staff` | IN |
-| 5 | `budget.staff` | Close request + DOC ID |
+| 1 | `kristofer.eng` | Requests → Budget + **required-by date** |
+| 2 | `angel.bud` | Accept → Register Approved Budget → OUT → ACC |
+| 3 | `neil.acc.staff` | IN → OUT → ENG |
+| 4 | `kristofer.eng` | IN |
+| 5 | `angel.bud` | Close request + DOC ID |
 
 ### 7. Phone / emulator
 ```powershell
@@ -82,12 +82,12 @@ flutter run
 
 | Role | Username | Scan? | COA admin? |
 |------|----------|-------|------------|
-| ENG clerk | `engineering.staff` | Yes | No |
-| ENG head | `head.engineering` | Yes | No |
-| Budget | `budget.staff` | Yes | No |
-| **Accounting clerk** | **`accounting.staff`** | **Yes** | No |
-| Municipal Accountant | `accountant.main` | **No** (admin) | **Yes** |
-| HR | `hr.staff` | No payroll QR in pilot | No |
+| ENG clerk | `kristofer.eng` | Yes | No |
+| ENG head | `neil.eng.head` | Yes | No |
+| Budget | `angel.bud` | Yes | No |
+| **Accounting clerk** | **`neil.acc.staff`** | **Yes** | No |
+| Municipal Accountant | `neil.admin` | **No** (admin) | **Yes** |
+| HR | `rainier.hr` | No payroll QR in pilot | No |
 
 ---
 
@@ -115,7 +115,7 @@ flutter run
 - Walang push/SMS (in-app status lang)
 - Treasury / Mayor wala sa app
 - Web admin dashboard = future
-- `accountant.main` = reports only, clerk ang scanner
+- `neil.admin` = reports only, clerk ang scanner
 - Client hindi complete lahat ng questionnaire items (confidential / pending)
 
 ---
@@ -126,7 +126,7 @@ flutter run
 |-------|-----|
 | Invalid server response | `.\scripts\sync-backend-to-xampp.ps1` |
 | Cannot Mark IN | Previous office **OUT** muna; tamang office lang |
-| Admin cannot scan | Gamitin **`accounting.staff`** |
+| Admin cannot scan | Gamitin **`neil.acc.staff`** |
 | Request failed | Kailangan **required-by date** |
 | Apache down | XAMPP start |
 

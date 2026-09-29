@@ -6,6 +6,7 @@
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/users-helper.php';
 require_once __DIR__ . '/thresholds-helper.php';
+require_once __DIR__ . '/audit-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -57,6 +58,19 @@ $upd->execute([
     ':active' => $active ? 1 : 0,
     ':id'     => $targetId,
 ]);
+
+smartflow_audit_action(
+    $pdo,
+    $active ? 'user.reactivate' : 'user.deactivate',
+    $adminId,
+    ($active ? 'Reactivated ' : 'Deactivated ') . $target['username'],
+    [
+        'target_user_id' => $targetId,
+        'username'       => $target['username'],
+        'role'           => $target['role'],
+        'was_active'     => (bool)(int)$target['is_active'],
+    ]
+);
 
 json_response([
     'success' => true,

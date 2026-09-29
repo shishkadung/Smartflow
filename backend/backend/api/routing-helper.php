@@ -20,16 +20,10 @@ function smartflow_suggest_forward_destination(
     $from = strtoupper(trim($fromOfficeCode));
     $visited = array_map(static fn ($c) => strtoupper(trim((string)$c)), $visitedOfficeCodes);
 
-    if (str_contains($type, 'payroll')) {
-        return [
-            'code' => 'ACC',
-            'reason' => $from === 'HR'
-                ? 'Payroll records typically go to Accounting for payment.'
-                : 'Payroll documents are usually routed to Accounting.',
-        ];
-    }
-
     if (str_contains($type, 'approved budget') || $type === 'budget') {
+        if ($from === 'ACC' && in_array('BUD', $visited, true)) {
+            return null;
+        }
         if ($from === 'BUD') {
             return [
                 'code' => 'ACC',
@@ -101,4 +95,54 @@ function smartflow_suggest_forward_destination(
     }
 
     return null;
+}
+
+/**
+ * SQL boolean expression: TRUE when the document's custody trail is finished
+ * (no more due dates, not "active" / overdue).
+ *   DV             → latest IN at TRE after MAY scanned IN (check release), or
+ *                    latest IN at ACC after TRE and MAY both scanned IN (optional return)
+ *   Approved Budget → latest IN at ACC after BUD scanned IN
+ *
+ * @param string $documentIdExpr SQL expression or placeholder for the document id
+ */
+function smartflow_sql_trail_complete(string $documentIdExpr): string
+{
+    $visited = static fn (string $code): string => "EXISTS (
+        SELECT 1 FROM movements tcv
+        JOIN offices tcvo ON tcvo.id = tcv.office_id
+        WHERE tcv.document_id = tcd.id AND tcv.status = 'IN' AND tcvo.code = '{$code}'
+    )";
+    $visitedTre = $visited('TRE');
+    $visitedMay = $visited('MAY');
+    $visitedBud = $visited('BUD');
+
+    return "EXISTS (
+        SELECT 1
+        FROM documents tcd
+        JOIN movements tcm ON tcm.id = (
+            SELECT tcl.id FROM movements tcl
+            WHERE tcl.document_id = tcd.id
+            ORDER BY tcl.scanned_at DESC, tcl.id DESC
+            LIMIT 1
+        )
+        JOIN offices tco ON tco.id = tcm.office_id
+        WHERE tcd.id = {$documentIdExpr}
+          AND tcm.status = 'IN'
+          AND (
+            (
+              (LOWER(tcd.type) LIKE '%disbursement%' OR LOWER(tcd.type) LIKE '%voucher%')
+              AND {$visitedMay}
+              AND (tco.code = 'TRE' OR (tco.code = 'ACC' AND {$visitedTre}))
+            )
+            OR (tco.code = 'ACC' AND LOWER(tcd.type) LIKE '%approved budget%' AND {$visitedBud})
+          )
+    )";
+}
+
+function smartflow_document_trail_complete(PDO $pdo, string $documentId): bool
+{
+    $stmt = $pdo->prepare('SELECT ' . smartflow_sql_trail_complete(':id') . ' AS done');
+    $stmt->execute([':id' => $documentId]);
+    return (int)$stmt->fetchColumn() === 1;
 }

@@ -16,7 +16,7 @@ npm run dev
 ```
 
 3. Open **http://localhost:5173**
-4. Pilot login: `engineering.staff` / `smartflow123` (also `treasury.staff`, `accountant.main`, …)
+4. Pilot login: `kristofer.eng` / `smartflow123` (also `krizandra.tre`, `neil.admin`, …)
 
 Vite proxies `/smartflow-api` → `http://localhost/Smartflow/backend/backend/api`.
 

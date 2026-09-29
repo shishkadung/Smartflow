@@ -5,6 +5,7 @@
 
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/thresholds-helper.php';
+require_once __DIR__ . '/routing-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -85,9 +86,11 @@ $avgHours = $avgRow && $avgRow['avg_h'] !== null
     ? round((float)$avgRow['avg_h'], 1)
     : 0.0;
 
+$queueTrailCompleteSql = smartflow_sql_trail_complete('d.id');
 $sqlQueue = "
     SELECT
         d.id AS document_id,
+        {$queueTrailCompleteSql} AS trail_complete,
         d.title,
         d.type,
         d.due_at AS document_due_at,
@@ -133,9 +136,16 @@ $queue = array_map(function ($r) use ($pdo, $officeId) {
     );
     $maxHours = (int)$dueInfo['max_hours'];
     $dueAt = $dueInfo['due_at'] !== '' ? $dueInfo['due_at'] : null;
-    $isOverdue = $dueInfo['is_overdue'] && ($inOffice || $dueInfo['is_manual_due']);
+    $trailComplete = (int)$r['trail_complete'] === 1;
+    $isOverdue = !$trailComplete && $dueInfo['is_overdue'] && ($inOffice || $dueInfo['is_manual_due']);
 
-    if ($isOverdue) {
+    if ($trailComplete) {
+        $statusLabel = 'completed';
+        $pill = 'Completed';
+        $meta = "Trail complete · filed at {$r['last_office_code']}";
+        $dueAt = null;
+        $maxHours = 0;
+    } elseif ($isOverdue) {
         $statusLabel = 'overdue';
         $pill = 'Overdue';
         $meta = $dueInfo['is_manual_due']

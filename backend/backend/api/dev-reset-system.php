@@ -5,11 +5,7 @@
 require __DIR__ . '/config.php';
 require __DIR__ . '/dev-block.php';
 
-// Only allow on localhost/XAMPP
-if (!in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1', 'localhost']) && 
-    !str_contains($_SERVER['HTTP_HOST'] ?? '', 'localhost')) {
-    json_response(['success' => false, 'message' => 'Only allowed on localhost'], 403);
-}
+smartflow_dev_localhost_only();
 
 $deleted = [];
 
