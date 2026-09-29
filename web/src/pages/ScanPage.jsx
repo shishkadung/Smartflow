@@ -240,6 +240,7 @@ export default function ScanPage() {
     : null
 
   const busy = loading || fileBusy
+  const trailComplete = doc?.trail_complete === true
   const previousHolders = (doc?.visited_office_codes || []).filter(
     (code) => code !== String(user.office_code || '').toUpperCase(),
   )
@@ -322,7 +323,9 @@ export default function ScanPage() {
               <p className="muted">{doc.title}</p>
               <p className="muted">{actions?.statusLine}</p>
               {doc.is_overdue ? <p className="error">Overdue</p> : null}
-              {doc.pilot_end_note ? <div className="hint">{doc.pilot_end_note}</div> : null}
+              {doc.pilot_end_note ? (
+                <div className={trailComplete ? 'ok ok--in' : 'hint'}>{doc.pilot_end_note}</div>
+              ) : null}
               {actions?.blockReason ? <div className="error">{actions.blockReason}</div> : null}
 
               {actions?.canOut ? (
@@ -338,7 +341,7 @@ export default function ScanPage() {
                     </label>
                   ) : null}
                   <div className="field" style={{ marginTop: 14 }}>
-                    <label>{isReturn ? 'Return to' : 'Forward to'}</label>
+                    <label>{isReturn ? 'Return to' : trailComplete ? 'Forward for filing (optional)' : 'Forward to'}</label>
                     <select value={destId} onChange={(e) => setDestId(e.target.value)}>
                       <option value="">Select office</option>
                       {destOptions.map((o) => (

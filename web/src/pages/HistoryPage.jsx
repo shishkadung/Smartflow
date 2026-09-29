@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { smartflow, ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
-import { parseTrackingId } from '../tracking.js'
+import { formatWhen, movementNote, parseTrackingId } from '../tracking.js'
 import { LifeEmpty, LifeSkeleton, Overview, Segmented } from '../components/ui.jsx'
 import { SfIcon } from '../icons.jsx'
 
-function statusPill(status) {
+function statusPill(status, isReturn = false) {
   const s = String(status || '').toUpperCase()
+  if (s === 'OUT' && isReturn) return <span className="pill pill--returned">Returned</span>
   if (s === 'OUT') return <span className="pill pill--sent">Sent</span>
   if (s === 'IN') return <span className="pill pill--in">Received</span>
   return null
@@ -212,15 +213,24 @@ export default function HistoryPage() {
             </LifeEmpty>
           ) : (
             <ul className="timeline">
-              {rows.map((m) => (
-                <li key={m.id}>
-                  <strong>{statusPill(m.status)} {m.office_name}</strong>
-                  <div className="muted">
-                    {m.scanned_at} · {m.user_name}
-                    {m.destination_office_name ? ` → ${m.destination_office_name}` : ''}
-                  </div>
-                </li>
-              ))}
+              {rows.map((m) => {
+                const { isReturn, note } = movementNote(m)
+                return (
+                  <li key={m.id} className={isReturn ? 'timeline__item--returned' : undefined}>
+                    <strong>{statusPill(m.status, isReturn)} {m.office_name}</strong>
+                    <div className="muted">
+                      {formatWhen(m.scanned_at)} · {m.user_name}
+                      {m.destination_office_name ? ` → ${m.destination_office_name}` : ''}
+                    </div>
+                    {note ? (
+                      <p className="timeline__note">
+                        {isReturn ? <b>Reason: </b> : null}
+                        {note}
+                      </p>
+                    ) : null}
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>

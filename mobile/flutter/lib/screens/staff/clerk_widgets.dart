@@ -73,21 +73,20 @@ Future<void> showSfRoleMoreSheet(BuildContext context) {
     _ => '/staff/requests',
   };
 
-  final shared = <SfMoreDestination>[
-    SfMoreDestination(
-      icon: Icons.swap_horiz_rounded,
-      title: 'Document requests',
-      subtitle: 'Inbox and outgoing requests',
-      route: requestsRoute,
-    ),
-    if (helpPage != null)
-      SfMoreDestination(
-        icon: Icons.help_outline_rounded,
-        title: 'How to use this page',
-        subtitle: 'Tips for the screen you are on',
-        onTap: () => showSfHelpSheet(context, helpPage),
-      ),
-  ];
+  final requests = SfMoreDestination(
+    icon: Icons.swap_horiz_rounded,
+    title: 'Document requests',
+    subtitle: 'Inbox and outgoing requests',
+    route: requestsRoute,
+  );
+  final help = helpPage == null
+      ? null
+      : SfMoreDestination(
+          icon: Icons.help_outline_rounded,
+          title: 'How to use this page',
+          subtitle: 'Tips for the screen you are on',
+          onTap: () => showSfHelpSheet(context, helpPage),
+        );
 
   late final List<SfMoreDestination> roleItems;
   late final String subtitle;
@@ -121,7 +120,7 @@ Future<void> showSfRoleMoreSheet(BuildContext context) {
         ),
       ];
     case 'admin':
-      subtitle = 'Users, register, history, and system tools.';
+      subtitle = 'Users, alerts, offices, and system tools.';
       roleItems = const [
         SfMoreDestination(
           icon: SfIcons.adminUsers,
@@ -130,22 +129,10 @@ Future<void> showSfRoleMoreSheet(BuildContext context) {
           route: '/admin/users',
         ),
         SfMoreDestination(
-          icon: SfIcons.clerkRegister,
-          title: 'Register document',
-          subtitle: 'New folder · get QR ID',
-          route: '/admin/register',
-        ),
-        SfMoreDestination(
           icon: SfIcons.clerkAlerts,
           title: 'Alerts',
           subtitle: 'Late folders across municipal offices',
           route: '/admin/alerts',
-        ),
-        SfMoreDestination(
-          icon: SfIcons.clerkHistory,
-          title: 'History',
-          subtitle: 'Browse movements · audit trail',
-          route: '/admin/history',
         ),
         SfMoreDestination(
           icon: SfIcons.adminOffices,
@@ -190,9 +177,7 @@ Future<void> showSfRoleMoreSheet(BuildContext context) {
       ];
   }
 
-  final destinations = [...shared, ...roleItems]..sort(
-        (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
-      );
+  final destinations = [...roleItems, requests, if (help != null) help];
 
   return showSfMoreSheet(
     context,
@@ -223,7 +208,7 @@ bool sfIsPrimaryNavRoute(String path, String? role) {
           path == '/head/alerts';
     case 'admin':
       return path == '/admin' ||
-          path == '/admin/scan' ||
+          path == '/admin/history' ||
           path == '/admin/reports';
     default:
       return path == '/staff' ||

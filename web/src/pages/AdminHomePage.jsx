@@ -24,6 +24,10 @@ export default function AdminHomePage() {
   const pending = stats.pending_signups ?? 0
   const officeCount = stats.pilot_offices ?? offices.length
   const month = data?.month
+  const [monthYear, monthNumber] = String(month || '').split('-').map(Number)
+  const monthLabel = monthYear && monthNumber
+    ? new Date(monthYear, monthNumber - 1, 1).toLocaleString('en-US', { month: 'long', year: 'numeric' })
+    : month
 
   return (
     <div className="sf-life">
@@ -41,7 +45,7 @@ export default function AdminHomePage() {
 
       {month ? (
         <p className="muted admin-home__meta">
-          {month} · {officeCount} office{officeCount === 1 ? '' : 's'}
+          {monthLabel} · {officeCount} office{officeCount === 1 ? '' : 's'}
         </p>
       ) : null}
 
@@ -55,7 +59,7 @@ export default function AdminHomePage() {
           <span>Overdue</span>
         </Link>
         <Link className={statTone(pending, 'stat--pending')} to="/admin/users" style={{ textDecoration: 'none' }}>
-          <b>{pending || '—'}</b>
+          <b>{data ? pending : '—'}</b>
           <span>Sign-ups</span>
         </Link>
       </div>

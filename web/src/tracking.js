@@ -79,6 +79,29 @@ export function documentRequestCategoriesForOffice(code) {
   return items
 }
 
+/** "2026-09-28 15:14:02" → "Sep 28, 2026 · 3:14 PM" (falls back to the raw value). */
+export function formatWhen(raw) {
+  if (!raw) return ''
+  const d = new Date(String(raw).replace(' ', 'T'))
+  if (Number.isNaN(d.getTime())) return String(raw)
+  const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  return `${date} · ${time}`
+}
+
+const RETURN_PREFIX = /^Returned to (.+?): (.*)$/s
+
+/** Split a movement's remarks into return info or a clerk note (auto-generated remarks are dropped). */
+export function movementNote(m) {
+  const remarks = String(m?.remarks || '').trim()
+  const ret = remarks.match(RETURN_PREFIX)
+  if (ret) return { isReturn: true, returnedTo: ret[1], note: ret[2] }
+  if (!remarks || /^(Received at |Forwarded from |Registered and received at origin office$)/.test(remarks)) {
+    return { isReturn: false, note: '' }
+  }
+  return { isReturn: false, note: remarks }
+}
+
 export function homePath(role) {
   if (role === 'head') return '/head'
   if (role === 'admin') return '/admin'

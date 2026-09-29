@@ -82,7 +82,7 @@ export const HELP_PAGES = {
       'Check active documents, overdue items, and pending sign-ups.',
       'Open office tiles to see health per department.',
       'Use COA reports and QR scan monitor for compliance views.',
-      'Do not use this account for everyday Mark IN/OUT — use neil.acc.staff.',
+      'Do not use this account for everyday Mark IN/OUT — the Accounting clerk account does that.',
     ],
   },
   adminUsers: {
@@ -91,7 +91,7 @@ export const HELP_PAGES = {
     steps: [
       'Review pending sign-up requests first.',
       'Approve only people who belong to that office.',
-      'Keep neil.admin for oversight — clerks scan folders.',
+      'Keep the admin account for oversight — clerks scan folders.',
     ],
   },
   adminReports: {
@@ -159,7 +159,7 @@ export function roleTipFor(user) {
         'You see municipal-wide status and COA reports. Clerks scan the folders — this account is not for everyday Mark IN/OUT.',
       bullets: [
         'Use dashboards, QR scan monitor, and COA reports.',
-        'For ACC handoffs, use neil.acc.staff (clerk) to scan.',
+        'For Accounting handoffs, the Accounting clerk account does the scanning.',
         'Reopen tips anytime from Account & security.',
       ],
     }

@@ -149,6 +149,12 @@ export const SF_ICON_PATHS = {
     'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
     'M9 12l2 2 4-4',
   ],
+  /** menu — phone "Menu" tab */
+  menu: [
+    'M4 6h16',
+    'M4 12h16',
+    'M4 18h16',
+  ],
   back: ['M15 18l-6-6 6-6'],
   logout: [
     'M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4',

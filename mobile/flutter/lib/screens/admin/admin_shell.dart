@@ -55,16 +55,14 @@ class _AdminShellState extends State<AdminShell> {
 
   static const _primaryTabs = [
     '/admin',
-    '/admin/scan',
+    '/admin/history',
     '/admin/reports',
   ];
 
   static const _menuRoutes = [
     '/admin/users',
     '/admin/requests',
-    '/admin/register',
     '/admin/alerts',
-    '/admin/history',
     '/admin/offices',
     '/admin/thresholds',
     '/admin/qr-monitor',
@@ -104,9 +102,9 @@ class _AdminShellState extends State<AdminShell> {
             label: 'Home',
           ),
           const SfNavTab(
-            icon: SfIcons.clerkScan,
-            activeIcon: SfIcons.clerkScanActive,
-            label: 'Scan',
+            icon: SfIcons.clerkHistory,
+            activeIcon: SfIcons.clerkHistoryActive,
+            label: 'History',
           ),
           const SfNavTab(
             icon: SfIcons.adminCoaSummary,
@@ -354,7 +352,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   Widget build(BuildContext context) {
     final stats = _dash?['stats'] as Map<String, dynamic>?;
     final offices = _dash?['office_totals'] as List<dynamic>? ?? [];
-    final month = _dash?['month']?.toString();
+    final rawMonth = _dash?['month']?.toString();
+    final parsedMonth = rawMonth == null ? null : DateTime.tryParse('$rawMonth-01');
+    final month = parsedMonth != null ? DateFormat('MMMM yyyy').format(parsedMonth) : rawMonth;
     final pending = (stats?['pending_signups'] as int?) ?? 0;
     final active = (stats?['active_documents'] as int?) ?? 0;
     final overdue = (stats?['overdue'] as int?) ?? 0;

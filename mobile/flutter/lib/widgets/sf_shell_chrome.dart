@@ -52,7 +52,7 @@ class SfShellTopBar extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    user.officeName,
+                    user.role == 'admin' ? 'Municipal Admin' : user.officeName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(

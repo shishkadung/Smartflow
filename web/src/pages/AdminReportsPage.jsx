@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { smartflow, ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
-import { CoaSummaryHero, LifeEmpty, Overview, Segmented } from '../components/ui.jsx'
+import { CoaSummaryHero, ExceptionCard, LifeEmpty, LifeSkeleton, Overview, Segmented, statTone } from '../components/ui.jsx'
 
 function pct(bucket) {
   if (bucket == null) return '—'
@@ -30,6 +30,7 @@ export default function AdminReportsPage() {
   })
   const [data, setData] = useState(null)
   const [exceptions, setExceptions] = useState([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState(false)
   const isAccounting = String(user.office_code || '').toUpperCase() === 'ACC'
@@ -49,6 +50,7 @@ export default function AdminReportsPage() {
   async function load() {
     setError('')
     if (isYear && !/^\d{4}$/.test(year)) return
+    setLoading(true)
     try {
       let res
       if (isYear) res = await smartflow.reportsSummaryAnnual(user.office_id, year)
@@ -71,6 +73,7 @@ export default function AdminReportsPage() {
         setExceptions([])
       }
     }
+    setLoading(false)
   }
 
   useEffect(() => { load() }, [period, month, quarter, year, user.office_id])
@@ -131,15 +134,15 @@ export default function AdminReportsPage() {
         onChangeMonth={onPickerChange}
       >
         <div className="stats sf-life__stats" style={{ margin: 0 }}>
-          <div className="stat stat--ok">
+          <div className={statTone(pct(compliance.on_time ?? compliance.completed_on_time), 'stat--ok')}>
             <b>{pct(compliance.on_time ?? compliance.completed_on_time)}</b>
             <span>On time</span>
           </div>
-          <div className="stat stat--warn">
+          <div className={statTone(pct(compliance.unforwarded), 'stat--warn')}>
             <b>{pct(compliance.unforwarded)}</b>
             <span>Unforwarded</span>
           </div>
-          <div className="stat stat--bad">
+          <div className={statTone(pct(compliance.delayed), 'stat--bad')}>
             <b>{pct(compliance.delayed)}</b>
             <span>Delayed</span>
           </div>
@@ -156,11 +159,11 @@ export default function AdminReportsPage() {
           >
             {copied ? 'Copied' : 'Copy summary for COA'}
           </button>
-        ) : (
+        ) : data ? (
           <p className="muted" style={{ margin: '14px 0 0' }}>
             Only Accounting administrators can copy municipal COA summaries.
           </p>
-        )}
+        ) : null}
       </CoaSummaryHero>
       {isAccounting ? (
         <div className="card sf-life__panel">
@@ -168,21 +171,22 @@ export default function AdminReportsPage() {
           <p className="muted" style={{ marginTop: 0 }}>
             Unforwarded OUT, wrong-office IN, or trails that skipped Budget/Accounting — review before COA reporting.
           </p>
-          {exceptions.length === 0 ? (
+          {loading ? (
+            <LifeSkeleton rows={2} label="Loading exceptions" />
+          ) : exceptions.length === 0 ? (
             <LifeEmpty icon="coaSupport" tone="ok">{`No exceptions this ${periodNoun}.`}</LifeEmpty>
           ) : (
             exceptions.map((ex, i) => (
-              <div key={`${ex.document_id}-${ex.exception_type}-${i}`} className="pending-card">
-                <strong>{ex.document_id}</strong>
-                <span className="muted">{ex.detail}</span>
-              </div>
+              <ExceptionCard key={`${ex.document_id}-${ex.exception_type}-${i}`} exception={ex} />
             ))
           )}
         </div>
       ) : null}
       <div className="card sf-life__panel">
         <h3 className="section-title">By office</h3>
-        {(data?.office_totals || []).length === 0 ? (
+        {loading && !data ? (
+          <LifeSkeleton rows={3} label="Loading office totals" />
+        ) : (data?.office_totals || []).length === 0 ? (
           <LifeEmpty icon="coa">
             {`No office totals for this ${periodNoun}.`}
           </LifeEmpty>

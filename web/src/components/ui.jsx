@@ -1,6 +1,35 @@
 import { useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import sealImg from '../assets/brand/urbiztondo_seal.png'
 import { SfIcon } from '../icons.jsx'
+import { formatWhen } from '../tracking.js'
+
+const EXCEPTION_KINDS = {
+  unforwarded: { label: 'Unforwarded OUT', tone: 'warn' },
+  wrong_receiver: { label: 'Wrong receiver', tone: 'bad' },
+  skipped_office: { label: 'Skipped office', tone: 'bad' },
+}
+
+/** Custody exception row — opens the document's trail in History. */
+export function ExceptionCard({ exception: ex }) {
+  const kind = EXCEPTION_KINDS[ex.exception_type] || { label: ex.exception_type || 'Exception', tone: 'neutral' }
+  return (
+    <Link
+      className="pending-card"
+      to={`/history?id=${encodeURIComponent(ex.document_id)}`}
+      title="Open the custody trail"
+    >
+      <div className="pending-card__head">
+        <strong>{ex.document_id}</strong>
+        <StatusPill tone={kind.tone}>{kind.label}</StatusPill>
+      </div>
+      <span className="muted">
+        {ex.detail}
+        {ex.last_scanned_at ? ` · ${formatWhen(ex.last_scanned_at)}` : ''}
+      </span>
+    </Link>
+  )
+}
 
 export function Wordmark({ size = 'sm' }) {
   return (
@@ -223,14 +252,14 @@ export function Modal({ open, title, onClose, children, footer }) {
   )
 }
 
-export function DocTable({ columns, rows, onRowClick }) {
+export function DocTable({ columns, rows, onRowClick, scroll = false }) {
   if (!rows?.length) return null
   return (
-    <div className="table-wrap">
+    <div className={scroll ? 'table-wrap table-wrap--scroll' : 'table-wrap'}>
       <table className="data-table">
         <thead>
           <tr>
-            {columns.map((c) => <th key={c.key}>{c.label}</th>)}
+            {columns.map((c) => <th key={c.key} style={c.width ? { width: c.width } : undefined}>{c.label}</th>)}
           </tr>
         </thead>
         <tbody>

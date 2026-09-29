@@ -59,6 +59,7 @@
 
 .sf-life__stats .stat--overdue b,
 .sf-life__stats .stat--bad b { color: var(--sf-red); }
+.sf-life__stats .stat--warn b { color: #b45309; }
 
 .desk-home__stats .stat--desk b,
 .sf-life__stats .stat--desk b,

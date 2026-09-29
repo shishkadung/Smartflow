@@ -178,7 +178,7 @@ class SfAdminStatRow extends StatelessWidget {
               child: _tappable(
                 onTap: onPendingTap,
                 child: SfStatCard(
-                  value: pendingSignups > 0 ? '$pendingSignups' : '—',
+                  value: '$pendingSignups',
                   label: 'Sign-ups',
                   color: SfColors.navy,
                 ),
