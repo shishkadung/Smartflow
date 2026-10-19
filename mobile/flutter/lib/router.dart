@@ -7,17 +7,25 @@ import 'screens/admin/admin_qr_monitor_screen.dart';
 import 'screens/admin/admin_shell.dart';
 import 'screens/auth/forgot_password_screen.dart';
 import 'screens/auth/get_started_screen.dart';
+import 'screens/auth/forced_password_change_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/reset_password_screen.dart';
 import 'screens/auth/signup_screen.dart';
 import 'screens/head/head_shell.dart';
 import 'screens/shared/document_register_screen.dart';
 import 'screens/shared/document_requests_screen.dart';
+import 'screens/shared/documents_screen.dart';
+import 'screens/shared/office_checklists_screen.dart';
 import 'screens/staff/scanner_screen.dart';
 import 'screens/staff/staff_shell.dart';
 
 GoRouter createRouter(AuthProvider auth) {
+  final modals = _SessionModalObserver();
+  final staffModals = _SessionModalObserver();
+  final headModals = _SessionModalObserver();
+  final adminModals = _SessionModalObserver();
   return GoRouter(
+    observers: [modals],
     initialLocation: '/',
     refreshListenable: auth,
     errorBuilder: (context, state) => Scaffold(
@@ -35,9 +43,9 @@ GoRouter createRouter(AuthProvider auth) {
                 const SizedBox(height: 16),
                 Text(
                   'Redirecting...',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: SfColors.muted,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: SfColors.muted),
                 ),
               ],
             ),
@@ -48,21 +56,21 @@ GoRouter createRouter(AuthProvider auth) {
     redirect: (context, state) {
       // Don't redirect while loading or logging out - prevents flash
       if (auth.loading || auth.loggingOut) return null;
-      
+
       final loggedIn = auth.isAuthenticated;
       final loc = state.matchedLocation;
-      
+
       // Prevent flash during logout - redirect ALL protected routes to login when logged out
-      if (!loggedIn && (
-          loc.startsWith('/staff') ||
-          loc.startsWith('/head') ||
-          loc.startsWith('/admin') ||
-          loc.startsWith('/clerk') ||
-          loc.startsWith('/scanner')
-      )) {
+      if (!loggedIn &&
+          (loc.startsWith('/staff') ||
+              loc.startsWith('/head') ||
+              loc.startsWith('/admin') ||
+              loc.startsWith('/clerk') ||
+              loc.startsWith('/scanner'))) {
         return '/login';
       }
-      final onPublicAuth = loc == '/' ||
+      final onPublicAuth =
+          loc == '/' ||
           loc.startsWith('/login') ||
           loc.startsWith('/signup') ||
           loc.startsWith('/forgot-password') ||
@@ -71,14 +79,17 @@ GoRouter createRouter(AuthProvider auth) {
       if (!loggedIn && !onPublicAuth) return '/';
       if (!loggedIn) return null;
 
+      // A temporary password must be replaced before anything else is reachable.
+      if (auth.user!.mustChangePassword) {
+        return loc == '/change-password' ? null : '/change-password';
+      }
+      if (loc == '/change-password') return _homeForRole(auth.user!.role);
+
       final role = auth.user!.role;
 
       if (loc == '/' || loc == '/login') {
         return _homeForRole(role);
       }
-
-      final staffTools = loc.startsWith('/staff/scan') ||
-          loc.startsWith('/staff/register');
 
       if (role == 'staff') {
         if (loc.startsWith('/head') || loc.startsWith('/admin')) {
@@ -90,7 +101,8 @@ GoRouter createRouter(AuthProvider auth) {
       }
 
       if (role == 'head') {
-        if (loc.startsWith('/staff') && !staffTools) {
+        if (loc == '/staff/scan') return '/head/scan';
+        if (loc.startsWith('/staff')) {
           return '/head';
         }
         if (loc.startsWith('/admin')) {
@@ -99,7 +111,8 @@ GoRouter createRouter(AuthProvider auth) {
       }
 
       if (role == 'admin') {
-        if (loc.startsWith('/staff') && !staffTools) {
+        if (loc == '/staff/scan') return '/admin/scan';
+        if (loc.startsWith('/staff')) {
           return '/admin';
         }
         if (loc.startsWith('/head')) {
@@ -110,16 +123,24 @@ GoRouter createRouter(AuthProvider auth) {
       return null;
     },
     routes: [
-      GoRoute(path: '/', builder: (_, __) => const GetStartedScreen()),
-      GoRoute(path: '/login', builder: (_, __) => const LoginScreen()),
-      GoRoute(path: '/forgot-password', builder: (_, __) => const ForgotPasswordScreen()),
+      GoRoute(path: '/', builder: (_, _) => const GetStartedScreen()),
+      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+      GoRoute(
+        path: '/change-password',
+        builder: (_, _) => const ForcedPasswordChangeScreen(),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (_, _) => const ForgotPasswordScreen(),
+      ),
       GoRoute(
         path: '/reset-password',
         builder: (_, state) => ResetPasswordScreen(
-          username: (state.extra as Map<String, dynamic>?)?['username']?.toString(),
+          username: (state.extra as Map<String, dynamic>?)?['username']
+              ?.toString(),
         ),
       ),
-      GoRoute(path: '/signup', builder: (_, __) => const SignupScreen()),
+      GoRoute(path: '/signup', builder: (_, _) => const SignupScreen()),
       GoRoute(
         path: '/signup/pending',
         builder: (_, state) {
@@ -139,122 +160,364 @@ GoRouter createRouter(AuthProvider auth) {
       ),
       GoRoute(
         path: '/home',
-        redirect: (_, __) {
+        redirect: (_, _) {
           if (!auth.isAuthenticated) return '/login';
           return _homeForRole(auth.user!.role);
         },
       ),
       ShellRoute(
-        builder: (_, __, child) => StaffShell(child: child),
+        observers: [staffModals],
+        builder: (_, _, child) => _AuthenticatedShell(
+          auth: auth,
+          modals: [modals, staffModals],
+          child: StaffShell(key: ValueKey(auth.sessionIdentity), child: child),
+        ),
         routes: [
-          GoRoute(path: '/staff', builder: (_, __) => const StaffDashboardScreen()),
-          GoRoute(path: '/staff/scan', builder: (_, __) => const ScannerScreen()),
+          GoRoute(
+            path: '/staff',
+            builder: (_, _) => _sessionScreen(auth, StaffDashboardScreen()),
+          ),
+          GoRoute(
+            path: '/staff/documents',
+            builder: (_, state) => _sessionScreen(
+              auth,
+              DocumentsScreen(
+                initialDocumentId: state.uri.queryParameters['id'],
+                fromRequest: (state.extra as Map?)?['fromRequest'] == true,
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/staff/scan',
+            builder: (_, _) => _sessionScreen(auth, ScannerScreen()),
+          ),
           GoRoute(
             path: '/staff/register',
-            builder: (_, __) => const DocumentRegisterScreen(homeRoute: '/staff'),
+            builder: (_, state) => _sessionScreen(
+              auth,
+              DocumentRegisterScreen(
+                homeRoute: '/staff',
+                request:
+                    (state.extra as Map<String, dynamic>?)?['request']
+                        as Map<String, dynamic>?,
+              ),
+            ),
           ),
-          GoRoute(path: '/staff/alerts', builder: (_, __) => const StaffAlertsScreen()),
-          GoRoute(path: '/staff/profile', builder: (_, __) => const ProfileScreen()),
+          GoRoute(
+            path: '/staff/alerts',
+            builder: (_, _) => _sessionScreen(auth, StaffAlertsScreen()),
+          ),
+          GoRoute(
+            path: '/staff/profile',
+            builder: (_, _) => _sessionScreen(auth, ProfileScreen()),
+          ),
           GoRoute(
             path: '/staff/history',
             builder: (_, state) {
               final extra = state.extra as Map<String, dynamic>? ?? {};
-              return StaffHistoryScreen(
-                initialDocumentId: extra['documentId']?.toString(),
-                initialTodayFilter: extra['todayFilter']?.toString(),
+              return _sessionScreen(
+                auth,
+                StaffHistoryScreen(
+                  initialDocumentId: extra['documentId']?.toString(),
+                  initialTodayFilter: extra['todayFilter']?.toString(),
+                ),
               );
             },
           ),
           GoRoute(
             path: '/staff/requests',
-            builder: (_, __) => const DocumentRequestsScreen(homeRoute: '/staff'),
+            builder: (_, state) => _sessionScreen(
+              auth,
+              DocumentRequestsScreen(
+                homeRoute: '/staff',
+                initialRequestId: int.tryParse(
+                  state.uri.queryParameters['id'] ?? '',
+                ),
+              ),
+            ),
           ),
         ],
       ),
       ShellRoute(
-        builder: (_, __, child) => HeadShell(child: child),
+        observers: [headModals],
+        builder: (_, _, child) => _AuthenticatedShell(
+          auth: auth,
+          modals: [modals, headModals],
+          child: HeadShell(key: ValueKey(auth.sessionIdentity), child: child),
+        ),
         routes: [
-          GoRoute(path: '/head', builder: (_, __) => const HeadDashboardScreen()),
-          GoRoute(path: '/head/scan', builder: (_, __) => const ScannerScreen()),
           GoRoute(
-            path: '/head/register',
-            builder: (_, __) => const DocumentRegisterScreen(homeRoute: '/head'),
+            path: '/head',
+            builder: (_, _) => _sessionScreen(auth, HeadDashboardScreen()),
+          ),
+          GoRoute(
+            path: '/head/documents',
+            builder: (_, state) => _sessionScreen(
+              auth,
+              DocumentsScreen(
+                initialDocumentId: state.uri.queryParameters['id'],
+                fromRequest: (state.extra as Map?)?['fromRequest'] == true,
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/head/scan',
+            builder: (_, _) => _sessionScreen(auth, ScannerScreen()),
+          ),
+          GoRoute(path: '/head/register', redirect: (_, _) => '/head'),
+          GoRoute(
+            path: '/head/checklists',
+            builder: (_, _) => _sessionScreen(auth, OfficeChecklistsScreen()),
           ),
           GoRoute(
             path: '/head/queue',
             builder: (_, state) {
               final extra = state.extra as Map<String, dynamic>? ?? {};
-              return HeadQueueScreen(
-                initialFilter: HeadQueueScreen.parseFilter(
-                  extra['filter']?.toString(),
+              return _sessionScreen(
+                auth,
+                HeadQueueScreen(
+                  initialFilter: HeadQueueScreen.parseFilter(
+                    extra['filter']?.toString(),
+                  ),
                 ),
               );
             },
           ),
-          GoRoute(path: '/head/alerts', builder: (_, __) => const HeadAlertsScreen()),
-          GoRoute(path: '/head/analytics', builder: (_, __) => const HeadAnalyticsScreen()),
-          GoRoute(path: '/head/profile', builder: (_, __) => const ProfileScreen()),
+          GoRoute(
+            path: '/head/alerts',
+            builder: (_, _) => _sessionScreen(auth, HeadAlertsScreen()),
+          ),
+          GoRoute(
+            path: '/head/analytics',
+            builder: (_, _) => _sessionScreen(auth, HeadAnalyticsScreen()),
+          ),
+          GoRoute(
+            path: '/head/profile',
+            builder: (_, _) => _sessionScreen(auth, ProfileScreen()),
+          ),
           GoRoute(
             path: '/head/history',
             builder: (_, state) {
               final extra = state.extra as Map<String, dynamic>? ?? {};
-              return StaffHistoryScreen(
-                initialDocumentId: extra['documentId']?.toString(),
-                initialTodayFilter: extra['todayFilter']?.toString(),
-                monitorOnly: true,
+              return _sessionScreen(
+                auth,
+                StaffHistoryScreen(
+                  initialDocumentId: extra['documentId']?.toString(),
+                  initialTodayFilter: extra['todayFilter']?.toString(),
+                  monitorOnly: true,
+                ),
               );
             },
           ),
           GoRoute(
             path: '/head/requests',
-            builder: (_, __) => const DocumentRequestsScreen(homeRoute: '/head'),
+            builder: (_, state) => _sessionScreen(
+              auth,
+              DocumentRequestsScreen(
+                homeRoute: '/head',
+                initialRequestId: int.tryParse(
+                  state.uri.queryParameters['id'] ?? '',
+                ),
+              ),
+            ),
           ),
         ],
       ),
       ShellRoute(
-        builder: (_, __, child) => AdminShell(child: child),
+        observers: [adminModals],
+        builder: (_, _, child) => _AuthenticatedShell(
+          auth: auth,
+          modals: [modals, adminModals],
+          child: AdminShell(key: ValueKey(auth.sessionIdentity), child: child),
+        ),
         routes: [
-          GoRoute(path: '/admin', builder: (_, __) => const AdminDashboardScreen()),
-          GoRoute(path: '/admin/scan', builder: (_, __) => const ScannerScreen()),
           GoRoute(
-            path: '/admin/register',
-            builder: (_, __) => const DocumentRegisterScreen(homeRoute: '/admin'),
+            path: '/admin',
+            builder: (_, _) => _sessionScreen(auth, AdminDashboardScreen()),
+          ),
+          GoRoute(
+            path: '/admin/documents',
+            builder: (_, state) => _sessionScreen(
+              auth,
+              DocumentsScreen(
+                initialDocumentId: state.uri.queryParameters['id'],
+                fromRequest: (state.extra as Map?)?['fromRequest'] == true,
+                municipal: state.uri.queryParameters['scope'] == 'municipal',
+                initialOfficeId: int.tryParse(
+                  state.uri.queryParameters['office_id'] ?? '',
+                ),
+                initialOverdue: state.uri.queryParameters['overdue'] == '1',
+                initialTray: state.uri.queryParameters['tray'],
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/scan',
+            builder: (_, _) => _sessionScreen(auth, ScannerScreen()),
+          ),
+          GoRoute(path: '/admin/register', redirect: (_, _) => '/admin'),
+          GoRoute(
+            path: '/admin/checklists',
+            builder: (_, _) => _sessionScreen(auth, OfficeChecklistsScreen()),
           ),
           GoRoute(
             path: '/admin/alerts',
-            builder: (_, __) => const StaffAlertsScreen(municipal: true),
+            builder: (_, _) =>
+                _sessionScreen(auth, StaffAlertsScreen(municipal: true)),
           ),
           GoRoute(
             path: '/admin/history',
             builder: (_, state) {
               final extra = state.extra as Map<String, dynamic>? ?? {};
-              return StaffHistoryScreen(
-                initialDocumentId: extra['documentId']?.toString(),
-                monitorOnly: true,
+              return _sessionScreen(
+                auth,
+                StaffHistoryScreen(
+                  initialDocumentId: extra['documentId']?.toString(),
+                  monitorOnly: true,
+                ),
               );
             },
           ),
-          GoRoute(path: '/admin/users', builder: (_, __) => const AdminUsersScreen()),
-          GoRoute(path: '/admin/offices', builder: (_, __) => const AdminOfficesScreen()),
-          GoRoute(path: '/admin/system', builder: (_, __) => const AdminSystemScreen()),
+          GoRoute(
+            path: '/admin/users',
+            builder: (_, _) => _sessionScreen(auth, AdminUsersScreen()),
+          ),
+          GoRoute(
+            path: '/admin/offices',
+            builder: (_, _) => _sessionScreen(auth, AdminOfficesScreen()),
+          ),
+          GoRoute(
+            path: '/admin/system',
+            builder: (_, _) => _sessionScreen(auth, AdminSystemScreen()),
+          ),
           GoRoute(
             path: '/admin/qr-monitor',
-            builder: (_, __) => const AdminQrMonitorScreen(),
+            builder: (_, _) => _sessionScreen(auth, AdminQrMonitorScreen()),
           ),
           GoRoute(
             path: '/admin/reports',
-            builder: (_, __) => const AdminReportsScreen(),
+            builder: (_, _) => _sessionScreen(auth, AdminReportsScreen()),
           ),
-          GoRoute(path: '/admin/profile', builder: (_, __) => const ProfileScreen()),
-          GoRoute(path: '/admin/thresholds', builder: (_, __) => const AdminThresholdsScreen()),
+          GoRoute(
+            path: '/admin/profile',
+            builder: (_, _) => _sessionScreen(auth, ProfileScreen()),
+          ),
+          GoRoute(
+            path: '/admin/thresholds',
+            builder: (_, _) => _sessionScreen(auth, AdminThresholdsScreen()),
+          ),
           GoRoute(
             path: '/admin/requests',
-            builder: (_, __) => const DocumentRequestsScreen(homeRoute: '/admin'),
+            builder: (_, state) => _sessionScreen(
+              auth,
+              DocumentRequestsScreen(
+                homeRoute: '/admin',
+                initialRequestId: int.tryParse(
+                  state.uri.queryParameters['id'] ?? '',
+                ),
+              ),
+            ),
           ),
         ],
       ),
     ],
   );
+}
+
+// GoRouter can retain an unchanged location when refreshListenable fires.
+// Listen at the actual page so a replacement login disposes its prior state.
+Widget _sessionScreen(AuthProvider auth, Widget child) => ListenableBuilder(
+  listenable: auth,
+  builder: (_, _) =>
+      KeyedSubtree(key: ValueKey(auth.sessionIdentity), child: child),
+);
+
+/// Remove protected widgets as soon as identity clears, while redirects settle.
+class _SessionModalObserver extends NavigatorObserver {
+  final routes = <PopupRoute<dynamic>>{};
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route is PopupRoute<dynamic>) routes.add(route);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      routes.remove(route);
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      routes.remove(route);
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    routes.remove(oldRoute);
+    if (newRoute is PopupRoute<dynamic>) routes.add(newRoute);
+  }
+}
+
+class _AuthenticatedShell extends StatefulWidget {
+  const _AuthenticatedShell({
+    required this.auth,
+    required this.modals,
+    required this.child,
+  });
+
+  final AuthProvider auth;
+  final List<_SessionModalObserver> modals;
+  final Widget child;
+
+  @override
+  State<_AuthenticatedShell> createState() => _AuthenticatedShellState();
+}
+
+class _AuthenticatedShellState extends State<_AuthenticatedShell> {
+  late Object _identity;
+
+  @override
+  void initState() {
+    super.initState();
+    _identity = widget.auth.sessionIdentity;
+    widget.auth.addListener(_sessionChanged);
+  }
+
+  void _sessionChanged() {
+    final next = widget.auth.sessionIdentity;
+    if (next != _identity) {
+      _identity = next;
+      // Dialogs/bottom sheets use the root navigator by default and outlive a
+      // ShellRoute's page. Remove them along with the old protected workspace.
+      final oldModals = [
+        for (final observer in widget.modals) ...observer.routes,
+      ];
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final route in oldModals) {
+          final navigator = route.navigator;
+          if (route.isActive && navigator != null && navigator.mounted) {
+            navigator.removeRoute(route);
+          }
+        }
+      });
+    }
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    widget.auth.removeListener(_sessionChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final auth = widget.auth;
+    return IgnorePointer(
+      ignoring: auth.loggingOut,
+      child: auth.isAuthenticated || (auth.loggingOut && auth.user != null)
+          ? widget.child
+          : const SizedBox.shrink(),
+    );
+  }
 }
 
 String _homeForRole(String role) {

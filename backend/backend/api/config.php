@@ -4,18 +4,11 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/schema-bootstrap.php';
+require_once __DIR__ . '/rate-limit.php';
+require_once __DIR__ . '/dev-tools-policy.php';
 smartflow_register_error_handlers();
 
-// Load environment variables from .env file
-$envFile = __DIR__ . '/.env';
-if (file_exists($envFile)) {
-    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        if (strpos(trim($line), '#') === 0) continue;
-        list($name, $value) = explode('=', $line, 2);
-        $_ENV[trim($name)] = trim($value);
-    }
-}
+smartflow_load_environment(__DIR__ . '/.env');
 
 // PHP and MySQL must share one clock — XAMPP defaults PHP to Europe/Berlin, which skews due/overdue math.
 $appTimezone = $_ENV['APP_TIMEZONE'] ?? 'Asia/Manila';
@@ -103,6 +96,7 @@ if ($corsOrigins === '*' || in_array($origin, explode(',', $corsOrigins))) {
 function json_response($data, int $statusCode = 200): void
 {
     http_response_code($statusCode);
+    header('Cache-Control: no-store');
     header('Content-Type: application/json');
     echo json_encode($data);
     exit;
@@ -115,7 +109,7 @@ function smartflow_request_json(): array
         return $cached;
     }
 
-    $input = file_get_contents('php://input');
+    $input = file_get_contents(PHP_SAPI === 'cli' ? 'php://stdin' : 'php://input');
     $data = json_decode($input, true);
     $cached = is_array($data) ? $data : [];
 
@@ -160,16 +154,6 @@ function get_bearer_token(): ?string
         }
     }
 
-    $fromQuery = trim((string)($_GET['access_token'] ?? ''));
-    if ($fromQuery !== '') {
-        return $fromQuery;
-    }
-
-    $fromBody = trim((string)(smartflow_request_json()['access_token'] ?? ''));
-    if ($fromBody !== '') {
-        return $fromBody;
-    }
-
     return null;
 }
 
@@ -181,11 +165,11 @@ function user_id_from_token(?string $token): ?int
 
     global $pdo;
 
-    // 1) Database session (sha256 of the bearer string).
+    // A session must exist in the database and still be valid. Decoding the
+    // user ID from the bearer string never proves that the session was issued.
     try {
         $tokenHash = hash('sha256', $token);
-        try {
-            $stmt = $pdo->prepare('
+        $stmt = $pdo->prepare('
                 SELECT user_id
                 FROM auth_tokens
                 WHERE token_hash = :hash
@@ -193,39 +177,20 @@ function user_id_from_token(?string $token): ?int
                   AND expires_at > NOW()
                 LIMIT 1
             ');
-            $stmt->execute([':hash' => $tokenHash]);
-        } catch (PDOException $e) {
-            $stmt = $pdo->prepare('
-                SELECT user_id
-                FROM auth_tokens
-                WHERE token_hash = :hash
-                  AND expires_at > NOW()
-                LIMIT 1
-            ');
-            $stmt->execute([':hash' => $tokenHash]);
-        }
+        $stmt->execute([':hash' => $tokenHash]);
         $row = $stmt->fetch();
         if ($row) {
             return (int)$row['user_id'];
         }
     } catch (PDOException $e) {
-        // Table missing — fall through to legacy decode.
+        smartflow_log('error', 'Session lookup failed', ['error' => $e->getMessage()]);
     }
 
-    // 2) Legacy / dual-format: base64("<user_id>|<random>")
-    $decoded = base64_decode($token, true);
-    if ($decoded === false || !str_contains($decoded, '|')) {
-        return null;
-    }
-
-    [$userIdRaw] = explode('|', $decoded, 2);
-    $userId = (int)$userIdRaw;
-    return $userId > 0 ? $userId : null;
+    return null;
 }
 
 // Generate secure token and store in database.
-// Token string is always legacy-compatible base64 so API auth works even if
-// auth_tokens insert/lookup fails (older schema / clock skew).
+// Keep the existing opaque bearer format; validity comes from its stored hash.
 function generate_auth_token(int $userId, int $ttlSeconds = 86400): string
 {
     global $pdo;
@@ -234,13 +199,6 @@ function generate_auth_token(int $userId, int $ttlSeconds = 86400): string
     $tokenHash = hash('sha256', $token);
 
     try {
-        if (function_exists('smartflow_ensure_auth_tokens')) {
-            smartflow_ensure_auth_tokens($pdo);
-        }
-
-        $delete = $pdo->prepare('DELETE FROM auth_tokens WHERE user_id = :user_id');
-        $delete->execute([':user_id' => $userId]);
-
         $insert = $pdo->prepare('
             INSERT INTO auth_tokens (user_id, token_hash, expires_at)
             VALUES (:user_id, :hash, DATE_ADD(NOW(), INTERVAL :ttl SECOND))
@@ -251,11 +209,11 @@ function generate_auth_token(int $userId, int $ttlSeconds = 86400): string
             ':ttl' => $ttlSeconds,
         ]);
     } catch (PDOException $e) {
-        // Session still usable via legacy decode of $token.
-        smartflow_log('warning', 'auth_tokens store failed', [
+        smartflow_log('error', 'auth_tokens store failed', [
             'user_id' => $userId,
             'error' => $e->getMessage(),
         ]);
+        throw new RuntimeException('Could not create authenticated session', 0, $e);
     }
 
     return $token;
@@ -265,16 +223,10 @@ function generate_auth_token(int $userId, int $ttlSeconds = 86400): string
 function revoke_user_tokens(int $userId): void
 {
     global $pdo;
-    try {
-        $stmt = $pdo->prepare('UPDATE auth_tokens SET is_revoked = 1 WHERE user_id = :user_id');
-        $stmt->execute([':user_id' => $userId]);
-    } catch (PDOException $e) {
-        // Ignore if table doesn't exist
-    }
+    $stmt = $pdo->prepare('UPDATE auth_tokens SET is_revoked = 1 WHERE user_id = :user_id');
+    $stmt->execute([':user_id' => $userId]);
 }
 
-// Very lightweight "auth": token format is base64("<user_id>|<random>")
-// This is enough for capstone demo; for production store tokens in DB.
 function require_user_id(): int
 {
     $token = get_bearer_token();
@@ -283,71 +235,79 @@ function require_user_id(): int
         json_response(['success' => false, 'message' => 'Missing or invalid token'], 401);
     }
 
+    global $pdo;
+    $mustChange = 0;
+    try {
+        $stmt = $pdo->prepare('SELECT is_active, must_change_password FROM users WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => $userId]);
+        $row = $stmt->fetch();
+        $active = $row === false ? false : $row['is_active'];
+        $mustChange = $row === false ? 0 : (int)$row['must_change_password'];
+    } catch (PDOException $e) {
+        // The flag column is created by the first administrator password reset.
+        $stmt = $pdo->prepare('SELECT is_active FROM users WHERE id = :id LIMIT 1');
+        $stmt->execute([':id' => $userId]);
+        $active = $stmt->fetchColumn();
+    }
+    if ($active === false || !(int)$active) {
+        json_response(['success' => false, 'message' => 'This account has been deactivated. Contact your municipal administrator.'], 403);
+    }
+    // A temporary password allows only choosing a new one (or signing out) until it has been replaced.
+    if ($mustChange && !in_array(basename((string)($_SERVER['SCRIPT_NAME'] ?? '')), ['users-change-password.php', 'auth-logout.php', 'auth-session.php'], true)) {
+        json_response(['success' => false, 'message' => 'You must choose a new password before continuing.', 'password_change_required' => true], 403);
+    }
+    header('Cache-Control: no-store');
+
+    static $limited = false;
+    if (!$limited && PHP_SAPI !== 'cli') {
+        $limited = true;
+        $write = ($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'GET';
+        smartflow_rate_limit('api:' . ($write ? 'write:' : 'read:') . $userId,
+            (int)($_ENV[$write ? 'RATE_LIMIT_PER_MINUTE' : 'RATE_LIMIT_READ_PER_MINUTE'] ?? ($write ? 60 : 240)));
+    }
+
     return $userId;
 }
 
-/** Set ALLOW_DEV_TOOLS=false in .env on municipal LAN before go-live. Always off when APP_ENV=production. */
+/** Explicit CLI maintenance opt-in only; no public response or HTTP route may rely on this flag. */
 define(
     'SMARTFLOW_ALLOW_DEV_TOOLS',
-    ($_ENV['APP_ENV'] ?? 'development') !== 'production'
-        && ($_ENV['ALLOW_DEV_TOOLS'] ?? 'true') === 'true'
+    smartflow_dev_tools_enabled($_ENV)
 );
 
 /**
- * Blocks dev-only endpoints when SMARTFLOW_ALLOW_DEV_TOOLS is false.
- * When enabled, requires an active admin Bearer token.
+ * Legacy maintenance helpers must never restore localhost or admin HTTP access.
  */
 function smartflow_require_dev_admin(PDO $pdo): void
 {
-    if (!SMARTFLOW_ALLOW_DEV_TOOLS) {
+    if (PHP_SAPI !== 'cli' || !SMARTFLOW_ALLOW_DEV_TOOLS
+        || !in_array('--allow-maintenance', $_SERVER['argv'] ?? [], true)) {
         json_response([
             'success' => false,
             'message' => 'Developer tools are disabled on this server',
         ], 403);
     }
 
-    $userId = require_user_id();
-    $stmt = $pdo->prepare('
-        SELECT role FROM users WHERE id = :id AND is_active = 1 LIMIT 1
-    ');
-    $stmt->execute([':id' => $userId]);
-    $row = $stmt->fetch();
-    if (!$row || ($row['role'] ?? '') !== 'admin') {
-        json_response([
-            'success' => false,
-            'message' => 'Admin login required for developer tools',
-        ], 403);
-    }
 }
 
 /**
- * Destructive dev tools (purge/reset) — same machine only, never over the network.
+ * Destructive dev tools (purge/reset) — explicit CLI maintenance only.
  * Movement and audit-trail records must be retained for 15 years (client).
  */
 function smartflow_dev_localhost_only(): void
 {
-    if (!SMARTFLOW_ALLOW_DEV_TOOLS) {
+    if (PHP_SAPI !== 'cli' || !SMARTFLOW_ALLOW_DEV_TOOLS
+        || !in_array('--allow-maintenance', $_SERVER['argv'] ?? [], true)) {
         json_response([
             'success' => false,
             'message' => 'Developer tools are disabled on this server',
         ], 403);
     }
-    $ip = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
-    if (!in_array($ip, ['127.0.0.1', '::1'], true)) {
-        json_response([
-            'success' => false,
-            'message' => 'Only allowed on the server machine (localhost)',
-        ], 403);
-    }
 }
 
-/** Allow setup scripts on the same machine without a Bearer token. */
+/** Compatibility name for legacy CLI-only maintenance callers. */
 function smartflow_dev_localhost_or_admin(PDO $pdo): void
 {
-    $ip = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
-    if (in_array($ip, ['127.0.0.1', '::1'], true)) {
-        return;
-    }
     smartflow_require_dev_admin($pdo);
 }
 

@@ -2,7 +2,6 @@
 // GET /dev-reset-system.php
 // WARNING: Resets system to fresh state - deletes all documents, movements, and non-seed users
 
-require __DIR__ . '/config.php';
 require __DIR__ . '/dev-block.php';
 
 smartflow_dev_localhost_only();

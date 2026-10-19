@@ -4,9 +4,26 @@ import 'package:provider/provider.dart';
 
 import '../config/api_config.dart';
 import '../providers/auth_provider.dart';
+import '../utils/api_error.dart';
 import '../theme/sf_icons.dart';
 import '../theme/smartflow_theme.dart';
 import 'sf_widgets.dart';
+
+Future<void> sfLogout(BuildContext context) async {
+  final auth = context.read<AuthProvider>();
+  try {
+    await auth.logout();
+    if (context.mounted && !auth.isAuthenticated) context.go('/login');
+  } catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not sign out. ${apiErrorMessage(error)}'),
+        ),
+      );
+    }
+  }
+}
 
 String? _avatarAbs(String? relative) {
   final rel = relative?.trim();
@@ -33,10 +50,7 @@ bool sfIsProfileSecurityView(BuildContext context) =>
 bool sfIsOnProfilePage(String path, String role) =>
     path == sfProfileRouteForRole(role);
 
-String _accountRoleLine({
-  required String role,
-  required String officeCode,
-}) {
+String _accountRoleLine({required String role, required String officeCode}) {
   switch (role) {
     case 'admin':
       return 'Municipal Accountant · $officeCode';
@@ -201,8 +215,7 @@ Future<void> showSfAccountMenu(BuildContext context) {
                         ),
                       );
                       if (ok == true && context.mounted) {
-                        await context.read<AuthProvider>().logout();
-                        if (context.mounted) context.go('/login');
+                        await sfLogout(context);
                       }
                     },
                   ),

@@ -6,10 +6,7 @@ const Map<String, List<String>> kOfficeDocumentTypes = {
   'ENG': ['Disbursement Voucher'],
   'HR': [],
   'BUD': ['Approved Budget'],
-  'ACC': [
-    'Disbursement Voucher',
-    'Approved Budget',
-  ],
+  'ACC': ['Disbursement Voucher', 'Approved Budget'],
   'TRE': ['Disbursement Voucher'],
   'MAY': ['Disbursement Voucher'],
 };
@@ -18,10 +15,7 @@ List<String> documentTypesForOffice(String officeCode) {
   final code = officeCode.trim().toUpperCase();
   final types = List<String>.from(
     kOfficeDocumentTypes[code] ??
-        const [
-          'Disbursement Voucher',
-          'Approved Budget',
-        ],
+        const ['Disbursement Voucher', 'Approved Budget'],
   );
   if (!types.contains(kOtherDocumentType)) {
     types.add(kOtherDocumentType);
@@ -30,7 +24,9 @@ List<String> documentTypesForOffice(String officeCode) {
 }
 
 /// Inter-office request categories shown in the app (payroll omitted — ACC prepares payroll).
-List<MapEntry<String, String>> documentRequestCategoriesForOffice(String officeCode) {
+List<MapEntry<String, String>> documentRequestCategoriesForOffice(
+  String officeCode,
+) {
   final code = officeCode.toUpperCase();
   final items = <MapEntry<String, String>>[];
 

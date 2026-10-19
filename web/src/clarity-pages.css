@@ -1,0 +1,81 @@
+/* Daily work stays visible; secondary information opens when it is needed. */
+.app-shell .nav .nav-administration { display: grid; gap: inherit; flex: none; width: 100%; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--sf-border); }
+.app-shell :is(.document-secondary, .history-folder-summary) summary:focus-visible { outline: 2px solid var(--sf-blue); outline-offset: 3px; }
+
+.app-shell .document-page .document-find-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(200px, 280px); gap: 12px; align-items: end; }
+.app-shell .document-page .document-find-controls > :only-child { grid-column: 1 / -1; }
+.app-shell .document-page .document-find-controls .document-search { min-height: 44px; margin: 0; border-radius: 10px; }
+.app-shell .document-page .document-find-controls .document-search input { min-height: 42px; font-size: 14px; }
+.app-shell .document-page .document-find-controls .municipal-office-filter { max-width: none; margin: 0; }
+.app-shell .document-page .queue-controls { justify-content: flex-end; gap: 12px; }
+.app-shell .document-page .queue-controls select { min-height: 44px; padding: 9px 12px; border-color: var(--sf-border-strong); border-radius: 10px; color: var(--sf-ink); font-size: 14px; line-height: 1.4; }
+.app-shell .document-page .queue-controls select:focus-visible { outline: 2px solid var(--sf-blue); outline-offset: 2px; }
+.app-shell .document-page .queue-controls .document-view-context { margin-right: auto; }
+.app-shell .document-summary > .document-title { margin: 0 0 10px; font-size: 20px; line-height: 1.4; }
+.app-shell .document-summary > .document-summary__identity { margin-bottom: 18px; }
+.app-shell .document-summary .document-meta--primary { margin-bottom: 12px; }
+.app-shell .document-summary .document-summary__deadline dd > span { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; }
+.app-shell .document-summary .document-summary__deadline.is-overdue dd { color: var(--sf-red); }
+.app-shell .document-summary .document-content-warning { margin: 10px 0; color: var(--sf-red); font-size: 13px; line-height: 1.5; }
+.app-shell .document-secondary { border-top: 1px solid var(--sf-border); padding-top: 4px; }
+.app-shell .document-secondary > summary { padding: 12px 0; min-height: 44px; color: var(--sf-muted); font-size: 13px; font-weight: 600; cursor: pointer; }
+.app-shell .document-secondary > .document-meta { padding-bottom: 12px; }
+.app-shell .document-page .document-detail-panel > .hint { margin-top: 12px; font-size: 12px; line-height: 1.5; }
+
+.app-shell .main > .history-page { max-width: 1100px; }
+.app-shell .history-page .history-lookup { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 12px; }
+.app-shell .history-page .history-lookup > .btn { width: auto; }
+.app-shell .history-page .history-result { outline-offset: 4px; }
+.app-shell .history-page .history-folder-summary { display: grid; gap: 6px; margin-bottom: 22px; font-size: 14px; line-height: 1.5; color: var(--sf-muted); overflow-wrap: anywhere; }
+.app-shell .history-page .history-folder-summary > strong { font-size: 12px; }
+.app-shell .history-page .history-folder-summary summary { cursor: pointer; padding: 7px 0; min-height: 36px; font-size: 13px; }
+.app-shell .history-page .history-folder-summary details > p { margin: 4px 0 0; }
+.app-shell .history-page .history-activity-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 20px 0; }
+.app-shell .history-page .history-activity-controls > .field { width: 210px; }
+.app-shell .history-page .history-picks { display: grid; gap: 10px; }
+.app-shell .history-page .history-picks button { display: grid; gap: 6px; padding: 16px; width: 100%; }
+.app-shell .history-page .history-picks .pill { justify-self: start; }
+.app-shell .history-page .history-note { display: block; padding-top: 6px; color: var(--sf-ink); white-space: pre-wrap; overflow-wrap: anywhere; }
+.app-shell .history-page .timeline__note { white-space: pre-wrap; overflow-wrap: anywhere; }
+.app-shell .history-page .history-result > .error { margin-bottom: 12px; }
+.app-shell :is(.history-page, .alerts-page, .thresholds-page) .error > .btn-secondary { margin-top: 10px; }
+.app-shell :is(.history-page, .alerts-page, .thresholds-page) .error p { margin: 6px 0 0; }
+.app-shell .history-page .history-result > .section-title { overflow-wrap: anywhere; }
+.app-shell .alerts-page .alert-log__row { text-align: left; }
+.app-shell .alerts-page .alert-detail { font-size: 13px; line-height: 1.5; color: var(--sf-muted); white-space: pre-wrap; }
+
+.app-shell .thresholds-page .clarity-explanation { margin: 0; color: var(--sf-muted); font-size: 14px; line-height: 1.6; max-width: 85ch; }
+.app-shell .thresholds-page .threshold-office { max-width: 440px; }
+.app-shell .thresholds-page .admin-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+.app-shell .thresholds-page .clarity-panel-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.app-shell .thresholds-page .clarity-panel-heading > .section-title { margin: 0; }
+.app-shell .thresholds-page .admin-grid > .threshold-panel { display: grid; align-content: start; gap: 16px; }
+.app-shell .thresholds-page .threshold-panel .threshold-panel-heading { min-height: 88px; margin: 0; padding: 0 0 16px; border-bottom: 1px solid var(--sf-border); align-items: flex-start; }
+.app-shell .thresholds-page .threshold-panel-heading > div { flex: 1 1 180px; min-width: 0; }
+.app-shell .thresholds-page .threshold-panel-heading .section-title { margin: 0 0 5px; font-size: 16px; font-weight: 650; line-height: 1.35; overflow-wrap: anywhere; }
+.app-shell .thresholds-page .threshold-panel-heading p { margin: 0; overflow-wrap: anywhere; }
+.app-shell .thresholds-page .threshold-panel-heading > .btn-secondary { min-width: 0; min-height: 44px; flex: 0 0 auto; }
+.app-shell .thresholds-page .threshold-rules > .admin-threshold-list { margin: 0; }
+.app-shell .thresholds-page .threshold-fields { display: grid; gap: 16px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.app-shell .thresholds-page .field-help { color: var(--sf-muted); font-size: 12px; font-weight: 400; line-height: 1.5; }
+.app-shell .thresholds-page .threshold-rule-copy { display: grid; gap: 5px; min-width: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.app-shell .thresholds-page .threshold-rule-copy > span { color: var(--sf-muted); }
+.app-shell .thresholds-page .admin-threshold-list li { gap: 14px; }
+.app-shell .thresholds-page .admin-threshold-list li > .btn-secondary { align-self: center; width: auto; min-width: 72px; min-height: 44px; flex: 0 0 auto; }
+.app-shell .thresholds-page .admin-threshold-list .is-editing { border-left: 3px solid var(--sf-blue); padding-left: 12px; }
+.app-shell .thresholds-page .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 1000px) {
+  .app-shell .thresholds-page .admin-grid { grid-template-columns: minmax(0, 1fr); }
+  .app-shell .thresholds-page .threshold-panel .threshold-panel-heading { min-height: 0; }
+}
+@media (max-width: 760px) {
+  .app-shell .document-page--selected > .document-find-controls { display: none; }
+  .app-shell .document-page .document-find-controls { grid-template-columns: minmax(0, 1fr); }
+  .app-shell .document-page .queue-controls { justify-content: flex-start; }
+  .app-shell .document-page .document-find-controls .document-search input { font-size: 16px; }
+  .app-shell .document-page .queue-controls select { font-size: 16px; }
+  .app-shell .history-page .history-lookup { grid-template-columns: minmax(0, 1fr); }
+  .app-shell .history-page .history-lookup > .btn { width: 100%; }
+  .app-shell .history-page .history-activity-controls > .field { width: 100%; }
+  .app-shell .document-summary .document-meta > div { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+}

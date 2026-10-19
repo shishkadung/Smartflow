@@ -13,8 +13,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 
 $userId = require_user_id();
 $stmt = $pdo->prepare('
-    SELECT u.id, u.role, u.office_id
+    SELECT u.id, u.role, u.office_id, o.code AS office_code
     FROM users u
+    JOIN offices o ON o.id = u.office_id
     WHERE u.id = :id AND u.is_active = 1
     LIMIT 1
 ');
@@ -32,6 +33,19 @@ $cInbox = $pdo->prepare('
 ');
 $cInbox->execute([':oid' => $oid]);
 $pendingInbox = (int)$cInbox->fetchColumn();
+
+// Match the inbox's Treasury payment queue as well as requests assigned to this office.
+$overdueInbox = $pdo->prepare("
+    SELECT COUNT(*) FROM document_requests
+    WHERE required_by < CURDATE() AND status IN ('pending', 'approved')
+      AND (handler_office_id = :oid OR (:treasury = 1 AND document_category = 'disbursement' AND status = 'approved'))
+");
+$overdueInbox->execute([':oid' => $oid, ':treasury' => strtoupper((string)$user['office_code']) === 'TRE' ? 1 : 0]);
+$overdueOutbox = $pdo->prepare("
+    SELECT COUNT(*) FROM document_requests
+    WHERE requested_by = :uid AND required_by < CURDATE() AND status IN ('pending', 'approved')
+");
+$overdueOutbox->execute([':uid' => $userId]);
 
 $outbox = [
     'pending'   => 0,
@@ -59,6 +73,8 @@ $outboxAttention = $outbox['rejected'] + $outbox['approved'] + $outbox['fulfille
 json_response([
     'success' => true,
     'pending_inbox_count' => $pendingInbox,
+    'overdue_inbox_count' => (int)$overdueInbox->fetchColumn(),
+    'overdue_outbox_count' => (int)$overdueOutbox->fetchColumn(),
     'outbox' => $outbox,
     'outbox_attention_count' => $outboxAttention,
     'outbox_needs_action_count' => $outbox['rejected'] + $outbox['approved'],

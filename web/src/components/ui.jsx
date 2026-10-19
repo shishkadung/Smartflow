@@ -1,8 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import sealImg from '../assets/brand/urbiztondo_seal.png'
 import { SfIcon } from '../icons.jsx'
-import { formatWhen } from '../tracking.js'
+import { formatWhen, reportPeriodBounds } from '../tracking.js'
 
 const EXCEPTION_KINDS = {
   unforwarded: { label: 'Unforwarded OUT', tone: 'warn' },
@@ -72,21 +72,11 @@ function OverviewCopy({ strap, title, body, chips, hint }) {
 export function Overview({ strap, title, body, chips, hint, actions, children }) {
   const props = { strap, title, body, chips, hint }
   return (
-    <>
-      <section className="overview">
-        <div className="overview__copy">
-          <OverviewCopy {...props} />
-        </div>
-        {actions ? <div className="overview__actions">{actions}</div> : null}
-        {children}
-      </section>
-      <header className="page-head">
-        <div className="page-head__copy">
-          <OverviewCopy {...props} />
-        </div>
-        {actions ? <div className="page-head__actions">{actions}</div> : null}
-      </header>
-    </>
+    <header className="page-heading">
+      <div className="page-heading__copy"><OverviewCopy {...props} /></div>
+      {actions ? <div className="page-heading__actions">{actions}</div> : null}
+      {children}
+    </header>
   )
 }
 
@@ -101,23 +91,16 @@ export function CoaSummaryHero({
 }) {
   const isYear = period === 'year'
   const isQuarter = period === 'quarter'
-  const currentYear = new Date().getFullYear()
-  const currentQuarter = Math.ceil((new Date().getMonth() + 1) / 3)
-  const quarterOptions = []
-  for (let y = currentYear; y >= currentYear - 5; y -= 1) {
-    for (let q = y === currentYear ? currentQuarter : 4; q >= 1; q -= 1) {
-      quarterOptions.push(`${y}-Q${q}`)
-    }
-  }
+  const { minYear, maxYear, minMonth, maxMonth, quarters: quarterOptions } = reportPeriodBounds()
   return (
     <section className="coa-hero">
       <div className="coa-hero__band">
         <div className="coa-hero__copy">
-          <p className="coa-hero__strap">COA SUPPORT SUMMARY</p>
+          <p className="coa-hero__strap">COA support summary</p>
           <h3 className="coa-hero__title">{monthLabel}</h3>
           <span className="coa-hero__rule" aria-hidden />
           <p className="coa-hero__meta">
-            {docsInPeriod} documents with activity · municipal system
+            {docsInPeriod == null ? 'Activity count not verified' : `${docsInPeriod} documents with activity · municipal system`}
           </p>
         </div>
         {onChangeMonth ? (
@@ -126,8 +109,8 @@ export function CoaSummaryHero({
             {isYear ? (
               <input
                 type="number"
-                min={currentYear - 15}
-                max={currentYear}
+                min={minYear}
+                max={maxYear}
                 step={1}
                 value={monthValue}
                 onChange={(e) => onChangeMonth(e.target.value)}
@@ -142,6 +125,8 @@ export function CoaSummaryHero({
             ) : (
               <input
                 type="month"
+                min={minMonth}
+                max={maxMonth}
                 value={monthValue}
                 onChange={(e) => onChangeMonth(e.target.value)}
               />
@@ -167,14 +152,14 @@ export function Empty({ mark = '—', children }) {
 export function LifeEmpty({ icon = 'custodyLog', tone, children, action }) {
   const toneClass = tone ? ` sf-life__empty-icon--${tone}` : ''
   return (
-    <div className="sf-life__empty desk-home__empty">
+    <div className="sf-empty">
       <div className={`sf-life__empty-icon desk-home__empty-icon${toneClass}`} aria-hidden>
         <SfIcon name={icon} size={22} />
       </div>
-      <div className="empty">
+      <div className="sf-empty__body">
         <p className="muted">{children}</p>
+        {action ? <div className="sf-empty__actions">{action}</div> : null}
       </div>
-      {action || null}
     </div>
   )
 }
@@ -208,6 +193,23 @@ export function StatusPill({ tone = 'neutral', children }) {
   return <span className={`status-pill status-pill--${tone}`}>{children}</span>
 }
 
+/** One folder, one next step. The whole card opens that step. */
+export function WorkCard({ kicker, title, meta, pill, tone = 'info', verb, onOpen }) {
+  return (
+    <article className={`work-card work-card--${tone}`}>
+      <button type="button" className="work-card__open" onClick={onOpen}>
+        <span className="work-card__kicker">{kicker}</span>
+        <strong>{title}</strong>
+        {meta ? <span className="work-card__meta">{meta}</span> : null}
+        <span className="work-card__foot">
+          <StatusPill tone={tone}>{pill}</StatusPill>
+          <span className="work-card__verb">{verb}</span>
+        </span>
+      </button>
+    </article>
+  )
+}
+
 export function Segmented({ value, onChange, options }) {
   return (
     <div className="segmented" role="tablist">
@@ -229,18 +231,34 @@ export function Segmented({ value, onChange, options }) {
 }
 
 export function Modal({ open, title, onClose, children, footer }) {
+  const panel = useRef(null)
+  // Form edits can replace onClose; keep Escape current without resetting focus.
+  const closeHandler = useRef(onClose)
+  useEffect(() => { closeHandler.current = onClose }, [onClose])
   useEffect(() => {
     if (!open) return undefined
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
+    const previous = document.activeElement
+    const focusable = () => [...(panel.current?.querySelectorAll('button:not(:disabled), a[href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex="0"]') || [])].filter(node => node.getClientRects().length)
+    const frame = requestAnimationFrame(() => (focusable()[0] || panel.current)?.focus())
+    const onKey = (e) => {
+      if (panel.current !== [...document.querySelectorAll('[role="dialog"]')].at(-1)) return
+      if (e.key === 'Escape') { e.preventDefault(); closeHandler.current?.() }
+      if (e.key !== 'Tab') return
+      const elements = focusable()
+      if (!elements.length) { e.preventDefault(); panel.current?.focus(); return }
+      const first = elements[0], last = elements.at(-1)
+      if (e.shiftKey && (document.activeElement === first || !panel.current?.contains(document.activeElement))) { e.preventDefault(); last.focus() }
+      else if (!e.shiftKey && (document.activeElement === last || !panel.current?.contains(document.activeElement))) { e.preventDefault(); first.focus() }
+    }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
+    return () => { cancelAnimationFrame(frame); window.removeEventListener('keydown', onKey); if (previous?.isConnected) previous.focus() }
+  }, [open])
 
   if (!open) return null
   return (
     <div className="modal-root" role="presentation">
       <button type="button" className="modal-backdrop" aria-label="Close" onClick={onClose} />
-      <div className="modal-panel" role="dialog" aria-modal="true" aria-label={title}>
+      <div className="modal-panel" role="dialog" aria-modal="true" aria-label={title} ref={panel} tabIndex={-1}>
         <div className="modal-panel__head">
           <h3>{title}</h3>
           <button type="button" className="btn-ghost" onClick={onClose}>Close</button>
@@ -322,11 +340,16 @@ export function MunicipalMasthead({ compact = false }) {
 export function GovFooter() {
   return (
     <footer className="gov-foot">
-      <strong>SmartFlow</strong> records custody events for municipal audit support.
-      It does not approve disbursements or payments.
+      <strong>SmartFlow</strong> keeps the folder log. It does not approve payments.
     </footer>
   )
 }
+
+const AUTH_POINTS = [
+  'Scan a folder when it arrives or leaves',
+  'See which office has it now',
+  'Print the monthly custody summary',
+]
 
 export function AuthShell({
   strap,
@@ -338,12 +361,14 @@ export function AuthShell({
   layout = 'stack',
   welcome = 'Welcome',
   showPoints = true,
+  points = AUTH_POINTS,
+  grow = false,
   note,
 }) {
   if (layout === 'split') {
     return (
       <div className="auth-page auth-page--split">
-        <div className="auth-split">
+        <div className={grow ? 'auth-split auth-split--grow' : 'auth-split'}>
           <aside className="auth-split__brand" aria-label="Municipal portal">
             <div className="auth-split__brand-inner">
               <MunicipalSeal size={64} tone="dark" ring />
@@ -357,9 +382,7 @@ export function AuthShell({
                 {body ? <p className="auth-split__blurb">{body}</p> : null}
                 {showPoints ? (
                   <ul className="auth-split__points">
-                    <li>QR handoffs between offices</li>
-                    <li>Custody log for accountability</li>
-                    <li>Support for COA preparation</li>
+                    {points.map((point) => <li key={point}>{point}</li>)}
                   </ul>
                 ) : null}
               </div>

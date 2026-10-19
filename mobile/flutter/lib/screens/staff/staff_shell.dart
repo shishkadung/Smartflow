@@ -1,3 +1,5 @@
+import '../../widgets/home_folder_actions.dart';
+import '../../utils/live_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -10,16 +12,18 @@ import '../../theme/sf_icons.dart';
 import '../../theme/smartflow_theme.dart';
 import '../../utils/alert_actions.dart';
 import '../../utils/api_error.dart';
+import '../../widgets/sf_account_menu.dart';
 import '../../utils/format_time.dart';
+import '../../utils/recent_docs.dart';
 import '../../utils/tracking_id.dart';
 import '../../widgets/mark_out_destination_dialog.dart';
+import '../../widgets/folder_contents.dart';
+import '../../widgets/profile_snapshot_feedback.dart';
 import '../../widgets/sf_help.dart';
 import '../../widgets/sf_page.dart';
 import '../../widgets/sf_pdf_chrome.dart';
 import '../../widgets/sf_widgets.dart';
 import '../admin/admin_shell.dart';
-import '../admin/admin_widgets.dart';
-import '../head/head_widgets.dart';
 import '../shared/change_password_sheet.dart';
 import '../shared/edit_profile_sheet.dart';
 import '../shared/profile_photo.dart';
@@ -34,8 +38,12 @@ class StaffShell extends StatefulWidget {
   State<StaffShell> createState() => _StaffShellState();
 }
 
-class _StaffShellState extends State<StaffShell> {
+class _StaffShellState extends State<StaffShell> with LiveRefresh<StaffShell> {
   int _alertCount = 0;
+  int _pendingRequests = 0;
+
+  @override
+  Future<void> refreshLiveData() => _loadAlertCount();
 
   @override
   void initState() {
@@ -51,6 +59,9 @@ class _StaffShellState extends State<StaffShell> {
       final list = data['alerts'] as List<dynamic>? ?? [];
       final visible = await AlertActionsStore.visibleCount(list);
       if (mounted) refreshAlertBadge(visible);
+      if (!mounted) return;
+      final pending = await sfPendingRequestCount(context);
+      if (mounted) setState(() => _pendingRequests = pending);
     } catch (_) {}
   }
 
@@ -60,28 +71,14 @@ class _StaffShellState extends State<StaffShell> {
 
   static const _primaryTabs = [
     '/staff',
+    '/staff/documents',
     '/staff/scan',
     '/staff/alerts',
   ];
 
-  /// Secondary destinations from bottom Menu sheet (not Profile — that’s ENG).
-  static const _menuRoutes = [
-    '/staff/register',
-    '/staff/history',
-  ];
-
-  int _indexForPath(String loc) {
-    final primary = _primaryTabs.indexWhere((t) => loc == t);
-    if (primary >= 0) return primary;
-    if (_menuRoutes.contains(loc)) return 3;
-    return -1;
-  }
+  int _indexForPath(String loc) => _primaryTabs.indexWhere((t) => loc == t);
 
   void _onTab(int i) {
-    if (i == 3) {
-      showSfRoleMoreSheet(context);
-      return;
-    }
     context.go(_primaryTabs[i]);
     _loadAlertCount();
   }
@@ -90,17 +87,28 @@ class _StaffShellState extends State<StaffShell> {
   Widget build(BuildContext context) {
     final loc = GoRouterState.of(context).uri.path;
     final index = _indexForPath(loc);
+    final profileActive = sfIsOnProfilePage(loc, 'staff');
 
     return SfNavBadgeScope(
       alertCount: _alertCount,
       child: SfAppScaffold(
         currentIndex: index,
         onTab: _onTab,
+        onMenu: () =>
+            showSfRoleMoreSheet(context, pendingRequests: _pendingRequests),
+        onProfile: () => context.go(sfProfileRouteForRole('staff')),
+        profileActive: profileActive,
+        menuActive: index < 0 && !profileActive,
         tabs: [
           const SfNavTab(
             icon: SfIcons.clerkHome,
             activeIcon: SfIcons.clerkHomeActive,
             label: 'Home',
+          ),
+          const SfNavTab(
+            icon: SfIcons.documents,
+            activeIcon: SfIcons.documentsActive,
+            label: 'Documents',
           ),
           const SfNavTab(
             icon: SfIcons.clerkScan,
@@ -114,11 +122,7 @@ class _StaffShellState extends State<StaffShell> {
             label: 'Alerts',
             badge: _alertCount > 0 ? _alertCount : null,
           ),
-          const SfNavTab(
-            icon: SfIcons.more,
-            activeIcon: SfIcons.moreActive,
-            label: 'Menu',
-          ),
+          const SfNavTab(icon: SfIcons.menu, label: 'Menu'),
         ],
         body: widget.child,
       ),
@@ -135,12 +139,15 @@ class StaffDashboardScreen extends StatefulWidget {
   State<StaffDashboardScreen> createState() => _StaffDashboardScreenState();
 }
 
-class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
+class _StaffDashboardScreenState extends State<StaffDashboardScreen>
+    with LiveRefresh<StaffDashboardScreen> {
+  @override
+  Future<void> refreshLiveData() => _load(silent: true);
+
   final _scrollCtrl = ScrollController();
   final _activeSectionKey = GlobalKey();
 
   Map<String, dynamic>? _stats;
-  Map<String, dynamic>? _requestSummary;
   List<dynamic> _activeDocs = [];
   List<dynamic> _recentMoves = [];
   List<dynamic> _inTransit = [];
@@ -169,28 +176,25 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     context.findAncestorStateOfType<_StaffShellState>()?._loadAlertCount();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool silent = false}) async {
+    if (!mounted ||
+        !context.read<AuthProvider>().isAuthenticated ||
+        (silent && _loading)) {
+      return;
+    }
     final user = context.read<AuthProvider>().user!;
     setState(() {
-      _loading = true;
+      if (!silent) {
+        _loading = true;
+      }
       _error = null;
     });
     try {
       final api = context.read<AuthProvider>().api;
       final data = await api.dashboardStats(user.officeId);
-      Map<String, dynamic>? reqSum;
-      try {
-        reqSum = await api.documentRequestsSummary();
-      } on ApiException {
-        // Optional — old XAMPP copy may lack this file until sync.
-        reqSum = null;
-      } catch (_) {
-        reqSum = null;
-      }
       if (!mounted) return;
       setState(() {
         _stats = data['stats'] as Map<String, dynamic>?;
-        _requestSummary = reqSum;
         _activeDocs = data['active_documents'] as List<dynamic>? ?? [];
         _recentMoves = data['recent_movements'] as List<dynamic>? ?? [];
         _inTransit = data['in_transit'] as List<dynamic>? ?? [];
@@ -226,114 +230,134 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     }
   }
 
-  String _activeDeskEmptyMessage(String _) {
-    return 'No folders IN here right now.';
-  }
-
   Future<void> _markInIncoming(Map<String, dynamic> doc) async {
-    final user = context.read<AuthProvider>().user!;
+    if (_markingInDocId != null) return;
+    final auth = context.read<AuthProvider>();
+    final user = auth.user!;
+    final api = auth.api;
+    final identity = auth.sessionIdentity;
+    bool currentSession() => mounted && auth.sessionIdentity == identity;
+    if (auth.loggingOut) return;
     final id = doc['document_id']?.toString() ?? '';
-    final fromOffice = doc['last_office_name']?.toString() ?? 'another office';
-    final destCode = doc['destination_office_code']?.toString();
-    final destName = doc['destination_office_name']?.toString();
-    final destLine = destCode != null && destCode.isNotEmpty
-        ? '\nSent to: $destName ($destCode).'
-        : '';
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Receive folder?'),
-        content: Text(
-          'Mark $id as IN at ${user.officeName}? '
-          'It is currently OUT from $fromOffice.$destLine',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Mark IN'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
-
     setState(() => _markingInDocId = id);
     try {
-      await context.read<AuthProvider>().api.recordMovement(
-            documentId: id,
-            officeId: user.officeId,
-            status: 'IN',
-            remarks: 'Received at ${user.officeName}',
-          );
-      if (!mounted) return;
+      final shown = await api.officeDocuments(id: id);
+      if (!mounted || !currentSession()) return;
+      final current = shown['document'] as Map<String, dynamic>;
+      final contents = await showFolderReceiptDialog(context, current);
+      if (contents == null ||
+          !mounted ||
+          !currentSession() ||
+          auth.loggingOut) {
+        return;
+      }
+      final result = await api.recordMovement(
+        documentId: id,
+        officeId: user.officeId,
+        status: 'IN',
+        movementSource: 'system',
+        expectedMovementId: (current['last_movement_id'] as num).toInt(),
+        receiptConfirmed: true,
+        contentsReceipt: contents,
+        remarks: 'Received at ${user.officeName}',
+      );
+      if (!mounted || !currentSession()) return;
       HapticFeedback.lightImpact();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('$id received at ${user.officeName}'),
+          content: Text(
+            result['message']?.toString() ??
+                '$id received at ${user.officeName}',
+          ),
           backgroundColor: SfColors.green,
         ),
       );
       await _load();
     } on ApiException catch (e) {
-      if (mounted) {
+      if (mounted && currentSession()) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message), backgroundColor: SfColors.red),
         );
       }
     } finally {
-      if (mounted) setState(() => _markingInDocId = null);
+      if (currentSession()) setState(() => _markingInDocId = null);
     }
   }
 
-  Future<void> _markOut(
-    String documentId, {
-    String? documentType,
-  }) async {
-    final user = context.read<AuthProvider>().user!;
-    final destination = await showMarkOutDestinationDialog(
-      context,
-      documentId: documentId,
-      myOfficeId: user.officeId,
-      myOfficeName: user.officeName,
-      myOfficeCode: user.officeCode,
-      documentType: documentType,
-    );
-    if (destination == null || !mounted) return;
-
+  Future<void> _markOut(String documentId, {String? documentType}) async {
+    if (_markingOutDocId != null) return;
+    final auth = context.read<AuthProvider>();
+    final user = auth.user!;
+    final api = auth.api;
+    final identity = auth.sessionIdentity;
+    bool currentSession() => mounted && auth.sessionIdentity == identity;
+    if (auth.loggingOut) return;
     setState(() => _markingOutDocId = documentId);
     try {
-      await context.read<AuthProvider>().api.recordMovement(
-            documentId: documentId,
-            officeId: user.officeId,
-            status: 'OUT',
-            destinationOfficeId: destination.officeId,
-            isReturn: destination.isReturn,
-            remarks: destination.isReturn
-                ? destination.returnReason
-                : 'Forwarded from ${user.officeName} → ${destination.code}',
-          );
-      if (!mounted) return;
+      final shown = await api.officeDocuments(id: documentId);
+      if (!mounted || !currentSession()) return;
+      final current = Map<String, dynamic>.from(shown['document'] as Map);
+      if (current['current_status'] != 'IN' ||
+          current['current_office_id'] != user.officeId ||
+          (current['tray'] == 'completed' &&
+              current['can_return_to_accounting'] != true)) {
+        throw ApiException(
+          'This folder changed. Open Documents and review its current custody before sending.',
+        );
+      }
+      final suggested = current['suggested_forward'] as Map?;
+      final destination = await showMarkOutDestinationDialog(
+        context,
+        documentId: documentId,
+        myOfficeId: user.officeId,
+        myOfficeName: user.officeName,
+        myOfficeCode: user.officeCode,
+        documentType: current['type']?.toString() ?? documentType,
+        suggestedOfficeId: (suggested?['office_id'] as num?)?.toInt(),
+        suggestedOfficeCode: suggested?['office_code']?.toString(),
+        suggestedReason: suggested?['reason']?.toString(),
+        onlyDestinationCode: current['can_return_to_accounting'] == true
+            ? 'ACC'
+            : null,
+      );
+      if (destination == null ||
+          !mounted ||
+          !currentSession() ||
+          auth.loggingOut) {
+        return;
+      }
+      await api.recordMovement(
+        documentId: documentId,
+        officeId: user.officeId,
+        status: 'OUT',
+        movementSource: 'system',
+        expectedMovementId: (current['last_movement_id'] as num).toInt(),
+        destinationOfficeId: destination.officeId,
+        isReturn: destination.isReturn,
+        remarks: destination.isReturn
+            ? destination.returnReason
+            : 'Forwarded from ${user.officeName} → ${destination.code}',
+      );
+      if (!mounted || !currentSession()) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(destination.isReturn
-              ? '$documentId returned to ${destination.code}'
-              : '$documentId marked OUT'),
+          content: Text(
+            destination.isReturn
+                ? '$documentId returned to ${destination.code}'
+                : '$documentId marked OUT',
+          ),
           backgroundColor: SfColors.blue,
         ),
       );
       await _load();
     } on ApiException catch (e) {
-      if (mounted) {
+      if (mounted && currentSession()) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.message), backgroundColor: SfColors.red),
         );
       }
     } finally {
-      if (mounted) setState(() => _markingOutDocId = null);
+      if (currentSession()) setState(() => _markingOutDocId = null);
     }
   }
 
@@ -345,102 +369,75 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
     final outFlow = dash == null ? '—' : '${dash['out_flow']}';
     final tags = dash == null ? '—' : '${dash['active_tags']}';
 
-    final outbox = _requestSummary?['outbox'] as Map<String, dynamic>?;
-    final rejected = (outbox?['rejected'] as int?) ?? 0;
-    final approved = (outbox?['approved'] as int?) ?? 0;
-    final pendingOut = (outbox?['pending'] as int?) ?? 0;
-    String? requestHint;
-    if (rejected > 0 || approved > 0 || pendingOut > 0) {
-      final parts = <String>[];
-      if (rejected > 0) {
-        parts.add('$rejected declined');
-      }
-      if (approved > 0) {
-        parts.add('$approved approved');
-      }
-      if (pendingOut > 0) {
-        parts.add('$pendingOut pending');
-      }
-      requestHint = parts.join(' · ');
-    }
-
     return RefreshIndicator(
       onRefresh: _load,
       color: SfColors.blue,
       child: ListView(
         controller: _scrollCtrl,
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(18, 20, 18, 32),
         children: [
-          const SfClerkPageOverviewCard(screen: SfClerkScreen.home),
-          if (requestHint != null) ...[
-            const SizedBox(height: 12),
-            SfClerkStartHereCard(requestStatusHint: requestHint),
-          ],
-          const SizedBox(height: 14),
+          const SfPageTitle(
+            title: 'Dashboard',
+            subtitle: 'Manage your office’s physical folders.',
+          ),
+          const SizedBox(height: 16),
           if (_error != null) ...[
-            SfErrorBanner(message: _error!),
+            SfErrorBanner(
+              message: _stats == null
+                  ? _error!
+                  : 'Refresh failed. Previously loaded folders and counts may be stale. $_error',
+            ),
             const SizedBox(height: 10),
           ],
-          if (_loading)
-            const SfDashboardStatSkeleton()
-          else
-            SfDashboardStatRow(
-              inFlow: inFlow,
-              outFlow: outFlow,
-              activeTags: tags,
-              onInFlowTap: () => context.go(
-                    '/staff/history',
-                    extra: {'todayFilter': 'IN'},
+          HomeFolderActions(
+            overview: _loading
+                ? const SfDashboardStatSkeleton()
+                : SfDashboardStatRow(
+                    inFlow: inFlow,
+                    outFlow: outFlow,
+                    activeTags: tags,
+                    onInFlowTap: () => context.go(
+                      '/staff/history',
+                      extra: {'todayFilter': 'IN'},
+                    ),
+                    onOutFlowTap: () => context.go(
+                      '/staff/history',
+                      extra: {'todayFilter': 'OUT'},
+                    ),
+                    onActiveTap: _scrollToActive,
                   ),
-              onOutFlowTap: () => context.go(
-                    '/staff/history',
-                    extra: {'todayFilter': 'OUT'},
-                  ),
-              onActiveTap: _scrollToActive,
-            ),
-          if (_inTransit.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            SfClerkSectionHeader(
-              title: 'Incoming',
-              link: '${_inTransit.length}',
-            ),
-            const SizedBox(height: 8),
-            ..._inTransit.map((d) {
-              final m = d as Map<String, dynamic>;
-              final id = m['document_id']?.toString() ?? '';
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: SfClerkIncomingDocRow(
-                  documentId: id,
-                  title: m['title']?.toString() ?? m['type']?.toString() ?? '',
-                  fromOfficeCode:
-                      m['last_office_code']?.toString() ?? '—',
-                  fromOfficeName:
-                      m['last_office_name']?.toString() ?? '',
-                  sentToOfficeCode:
-                      m['destination_office_code']?.toString(),
-                  outAt: m['last_scanned_at']?.toString(),
-                  receiving: _markingInDocId == id,
-                  onTap: () => context.push(
-                    '/staff/history',
-                    extra: {'documentId': id},
-                  ),
-                  onMarkIn: () => _markInIncoming(m),
-                ),
-              );
-            }),
-          ],
-          const SizedBox(height: 20),
+          ),
+          const SizedBox(height: 4),
           SfClerkSectionHeader(
             key: _activeSectionKey,
-            title: 'At your office now',
-            link: _activeDocs.isEmpty
+            title: 'At your office',
+            link: _stats == null
+                ? null
+                : _activeDocs.isEmpty
                 ? '0 folders'
-                : '${_activeDocs.length} folder(s)',
+                : '${_activeDocs.length} folder${_activeDocs.length == 1 ? '' : 's'}',
           ),
-          const SizedBox(height: 10),
-          if (_activeDocs.isEmpty)
-            SfClerkEmptyDeskCard(message: _activeDeskEmptyMessage(outFlow))
+          const SizedBox(height: 8),
+          if (_stats == null && _loading)
+            const _HomeFolderLoading()
+          else if (_stats == null && _error != null)
+            const SfEmptyState(
+              icon: SfIcons.documents,
+              title: 'Folder list unavailable',
+              subtitle: 'Pull to refresh to try again.',
+            )
+          else if (_activeDocs.isEmpty)
+            _HomeFolderEmpty(
+              quiet: _error == null,
+              icon: Icons.inventory_2_outlined,
+              title: _error == null
+                  ? 'No folders at your office'
+                  : 'No folders in the last loaded list',
+              message: _error == null
+                  ? 'Folders held by your office appear here.'
+                  : 'Pull to refresh to check current custody.',
+            )
           else
             ..._activeDocs.map((d) {
               final m = d as Map<String, dynamic>;
@@ -453,13 +450,58 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                   lastScannedAt: m['last_scanned_at']?.toString(),
                   markingOut: _markingOutDocId == id,
                   onTap: () => context.push(
-                    '/staff/history',
-                    extra: {'documentId': id},
+                    '/staff/documents?id=${Uri.encodeQueryComponent(id)}',
                   ),
-                  onMarkOut: () => _markOut(
-                    id,
-                    documentType: m['type']?.toString(),
+                  onMarkOut: () =>
+                      _markOut(id, documentType: m['type']?.toString()),
+                ),
+              );
+            }),
+          const SizedBox(height: 16),
+          SfClerkSectionHeader(
+            title: 'Incoming',
+            link: _stats == null
+                ? null
+                : '${_inTransit.length} folder${_inTransit.length == 1 ? '' : 's'}',
+          ),
+          const SizedBox(height: 8),
+          if (_stats == null && _loading)
+            const _HomeFolderLoading()
+          else if (_stats == null && _error != null)
+            const SfEmptyState(
+              icon: Icons.move_to_inbox_outlined,
+              title: 'Incoming list unavailable',
+              subtitle: 'Pull to refresh to try again.',
+            )
+          else if (_inTransit.isEmpty)
+            _HomeFolderEmpty(
+              quiet: _error == null,
+              icon: Icons.move_to_inbox_outlined,
+              title: _error == null
+                  ? 'No incoming folders'
+                  : 'No folders in the last loaded list',
+              message: _error == null
+                  ? 'Sent folders appear here until received.'
+                  : 'Pull to refresh to check incoming folders.',
+            )
+          else
+            ..._inTransit.map((d) {
+              final m = d as Map<String, dynamic>;
+              final id = m['document_id']?.toString() ?? '';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: SfClerkIncomingDocRow(
+                  documentId: id,
+                  title: m['title']?.toString() ?? m['type']?.toString() ?? '',
+                  fromOfficeCode: m['last_office_code']?.toString() ?? '—',
+                  fromOfficeName: m['last_office_name']?.toString() ?? '',
+                  sentToOfficeCode: m['destination_office_code']?.toString(),
+                  outAt: m['last_scanned_at']?.toString(),
+                  receiving: _markingInDocId == id,
+                  onTap: () => context.push(
+                    '/staff/documents?id=${Uri.encodeQueryComponent(id)}',
                   ),
+                  onMarkIn: () => _markInIncoming(m),
                 ),
               );
             }),
@@ -479,14 +521,17 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 6),
                 child: SfFormCard(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   child: Row(
                     children: [
                       SfStatusPill(
                         label: st == 'OUT' ? 'SENT' : 'IN',
                         tone: st == 'IN'
                             ? SfPillTone.success
-                            : SfPillTone.danger,
+                            : SfPillTone.neutral,
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -494,26 +539,28 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              m['document_id']?.toString() ?? '',
+                              title != null && title.isNotEmpty
+                                  ? title
+                                  : m['document_id']?.toString() ?? '',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontWeight: FontWeight.w700,
-                                fontSize: 12,
+                                fontSize: 14,
                               ),
                             ),
                             if (title != null && title.isNotEmpty)
                               Text(
-                                title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                                m['document_id']?.toString() ?? '',
                                 style: const TextStyle(
-                                  fontSize: 11,
-                                  color: SfColors.ink,
+                                  fontSize: 12,
+                                  color: SfColors.muted,
                                 ),
                               ),
                             Text(
                               movementScanSubtitle(m),
                               style: const TextStyle(
-                                fontSize: 10,
+                                fontSize: 11,
                                 color: SfColors.muted,
                               ),
                             ),
@@ -529,19 +576,90 @@ class _StaffDashboardScreenState extends State<StaffDashboardScreen> {
           if (_lastLoaded != null && !_loading) ...[
             const SizedBox(height: 16),
             Text(
-              'Updated ${formatSmartflowTime(_lastLoaded!.toIso8601String())} · pull to refresh',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 10,
-                color: SfColors.muted,
-                fontWeight: FontWeight.w600,
-              ),
+              '${_error == null ? 'Updated' : 'Last successful update'} ${formatSmartflowTime(_lastLoaded!.toIso8601String())} · pull to refresh',
+              textAlign: TextAlign.start,
+              style: const TextStyle(fontSize: 11, color: SfColors.muted),
             ),
           ],
         ],
       ),
     );
   }
+}
+
+class _HomeFolderEmpty extends StatelessWidget {
+  const _HomeFolderEmpty({
+    required this.quiet,
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final bool quiet;
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final content = Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 20, color: SfColors.muted),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  height: 1.3,
+                  color: quiet ? SfColors.muted : SfColors.ink,
+                ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                message,
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: SfColors.muted,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+    return quiet
+        ? Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            child: content,
+          )
+        : SfFormCard(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: content,
+          );
+  }
+}
+
+class _HomeFolderLoading extends StatelessWidget {
+  const _HomeFolderLoading();
+
+  @override
+  Widget build(BuildContext context) => const SfFormCard(
+    padding: EdgeInsets.all(20),
+    child: Center(
+      child: SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      ),
+    ),
+  );
 }
 
 class StaffAlertsScreen extends StatefulWidget {
@@ -554,7 +672,11 @@ class StaffAlertsScreen extends StatefulWidget {
   State<StaffAlertsScreen> createState() => _StaffAlertsScreenState();
 }
 
-class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
+class _StaffAlertsScreenState extends State<StaffAlertsScreen>
+    with LiveRefresh<StaffAlertsScreen> {
+  @override
+  Future<void> refreshLiveData() => _load(silent: true);
+
   List<dynamic> _alerts = [];
   Map<String, AlertActionState> _actions = const {};
   String? _error;
@@ -562,8 +684,7 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
   SfAlertFilter _filter = SfAlertFilter.all;
   DateTime? _lastLoaded;
 
-  String _actionKey(Map a) =>
-      '${a['document_id']}::${a['kind']}';
+  String _actionKey(Map a) => '${a['document_id']}::${a['kind']}';
 
   AlertActionState _stateFor(Map a) =>
       _actions[_actionKey(a)] ?? const AlertActionState();
@@ -580,17 +701,14 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
       .where((m) => _stateFor(m).isHidden)
       .length;
 
-  int get _countDelayed => _visibleAlerts
-      .where((a) => a['kind'] == 'delayed')
-      .length;
+  int get _countDelayed =>
+      _visibleAlerts.where((a) => a['kind'] == 'delayed').length;
 
-  int get _countDueSoon => _visibleAlerts
-      .where((a) => a['kind'] == 'due_soon')
-      .length;
+  int get _countDueSoon =>
+      _visibleAlerts.where((a) => a['kind'] == 'due_soon').length;
 
-  int get _countUnconfirmed => _visibleAlerts
-      .where((a) => a['kind'] == 'unconfirmed')
-      .length;
+  int get _countUnconfirmed =>
+      _visibleAlerts.where((a) => a['kind'] == 'unconfirmed').length;
 
   List<Map<String, dynamic>> get _sortedAlerts {
     int rank(String kind) {
@@ -639,10 +757,12 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
   Future<void> _refreshActions(List<dynamic> source) async {
     final keys = source
         .map((a) => Map<String, dynamic>.from(a as Map))
-        .map((m) => (
-              documentId: m['document_id']?.toString() ?? '',
-              kind: m['kind']?.toString() ?? '',
-            ))
+        .map(
+          (m) => (
+            documentId: m['document_id']?.toString() ?? '',
+            kind: m['kind']?.toString() ?? '',
+          ),
+        )
         .toList();
     final actions = await AlertActionsStore.stateForMany(keys);
     if (mounted) setState(() => _actions = actions);
@@ -651,7 +771,9 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
   Future<void> _syncAlertBadge() async {
     final count = await AlertActionsStore.visibleCount(_alerts);
     if (mounted) {
-      context.findAncestorStateOfType<_StaffShellState>()?.refreshAlertBadge(count);
+      context.findAncestorStateOfType<_StaffShellState>()?.refreshAlertBadge(
+        count,
+      );
     }
   }
 
@@ -665,7 +787,9 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text('Hidden until tomorrow. Undo if you still need it.'),
+          content: const Text(
+            'Hidden until tomorrow. Undo if you still need it.',
+          ),
           action: SnackBarAction(
             label: 'Undo',
             onPressed: () async {
@@ -679,10 +803,17 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
     }
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool silent = false}) async {
+    if (!mounted ||
+        !context.read<AuthProvider>().isAuthenticated ||
+        (silent && _loading)) {
+      return;
+    }
     final oid = context.read<AuthProvider>().user!.officeId;
     setState(() {
-      _loading = true;
+      if (!silent) {
+        _loading = true;
+      }
       _error = null;
     });
     try {
@@ -716,8 +847,8 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
   }
 
   void _openHistory(String docId) {
-    final route = widget.municipal ? '/admin/history' : '/staff/history';
-    context.push(route, extra: {'documentId': docId});
+    final role = widget.municipal ? 'admin' : 'staff';
+    context.push('/$role/documents?id=${Uri.encodeQueryComponent(docId)}');
   }
 
   String _compactText(dynamic value) =>
@@ -733,29 +864,40 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
     final kind = m['kind']?.toString() ?? 'delayed';
     final delayed = kind == 'delayed';
     final dueSoon = kind == 'due_soon';
-    final unconfirmed = kind == 'unconfirmed';
+    final isOut =
+        m['last_status']?.toString().toUpperCase() == 'OUT' ||
+        kind == 'unconfirmed';
     final docId = _compactText(m['document_id']);
     final docTitle = _compactText(m['document_title']);
-    final days = _asInt(m['days_pending']);
     final hours = _asInt(m['hours_pending']);
+    final days = hours ~/ 24;
     final pendingLabel = days > 0
         ? '$days day${days == 1 ? '' : 's'}'
         : '${hours}h';
     final accent = delayed
         ? SfColors.red
         : (dueSoon ? SfColors.gold : SfColors.blue);
-    final pill1 = unconfirmed
-        ? 'Waiting for other office'
-        : (delayed ? 'Still on your desk' : 'Due soon');
-    final rule = m['threshold_rule']?.toString();
+    final pill1 = delayed
+        ? 'Overdue'
+        : (dueSoon ? 'Due soon' : 'Receipt not recorded');
+    final detail = _compactText(m['detail']);
+    final deadline = _compactText(m['due_at_display']).isNotEmpty
+        ? _compactText(m['due_at_display'])
+        : _compactText(m['due_at']);
+    final threshold = _compactText(m['threshold_rule']);
+    final rule = [
+      if (detail.isNotEmpty) detail,
+      if (deadline.isNotEmpty) 'Deadline: $deadline',
+      if (threshold.isNotEmpty && threshold != detail) threshold,
+    ].join('\n');
     final office = _compactText(m['last_office_name']);
     final title = docTitle.isNotEmpty
         ? docTitle
         : (docId.isNotEmpty ? docId : 'Document alert');
     final subtitle = [
       if (docId.isNotEmpty) docId,
-      if (office.isNotEmpty) office,
-      pendingLabel == '${hours}h' ? '$hours hours at this desk' : pendingLabel,
+      if (office.isNotEmpty) isOut ? 'Sent from $office' : 'At $office',
+      '$pendingLabel since ${isOut ? 'sending' : 'receipt'}',
     ].join(' · ');
 
     return SfAlertCardWithActions(
@@ -763,7 +905,15 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
       subtitle: subtitle,
       accent: accent,
       pill1: pill1,
-      pill2: pendingLabel,
+      pill2: isOut && (delayed || dueSoon)
+          ? 'Receipt not recorded'
+          : pendingLabel,
+      primaryTone: delayed
+          ? SfPillTone.danger
+          : dueSoon
+          ? SfPillTone.warning
+          : SfPillTone.neutral,
+      secondaryTone: isOut ? SfPillTone.neutral : SfPillTone.muted,
       rule: rule,
       onOpen: docId.isEmpty ? null : () => _openHistory(docId),
       onRemindLater: () => _remindLater(m),
@@ -794,24 +944,31 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
       SfAlertFilter.all => 'All',
       SfAlertFilter.delayed => 'Overdue',
       SfAlertFilter.dueSoon => 'Due soon',
-      SfAlertFilter.unconfirmed => 'No IN scan',
+      SfAlertFilter.unconfirmed => 'Receipt not recorded',
     };
 
     return RefreshIndicator(
       onRefresh: _load,
       color: SfColors.blue,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
         children: [
           const SfAuthenticatedPageHeader(),
-          const SizedBox(height: 8),
-          if (widget.municipal)
-            const SfAdminPageOverviewCard(screen: SfAdminScreen.alerts)
-          else
-            const SfClerkPageOverviewCard(screen: SfClerkScreen.alerts),
+          const SizedBox(height: 4),
+          SfPageTitle(
+            title: 'Alerts',
+            subtitle: widget.municipal
+                ? 'Review delays and missing receipts across municipal offices.'
+                : 'Review folders that need your office’s attention.',
+          ),
           const SizedBox(height: 14),
           if (_error != null) ...[
-            SfErrorBanner(message: _error!),
+            SfErrorBanner(
+              message: _lastLoaded == null
+                  ? 'Alerts unavailable. $_error'
+                  : 'Refresh failed. Previously loaded alerts may be stale. $_error',
+            ),
+            TextButton(onPressed: _load, child: const Text('Retry')),
             const SizedBox(height: 12),
           ],
           if (_loading)
@@ -834,7 +991,7 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
               const SizedBox(height: 12),
               if (_lastLoaded != null)
                 Text(
-                  'Updated ${formatSmartflowTime(_lastLoaded!.toIso8601String())} · pull to refresh',
+                  '${_error == null ? 'Updated' : 'Last successful update'} ${formatSmartflowTime(_lastLoaded!.toIso8601String())} · pull to refresh',
                   style: const TextStyle(
                     fontSize: 10,
                     color: SfColors.muted,
@@ -864,7 +1021,8 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
                     ),
                     if (_filter != SfAlertFilter.all)
                       TextButton(
-                        onPressed: () => setState(() => _filter = SfAlertFilter.all),
+                        onPressed: () =>
+                            setState(() => _filter = SfAlertFilter.all),
                         child: const Text('Show all'),
                       ),
                   ],
@@ -913,15 +1071,21 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
                           if (_filter != SfAlertFilter.all)
                             Expanded(
                               child: OutlinedButton.icon(
-                                onPressed: () => setState(() => _filter = SfAlertFilter.all),
+                                onPressed: () =>
+                                    setState(() => _filter = SfAlertFilter.all),
                                 icon: const Icon(Icons.tune_rounded, size: 16),
                                 label: const Text('Show all'),
                               ),
                             ),
-                          if (_filter != SfAlertFilter.all) const SizedBox(width: 8),
+                          if (_filter != SfAlertFilter.all)
+                            const SizedBox(width: 8),
                           Expanded(
                             child: OutlinedButton.icon(
-                              onPressed: () => context.go('/staff/history'),
+                              onPressed: () => context.go(
+                                widget.municipal
+                                    ? '/admin/history'
+                                    : '/staff/history',
+                              ),
                               icon: const Icon(Icons.history_rounded, size: 16),
                               label: const Text('Go to history'),
                             ),
@@ -934,7 +1098,13 @@ class _StaffAlertsScreenState extends State<StaffAlertsScreen> {
               else
                 ...visible.map(_buildAlertCardSafe),
             ] else if (hasAlerts && hidden > 0) ...[
-              const SfAlertsHealthyEmptyPanel(),
+              if (_error == null)
+                const SfAlertsHealthyEmptyPanel()
+              else
+                const Text(
+                  'Previously loaded reminders are hidden. Retry to verify current alerts.',
+                  style: TextStyle(color: SfColors.muted),
+                ),
               const SizedBox(height: 8),
               Text(
                 '$hidden reminder${hidden == 1 ? '' : 's'} hidden until tomorrow.',
@@ -1015,35 +1185,30 @@ class _StaffHistoryScreenState extends State<StaffHistoryScreen> {
   final _lookupCtrl = TextEditingController();
 
   List<dynamic> _movements = [];
-  List<dynamic> _officeTray = [];
   List<dynamic> _todayScans = [];
-  final List<String> _recentIds = [];
+  List<RecentDocRef> _recentIds = const [];
   Map<String, dynamic>? _document;
   String? _loadedId;
   String? _error;
   bool _loading = false;
-  bool _trayLoading = true;
+  bool _activityLoading = true;
+  String? _activityError;
+  DateTime _activityDate = DateUtils.dateOnly(DateTime.now());
+  int _activityPage = 1;
+  int _activityGeneration = 0;
+  Map<String, dynamic> _activityMeta = {};
   _MovementFilter _movementFilter = _MovementFilter.all;
   late StaffTodayScanFilter _todayScanFilter;
+  late bool _officeActivityView;
 
-  int get _countTodayIn => _todayScans
-      .where(
-        (r) =>
-            (r as Map)['status']?.toString().toUpperCase() == 'IN',
-      )
-      .length;
+  int get _countTodayIn =>
+      ((_activityMeta['stats'] as Map?)?['in_flow'] as num?)?.toInt() ?? 0;
 
-  int get _countTodayOut => _todayScans
-      .where(
-        (r) =>
-            (r as Map)['status']?.toString().toUpperCase() == 'OUT',
-      )
-      .length;
+  int get _countTodayOut =>
+      ((_activityMeta['stats'] as Map?)?['out_flow'] as num?)?.toInt() ?? 0;
 
-  List<dynamic> get _filteredTodayScans => _todayScans.where((r) {
-        final st = (r as Map)['status']?.toString() ?? '';
-        return _todayScanFilter.matchesStatus(st);
-      }).toList();
+  String get _activityDateValue =>
+      '${_activityDate.year}-${_activityDate.month.toString().padLeft(2, '0')}-${_activityDate.day.toString().padLeft(2, '0')}';
 
   int get _countIn => _movements
       .where((m) => (m as Map)['status']?.toString().toUpperCase() == 'IN')
@@ -1056,10 +1221,13 @@ class _StaffHistoryScreenState extends State<StaffHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    _todayScanFilter =
-        StaffHistoryScreen.parseTodayFilter(widget.initialTodayFilter);
+    _officeActivityView = widget.initialTodayFilter != null;
+    _todayScanFilter = StaffHistoryScreen.parseTodayFilter(
+      widget.initialTodayFilter,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadOfficeTray();
+      _loadOfficeActivity();
+      _loadRecents();
       final initial = widget.initialDocumentId?.trim();
       if (initial != null && initial.isNotEmpty) {
         _openId(initial);
@@ -1087,37 +1255,88 @@ class _StaffHistoryScreenState extends State<StaffHistoryScreen> {
     }
   }
 
-  Future<void> _loadOfficeTray() async {
-    final oid = context.read<AuthProvider>().user!.officeId;
-    setState(() => _trayLoading = true);
+  Future<void> _loadOfficeActivity() async {
+    final generation = ++_activityGeneration;
+    final auth = context.read<AuthProvider>();
+    setState(() => _activityLoading = true);
     try {
-      final data = await context.read<AuthProvider>().api.dashboardStats(oid);
-      if (!mounted) return;
+      final data = await auth.api.officeMovements(
+        auth.user!.officeId,
+        date: _activityDateValue,
+        status: switch (_todayScanFilter) {
+          StaffTodayScanFilter.received => 'IN',
+          StaffTodayScanFilter.sent => 'OUT',
+          StaffTodayScanFilter.all => null,
+        },
+        page: _activityPage,
+      );
+      if (!mounted || generation != _activityGeneration) return;
       setState(() {
-        _officeTray = data['active_documents'] as List<dynamic>? ?? [];
-        _todayScans = data['recent_movements'] as List<dynamic>? ?? [];
-        _trayLoading = false;
+        _todayScans = data['movements'] as List<dynamic>? ?? [];
+        _activityMeta = data;
+        _activityError = null;
+        _activityLoading = false;
       });
       if (widget.initialTodayFilter != null) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _scrollToTodaySection();
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _scrollToTodaySection(),
+        );
+      }
+    } catch (e) {
+      if (mounted && generation == _activityGeneration) {
+        setState(() {
+          _activityError = apiErrorMessage(e);
+          _activityLoading = false;
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _trayLoading = false);
     }
   }
 
-  void _rememberId(String id) {
-    _recentIds.remove(id);
-    _recentIds.insert(0, id);
-    if (_recentIds.length > 5) {
-      _recentIds.removeRange(5, _recentIds.length);
+  void _changeActivityFilter(StaffTodayScanFilter filter) {
+    setState(() {
+      _todayScanFilter = filter;
+      _activityPage = 1;
+    });
+    _loadOfficeActivity();
+  }
+
+  Future<void> _pickActivityDate() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _activityDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (date == null || !mounted) return;
+    setState(() {
+      _activityDate = date;
+      _activityPage = 1;
+    });
+    await _loadOfficeActivity();
+  }
+
+  Future<void> _loadRecents() async {
+    final docs = await RecentDocsStore.load();
+    if (mounted) setState(() => _recentIds = docs);
+  }
+
+  Future<void> _pasteLookup() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim() ?? '';
+    if (text.isEmpty) {
+      if (mounted) setState(() => _error = 'Clipboard is empty.');
+      return;
     }
+    if (parseTrackingId(text) == null) {
+      _lookupCtrl.text = text;
+      if (mounted) setState(() => _error = 'That is not a tracking ID.');
+      return;
+    }
+    _openId(text);
   }
 
   Future<void> _refresh() async {
-    await _loadOfficeTray();
+    await _loadOfficeActivity();
     if (_loadedId != null) {
       await _loadDocument(_loadedId!);
     }
@@ -1136,16 +1355,23 @@ class _StaffHistoryScreenState extends State<StaffHistoryScreen> {
       final movData = await api.documentMovements(id);
       final docData = await api.documentShow(id);
       if (!mounted) return;
-      _rememberId(id);
+      final document = docData['document'] as Map<String, dynamic>?;
+      final updated = await RecentDocsStore.add(
+        id,
+        title: document?['title']?.toString(),
+      );
+      if (!mounted) return;
       setState(() {
         _movements = movData['movements'] as List<dynamic>? ?? [];
-        _document = docData['document'] as Map<String, dynamic>?;
+        _document = document;
         _loadedId = id;
+        _recentIds = updated;
         _loading = false;
       });
-    } on ApiException catch (e) {
+    } catch (e) {
+      if (!mounted) return;
       setState(() {
-        _error = e.message;
+        _error = apiErrorMessage(e);
         _movements = [];
         _document = null;
         _loadedId = null;
@@ -1157,6 +1383,7 @@ class _StaffHistoryScreenState extends State<StaffHistoryScreen> {
   void _openId(String id) {
     final cleaned = parseTrackingId(id) ?? id.trim();
     if (cleaned.isEmpty) return;
+    setState(() => _officeActivityView = false);
     _lookupCtrl.text = cleaned;
     _loadDocument(cleaned);
   }
@@ -1173,85 +1400,260 @@ class _StaffHistoryScreenState extends State<StaffHistoryScreen> {
 
   bool get _showingTrail => _loadedId != null && _document != null;
 
-  List<Widget> _browsePickList(BuildContext context) {
-    if (_trayLoading) return [const SfLoadingCard()];
-
-    // Head: one list — folders at office.
-    if (widget.monitorOnly) {
-      if (_officeTray.isEmpty) {
-        return [
-          const SfEmptyState(
-            icon: Icons.inbox_outlined,
-            title: 'Nothing at your office',
-            subtitle: 'Folders appear when clerks scan them IN or OUT.',
-          ),
-        ];
+  List<Widget> _custodyTrail(List<dynamic> scans) {
+    final events = <_TrailEvent>[];
+    if (_movementFilter == _MovementFilter.all) {
+      final reg = _document?['registered_by'];
+      if (reg is Map) {
+        final name = reg['name']?.toString().trim() ?? '';
+        final office = reg['office_name']?.toString().trim() ?? '';
+        if (name.isNotEmpty) {
+          events.add(
+            _TrailEvent(
+              at: parseSmartflowDateTime(reg['registered_at']?.toString()),
+              rank: 0,
+              title: office.isEmpty ? 'Registered' : 'Registered at $office',
+              personName: name,
+              avatarUrl: reg['avatar_url']?.toString(),
+              dotColor: SfColors.navy,
+            ),
+          );
+        }
       }
-      return [
-        const SfClerkSectionHeader(title: 'At your office'),
-        const SizedBox(height: 8),
-        ..._officeTray.map(_officeTrayRow),
-      ];
+      final reqs = _document?['linked_requests'];
+      if (reqs is List) {
+        for (final raw in reqs) {
+          if (raw is! Map) continue;
+          final name = raw['user_name']?.toString().trim() ?? '';
+          if (name.isEmpty) continue;
+          final purpose = raw['purpose']?.toString().trim() ?? '';
+          final office = raw['office_name']?.toString().trim() ?? '';
+          events.add(
+            _TrailEvent(
+              at: parseSmartflowDateTime(raw['created_at']?.toString()),
+              rank: 1,
+              title: purpose.isEmpty ? 'Request' : purpose,
+              personName: name,
+              personDetail: office.isEmpty ? null : office,
+              avatarUrl: raw['avatar_url']?.toString(),
+              dotColor: SfColors.gold,
+            ),
+          );
+        }
+      }
     }
 
-    // Clerk: one list — today's scans (home Received/Sent land here).
-    return [
-      SfClerkSectionHeader(
-        key: _todaySectionKey,
-        title: 'Today at your office',
-      ),
-      const SizedBox(height: 8),
-      _TodayScanFilterChips(
-        countAll: _todayScans.length,
-        countIn: _countTodayIn,
-        countOut: _countTodayOut,
-        selected: _todayScanFilter,
-        onSelected: (f) => setState(() => _todayScanFilter = f),
-      ),
-      const SizedBox(height: 10),
-      if (_filteredTodayScans.isEmpty)
-        SfEmptyState(
-          icon: Icons.history_rounded,
-          title: _todayScans.isEmpty
-              ? 'No scans today'
-              : 'No ${_todayScanFilter == StaffTodayScanFilter.received ? 'received' : 'sent'} scans',
-          subtitle: _todayScans.isEmpty
-              ? 'Scan a folder, or look up a tracking ID above.'
-              : 'Try All, or look up an ID.',
-          actionLabel: _todayScans.isEmpty ? 'Open Scanner' : 'Show all',
-          onAction: _todayScans.isEmpty
-              ? () => context.go('/staff/scan')
-              : () => setState(() => _todayScanFilter = StaffTodayScanFilter.all),
-        )
-      else
-        ..._filteredTodayScans.take(15).map(_todayMovementCard),
-      if (_officeTray.isNotEmpty) ...[
-        const SizedBox(height: 16),
-        SfClerkSectionHeader(
-          title: 'Still on desk',
-          link: '${_officeTray.length}',
+    for (final raw in scans) {
+      final row = raw as Map;
+      final status = row['status']?.toString().toUpperCase() ?? '';
+      final isIn = status == 'IN';
+      final office = row['office_name']?.toString().trim() ?? '';
+      final dest = row['destination_office_name']?.toString().trim() ?? '';
+      final remarks = row['remarks']?.toString().trim() ?? '';
+      final named = row['user_name']?.toString().trim() ?? '';
+      final username = row['username']?.toString().trim() ?? '';
+      events.add(
+        _TrailEvent(
+          at: parseSmartflowDateTime(row['scanned_at']?.toString()),
+          rank: 2,
+          title: isIn
+              ? 'Received at ${office.isEmpty ? 'office' : office}'
+              : (dest.isNotEmpty
+                    ? 'Sent to $dest'
+                    : 'Sent from ${office.isEmpty ? 'office' : office}'),
+          personName: named.isNotEmpty ? named : username,
+          avatarUrl: row['avatar_url']?.toString(),
+          note: remarks.isEmpty ? null : remarks,
+          showReceipt: isIn,
+          receipt: row['contents_receipt'] == null
+              ? null
+              : Map<String, dynamic>.from(row['contents_receipt'] as Map),
+          dotColor: isIn ? SfColors.green : SfColors.blue,
         ),
-        const SizedBox(height: 8),
-        ..._officeTray.take(8).map(_officeTrayRow),
-      ],
-    ];
+      );
+      for (final correction in row['destination_corrections'] as List? ?? []) {
+        events.add(
+          _TrailEvent(
+            at: parseSmartflowDateTime(correction['corrected_at']?.toString()),
+            rank: 3,
+            title:
+                'Destination corrected: ${correction['previous_destination_office_name']} → ${correction['destination_office_name']}',
+            personName: '${correction['corrected_by_name'] ?? ''}',
+            personDetail: correction['corrected_by_office_name']?.toString(),
+            note: correction['reason']?.toString(),
+            dotColor: SfColors.gold,
+          ),
+        );
+      }
+    }
+
+    if (_movementFilter == _MovementFilter.all) {
+      final filed = _document?['filed_by'];
+      if (filed is Map &&
+          (filed['filed_at']?.toString().trim() ?? '').isNotEmpty) {
+        final office = filed['office_name']?.toString().trim() ?? '';
+        final name = filed['name']?.toString().trim() ?? '';
+        // Filing is its own recorded event, not another scan or a derived route completion.
+        events.add(
+          _TrailEvent(
+            at: parseSmartflowDateTime(filed['filed_at']?.toString()),
+            rank: 4,
+            title: office.isEmpty ? 'Filed' : 'Filed at $office',
+            personName: name.isEmpty ? 'Staff (name not recorded)' : name,
+            avatarUrl: filed['avatar_url']?.toString(),
+            note: 'Folder filed. The route is finished.',
+            dotColor: SfColors.green,
+          ),
+        );
+      }
+    }
+
+    events.sort((a, b) {
+      final aAt = a.at;
+      final bAt = b.at;
+      if (aAt == null && bAt == null) return a.rank.compareTo(b.rank);
+      if (aAt == null) return -1;
+      if (bAt == null) return 1;
+      final byTime = aAt.compareTo(bAt);
+      if (byTime != 0) return byTime;
+      return a.rank.compareTo(b.rank);
+    });
+
+    final widgets = <Widget>[];
+    String? lastDay;
+    for (var i = 0; i < events.length; i++) {
+      final event = events[i];
+      final at = event.at;
+      if (at != null) {
+        final day = formatTrailDay(at);
+        if (day != lastDay) {
+          lastDay = day;
+          widgets.add(
+            Padding(
+              padding: EdgeInsets.only(
+                left: 22,
+                bottom: 8,
+                top: widgets.isEmpty ? 0 : 4,
+              ),
+              child: Text(
+                day,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: SfColors.muted,
+                ),
+              ),
+            ),
+          );
+        }
+      }
+      widgets.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SfTrailStop(
+              title: event.title,
+              personName: event.personName.isEmpty ? 'Staff' : event.personName,
+              personDetail: event.personDetail,
+              avatarUrl: event.avatarUrl,
+              when: at == null ? '—' : formatTrailClock(at),
+              note: event.note,
+              dotColor: event.dotColor,
+              isLast: i == events.length - 1,
+            ),
+            if (event.showReceipt)
+              Padding(
+                padding: const EdgeInsets.only(left: 22, bottom: 16),
+                child: FolderReceiptSummary(receipt: event.receipt),
+              ),
+          ],
+        ),
+      );
+    }
+    return widgets;
   }
 
-  Widget _officeTrayRow(dynamic d) {
-    final m = d as Map<String, dynamic>;
-    final id = m['document_id']?.toString() ?? '';
-    final st = (m['current_status']?.toString() ?? 'IN').toUpperCase();
-    final isIn = st == 'IN';
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: SfClerkModuleRow(
-        code: st == 'OUT' ? 'SENT' : 'IN',
-        title: id,
-        subtitle: m['title']?.toString() ?? '',
-        color: isIn ? SfColors.green : SfColors.blue,
-        onTap: () => _openId(id),
+  List<Widget> _browsePickList(BuildContext context) {
+    final total =
+        (_activityMeta['total'] as num?)?.toInt() ?? _todayScans.length;
+    final page = (_activityMeta['page'] as num?)?.toInt() ?? _activityPage;
+    final pageSize = (_activityMeta['page_size'] as num?)?.toInt() ?? 25;
+    return [
+      SfClerkSectionHeader(key: _todaySectionKey, title: 'Office activity'),
+      const SizedBox(height: 8),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: _activityLoading ? null : _pickActivityDate,
+          icon: const Icon(Icons.calendar_today_outlined, size: 18),
+          label: Text(_activityDateValue),
+        ),
       ),
-    );
+      const SizedBox(height: 8),
+      if (!_activityLoading && _activityError == null)
+        _TodayScanFilterChips(
+          countAll:
+              ((_activityMeta['stats'] as Map?)?['total'] as num?)?.toInt() ??
+              0,
+          countIn: _countTodayIn,
+          countOut: _countTodayOut,
+          selected: _todayScanFilter,
+          onSelected: _changeActivityFilter,
+        ),
+      const SizedBox(height: 10),
+      if (_activityLoading)
+        const SfLoadingCard()
+      else if (_activityError != null) ...[
+        SfErrorBanner(message: _activityError!),
+        TextButton(
+          onPressed: _loadOfficeActivity,
+          child: const Text('Try again'),
+        ),
+      ] else if (_todayScans.isEmpty)
+        SfEmptyState(
+          icon: Icons.history_rounded,
+          title: 'No office activity in this filter',
+          subtitle:
+              'No matching movements on $_activityDateValue. Choose another date or All.',
+        )
+      else ...[
+        Text(
+          '$total ${total == 1 ? 'movement' : 'movements'}',
+          style: const TextStyle(color: SfColors.muted, fontSize: 12),
+        ),
+        const SizedBox(height: 8),
+        ..._todayScans.map(_todayMovementCard),
+        if (total > pageSize) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              OutlinedButton(
+                onPressed: page <= 1
+                    ? null
+                    : () {
+                        setState(() => _activityPage = page - 1);
+                        _loadOfficeActivity();
+                      },
+                child: const Text('Previous'),
+              ),
+              Text('Page $page of ${(total / pageSize).ceil()}'),
+              OutlinedButton(
+                onPressed: _activityMeta['has_more'] != true
+                    ? null
+                    : () {
+                        setState(() => _activityPage = page + 1);
+                        _loadOfficeActivity();
+                      },
+                child: const Text('Next'),
+              ),
+            ],
+          ),
+        ],
+      ],
+    ];
   }
 
   Widget _todayMovementCard(dynamic r) {
@@ -1315,8 +1717,7 @@ class _StaffHistoryScreenState extends State<StaffHistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final reversed = _movements.reversed.toList();
-    final timeline = reversed.where((row) {
+    final scans = _movements.where((row) {
       final st = (row as Map)['status']?.toString().toUpperCase() ?? '';
       switch (_movementFilter) {
         case _MovementFilter.all:
@@ -1327,52 +1728,86 @@ class _StaffHistoryScreenState extends State<StaffHistoryScreen> {
           return st == 'OUT';
       }
     }).toList();
+    final trail = _custodyTrail(scans);
 
     return RefreshIndicator(
       onRefresh: _refresh,
       color: SfColors.blue,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 32),
         children: [
           const SfAuthenticatedPageHeader(),
-          const SizedBox(height: 10),
-          if (widget.monitorOnly)
-            const SfHeadPageOverviewCard(
-              screen: SfHeadScreen.history,
-              compact: true,
-            )
-          else
-            const SfClerkPageOverviewCard(
-              screen: SfClerkScreen.history,
-              compact: true,
-            ),
-          const SizedBox(height: 12),
-          _HistoryLookupCard(
-            controller: _lookupCtrl,
-            loading: _loading,
-            onLookup: () => _openId(_lookupCtrl.text),
+          const SizedBox(height: 4),
+          const SfPageTitle(
+            title: 'History',
+            subtitle:
+                'See one folder’s history or your office’s daily activity.',
           ),
-          if (_error != null) ...[
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ChoiceChip(
+                label: const Text('Folder history'),
+                selected: !_officeActivityView,
+                showCheckmark: false,
+                onSelected: (_) => setState(() => _officeActivityView = false),
+              ),
+              ChoiceChip(
+                label: const Text('Office activity'),
+                selected: _officeActivityView,
+                showCheckmark: false,
+                onSelected: (_) => setState(() => _officeActivityView = true),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (!_officeActivityView && _showingTrail)
+            Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  _loadedId ?? '',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: SfColors.ink,
+                  ),
+                ),
+                TextButton(
+                  onPressed: _loading ? null : _clearLoaded,
+                  child: const Text('Look up another'),
+                ),
+              ],
+            )
+          else if (!_officeActivityView)
+            _HistoryLookupCard(
+              controller: _lookupCtrl,
+              loading: _loading,
+              recents: _recentIds,
+              onLookup: () => _openId(_lookupCtrl.text),
+              onPaste: _pasteLookup,
+              onOpenRecent: _openId,
+              onClearRecents: () async {
+                await RecentDocsStore.clear();
+                if (mounted) setState(() => _recentIds = const []);
+              },
+            ),
+          if (!_officeActivityView && _error != null) ...[
             const SizedBox(height: 12),
             SfErrorBanner(message: _error!),
+            TextButton(
+              onPressed: _loading ? null : () => _openId(_lookupCtrl.text),
+              child: const Text('Retry'),
+            ),
           ],
 
           // ── Trail mode: one document ─────────────────────────────────
-          if (_showingTrail) ...[
-            const SizedBox(height: 12),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: _clearLoaded,
-                icon: const Icon(Icons.arrow_back_rounded, size: 18),
-                label: const Text('Back to list'),
-                style: TextButton.styleFrom(
-                  foregroundColor: SfColors.blue,
-                  padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ),
-            ),
+          if (!_officeActivityView && _showingTrail) ...[
             const SizedBox(height: 8),
             SfHistoryDocumentSummary(
               doc: _document!,
@@ -1385,20 +1820,23 @@ class _StaffHistoryScreenState extends State<StaffHistoryScreen> {
                   backgroundColor: SfColors.navy,
                 );
               },
-              onOpenScan:
-                  widget.monitorOnly ? null : () => context.go('/staff/scan'),
+              onOpenScan: widget.monitorOnly
+                  ? null
+                  : () => context.go('/staff/scan'),
             ),
             const SizedBox(height: 16),
             Row(
               children: [
-                const Text(
-                  'Custody trail',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                const Expanded(
+                  child: Text(
+                    'Folder history',
+                    style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                  ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 if (_movements.isNotEmpty)
                   Text(
-                    '${timeline.length} of ${_movements.length}',
+                    '${scans.length} of ${_movements.length}',
                     style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -1420,19 +1858,9 @@ class _StaffHistoryScreenState extends State<StaffHistoryScreen> {
             const SizedBox(height: 12),
             if (_loading)
               const SfLoadingCard()
-            else if (_movements.isEmpty)
-              SfEmptyState(
-                icon: SfIcons.timeline,
-                title: _loadedId == null ? 'No scans yet' : 'No movements for this ID',
-                subtitle: _loadedId == null
-                    ? 'Enter a tracking ID to see the custody trail.'
-                    : 'No movements for this ID.',
-                actionLabel: widget.monitorOnly ? null : 'Open Scanner',
-                onAction: widget.monitorOnly
-                    ? null
-                    : () => context.go('/staff/scan'),
-              )
-            else if (timeline.isEmpty)
+            else if (scans.isEmpty &&
+                _movements.isNotEmpty &&
+                _movementFilter != _MovementFilter.all)
               SfEmptyState(
                 icon: Icons.filter_list_off_outlined,
                 title: 'No matching scans',
@@ -1442,58 +1870,37 @@ class _StaffHistoryScreenState extends State<StaffHistoryScreen> {
                 onAction: () =>
                     setState(() => _movementFilter = _MovementFilter.all),
               )
+            else if (trail.isEmpty)
+              SfEmptyState(
+                icon: SfIcons.timeline,
+                title: _loadedId == null
+                    ? 'No scans yet'
+                    : 'No movements for this ID',
+                subtitle: _loadedId == null
+                    ? 'Enter a tracking ID to see the custody trail.'
+                    : 'No movements for this ID.',
+                actionLabel: widget.monitorOnly ? null : 'Open Scanner',
+                onAction: widget.monitorOnly
+                    ? null
+                    : () => context.go('/staff/scan'),
+              )
             else
-              ...List.generate(timeline.length, (i) {
-                final row = timeline[i] as Map<String, dynamic>;
-                return SfMovementTimelineTile(
-                  status: row['status']?.toString() ?? '—',
-                  officeName: row['office_name']?.toString() ?? '',
-                  officeCode: row['office_code']?.toString() ?? '',
-                  scannedAt: row['scanned_at']?.toString() ?? '',
-                  username: row['username']?.toString() ?? '',
-                  remarks: row['remarks']?.toString() ?? '',
-                  destinationOfficeCode:
-                      row['destination_office_code']?.toString(),
-                  destinationOfficeName:
-                      row['destination_office_name']?.toString(),
-                  isLast: i == timeline.length - 1,
-                );
-              }),
+              ...trail,
           ]
-
           // ── Browse mode: pick something to open ──────────────────────
-          else ...[
-            if (_recentIds.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              const Text(
-                'Recent lookups',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: SfColors.muted,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: _recentIds.map((id) {
-                  return ActionChip(
-                    label: Text(
-                      id,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    onPressed: () => _openId(id),
-                  );
-                }).toList(),
-              ),
-            ],
+          else if (_officeActivityView) ...[
             const SizedBox(height: 14),
             ..._browsePickList(context),
-          ],
+          ] else if (_loading)
+            const SfLoadingCard()
+          else if (_error == null)
+            const Padding(
+              padding: EdgeInsets.only(top: 16),
+              child: Text(
+                'Enter a tracking ID to see who registered, received and sent the folder.',
+                style: TextStyle(color: SfColors.muted),
+              ),
+            ),
         ],
       ),
     );
@@ -1502,16 +1909,50 @@ class _StaffHistoryScreenState extends State<StaffHistoryScreen> {
 
 enum _MovementFilter { all, inOnly, outOnly }
 
+class _TrailEvent {
+  const _TrailEvent({
+    required this.at,
+    required this.rank,
+    required this.title,
+    required this.personName,
+    required this.dotColor,
+    this.avatarUrl,
+    this.personDetail,
+    this.note,
+    this.showReceipt = false,
+    this.receipt,
+  });
+
+  final DateTime? at;
+  final int rank;
+  final String title;
+  final String personName;
+  final Color dotColor;
+  final String? avatarUrl;
+  final String? personDetail;
+  final String? note;
+  final bool showReceipt;
+  final Map<String, dynamic>? receipt;
+}
+
 class _HistoryLookupCard extends StatelessWidget {
   const _HistoryLookupCard({
     required this.controller,
     required this.loading,
+    required this.recents,
     required this.onLookup,
+    required this.onPaste,
+    required this.onOpenRecent,
+    required this.onClearRecents,
   });
 
   final TextEditingController controller;
   final bool loading;
+  final List<RecentDocRef> recents;
   final VoidCallback onLookup;
+  final VoidCallback onPaste;
+  final ValueChanged<String> onOpenRecent;
+  final VoidCallback onClearRecents;
 
   @override
   Widget build(BuildContext context) {
@@ -1520,9 +1961,33 @@ class _HistoryLookupCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Look up tracking ID',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Tracking ID',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: SfColors.ink,
+                  ),
+                ),
+              ),
+              TextButton.icon(
+                onPressed: loading ? null : onPaste,
+                icon: const Icon(Icons.content_paste_rounded, size: 16),
+                label: const Text('Paste'),
+                style: TextButton.styleFrom(
+                  foregroundColor: SfColors.blue,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 32),
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           TextField(
@@ -1538,10 +2003,28 @@ class _HistoryLookupCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           SfPrimaryButton(
-            label: loading ? 'Loading…' : 'Open audit trail',
+            label: loading ? 'Looking up…' : 'Look up document',
             loading: loading,
             onPressed: loading ? null : onLookup,
           ),
+          if (recents.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              title: const Text(
+                'Recently viewed',
+                style: TextStyle(fontSize: 13),
+              ),
+              children: [
+                SfQuickOpenChips(
+                  docs: recents,
+                  enabled: !loading,
+                  onOpen: onOpenRecent,
+                  onClear: onClearRecents,
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -1642,7 +2125,7 @@ class _MovementFilterChips extends StatelessWidget {
   }
 }
 
-// ─── Profile (Figma page 10) — clerk uses enhanced layout ─────────────────────
+// ─── Profile ────────────────────────────────────────────────────────────────
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -1677,6 +2160,9 @@ class _ClerkProfileViewState extends State<_ClerkProfileView> {
   String? _outFlow;
   String? _activeTags;
   bool _statsLoading = true;
+  String? _statsError;
+  DateTime? _statsUpdated;
+  int _statsRead = 0;
   bool _photoBusy = false;
 
   @override
@@ -1686,27 +2172,39 @@ class _ClerkProfileViewState extends State<_ClerkProfileView> {
   }
 
   Future<void> _loadDeskStats() async {
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAuthenticated || auth.loggingOut) return;
+    final api = auth.api;
+    final identity = auth.sessionIdentity;
+    final officeId = auth.user!.officeId;
+    final read = ++_statsRead;
+    bool current() =>
+        mounted && read == _statsRead && auth.sessionIdentity == identity;
+    setState(() => _statsLoading = true);
     try {
-      final data = await context
-          .read<AuthProvider>()
-          .api
-          .dashboardStats(widget.user.officeId);
+      final data = await api.dashboardStats(officeId);
       final stats = data['stats'] as Map<String, dynamic>? ?? {};
-      if (!mounted) return;
+      if (!current()) return;
       setState(() {
         _inFlow = '${stats['in_flow'] ?? '—'}';
         _outFlow = '${stats['out_flow'] ?? '—'}';
         _activeTags = '${stats['active_tags'] ?? '—'}';
+        _statsError = null;
+        _statsUpdated = DateTime.now();
         _statsLoading = false;
       });
-    } catch (_) {
-      if (mounted) setState(() => _statsLoading = false);
+    } catch (e) {
+      if (current()) {
+        setState(() {
+          _statsError = apiErrorMessage(e);
+          _statsLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _logout() async {
-    await context.read<AuthProvider>().logout();
-    if (mounted) context.go('/login');
+    await sfLogout(context);
   }
 
   Future<void> _openChangePassword() async {
@@ -1739,17 +2237,16 @@ class _ClerkProfileViewState extends State<_ClerkProfileView> {
       onRefresh: _loadDeskStats,
       color: SfColors.blue,
       child: ListView(
-        padding: EdgeInsets.fromLTRB(16, 12, 16, 32 + bottomInset),
+        padding: EdgeInsets.fromLTRB(18, 18, 18, 32 + bottomInset),
         children: [
           const SfAuthenticatedPageHeader(),
-          const SizedBox(height: 12),
-          SfClerkPageOverviewCard(
-            screen: isSecurity
-                ? SfClerkScreen.accountSecurity
-                : SfClerkScreen.profile,
-          ),
-          const SizedBox(height: 14),
           if (isSecurity) ...[
+            const SizedBox(height: 4),
+            const SfPageTitle(
+              title: 'Account & security',
+              subtitle: 'Your account details, photo and sign-in settings.',
+            ),
+            const SizedBox(height: 14),
             SfProfilePhotoCard(
               user: user,
               onChangePhoto: _changePhoto,
@@ -1770,7 +2267,19 @@ class _ClerkProfileViewState extends State<_ClerkProfileView> {
               child: const Text('Back to profile'),
             ),
           ] else ...[
-            if (_statsLoading)
+            const SizedBox(height: 4),
+            const SfPageTitle(
+              title: 'Profile',
+              subtitle: 'Your municipal account and office activity.',
+            ),
+            const SizedBox(height: 14),
+            ProfileSnapshotFeedback(
+              updatedAt: _statsUpdated,
+              error: _statsError,
+              loading: _statsLoading,
+              onRetry: _loadDeskStats,
+            ),
+            if (_statsLoading && _statsUpdated == null)
               const SfLoadingCard()
             else
               SfProfileAccountCard(
@@ -1780,14 +2289,12 @@ class _ClerkProfileViewState extends State<_ClerkProfileView> {
                 activeTags: _activeTags,
               ),
             const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () =>
+            SfNavigationRow(
+              icon: Icons.manage_accounts_outlined,
+              title: 'Account & security',
+              subtitle: 'Photo, account details, password and sign out',
+              onTap: () =>
                   context.go(sfProfileRouteForRole(user.role, security: true)),
-              style: FilledButton.styleFrom(
-                backgroundColor: SfColors.navy,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              child: const Text('Account & security'),
             ),
           ],
           const SizedBox(height: 12),
@@ -1795,7 +2302,7 @@ class _ClerkProfileViewState extends State<_ClerkProfileView> {
             'Municipality of Urbiztondo · Official document tracking · COA support',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               color: SfColors.muted.withValues(alpha: 0.85),
               height: 1.4,
             ),
@@ -1820,6 +2327,9 @@ class _HeadProfileViewState extends State<_HeadProfileView> {
   String? _overdue;
   String? _avgHours;
   bool _statsLoading = true;
+  String? _statsError;
+  DateTime? _statsUpdated;
+  int _statsRead = 0;
   bool _photoBusy = false;
 
   @override
@@ -1829,27 +2339,39 @@ class _HeadProfileViewState extends State<_HeadProfileView> {
   }
 
   Future<void> _loadOfficeStats() async {
+    final auth = context.read<AuthProvider>();
+    if (!auth.isAuthenticated || auth.loggingOut) return;
+    final api = auth.api;
+    final identity = auth.sessionIdentity;
+    final officeId = auth.user!.officeId;
+    final read = ++_statsRead;
+    bool current() =>
+        mounted && read == _statsRead && auth.sessionIdentity == identity;
+    setState(() => _statsLoading = true);
     try {
-      final data = await context
-          .read<AuthProvider>()
-          .api
-          .headDashboard(widget.user.officeId);
+      final data = await api.headDashboard(officeId);
       final stats = data['stats'] as Map<String, dynamic>? ?? {};
-      if (!mounted) return;
+      if (!current()) return;
       setState(() {
         _inOffice = '${stats['in_office'] ?? '—'}';
         _overdue = '${stats['overdue'] ?? '—'}';
         _avgHours = '${stats['avg_hours'] ?? '—'}h';
+        _statsError = null;
+        _statsUpdated = DateTime.now();
         _statsLoading = false;
       });
-    } catch (_) {
-      if (mounted) setState(() => _statsLoading = false);
+    } catch (e) {
+      if (current()) {
+        setState(() {
+          _statsError = apiErrorMessage(e);
+          _statsLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _logout() async {
-    await context.read<AuthProvider>().logout();
-    if (mounted) context.go('/login');
+    await sfLogout(context);
   }
 
   Future<void> _openChangePassword() async {
@@ -1882,17 +2404,16 @@ class _HeadProfileViewState extends State<_HeadProfileView> {
       onRefresh: _loadOfficeStats,
       color: SfColors.blue,
       child: ListView(
-        padding: EdgeInsets.fromLTRB(16, 12, 16, 32 + bottomInset),
+        padding: EdgeInsets.fromLTRB(18, 18, 18, 32 + bottomInset),
         children: [
           const SfAuthenticatedPageHeader(),
-          const SizedBox(height: 12),
-          SfHeadPageOverviewCard(
-            screen: isSecurity
-                ? SfHeadScreen.accountSecurity
-                : SfHeadScreen.profile,
-          ),
-          const SizedBox(height: 14),
           if (isSecurity) ...[
+            const SizedBox(height: 4),
+            const SfPageTitle(
+              title: 'Account & security',
+              subtitle: 'Your account details, photo and sign-in settings.',
+            ),
+            const SizedBox(height: 14),
             SfProfilePhotoCard(
               user: user,
               onChangePhoto: _changePhoto,
@@ -1913,7 +2434,19 @@ class _HeadProfileViewState extends State<_HeadProfileView> {
               child: const Text('Back to profile'),
             ),
           ] else ...[
-            if (_statsLoading)
+            const SizedBox(height: 4),
+            const SfPageTitle(
+              title: 'Profile',
+              subtitle: 'Your municipal account and office overview.',
+            ),
+            const SizedBox(height: 14),
+            ProfileSnapshotFeedback(
+              updatedAt: _statsUpdated,
+              error: _statsError,
+              loading: _statsLoading,
+              onRetry: _loadOfficeStats,
+            ),
+            if (_statsLoading && _statsUpdated == null)
               const SfLoadingCard()
             else
               SfProfileAccountCard(
@@ -1927,14 +2460,12 @@ class _HeadProfileViewState extends State<_HeadProfileView> {
                 activeTags: _avgHours,
               ),
             const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () =>
+            SfNavigationRow(
+              icon: Icons.manage_accounts_outlined,
+              title: 'Account & security',
+              subtitle: 'Photo, account details, password and sign out',
+              onTap: () =>
                   context.go(sfProfileRouteForRole(user.role, security: true)),
-              style: FilledButton.styleFrom(
-                backgroundColor: SfColors.navy,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-              child: const Text('Account & security'),
             ),
           ],
           const SizedBox(height: 12),
@@ -1942,7 +2473,7 @@ class _HeadProfileViewState extends State<_HeadProfileView> {
             'Municipality of Urbiztondo · Official document tracking · COA support',
             textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 12,
               color: SfColors.muted.withValues(alpha: 0.85),
               height: 1.4,
             ),
@@ -1975,10 +2506,7 @@ class _GenericProfileView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       children: [
-        SfHeader(
-          title: 'Profile / Settings',
-          subtitle: _roleSubtitle(user.role),
-        ),
+        SfPageTitle(title: 'Profile', subtitle: _roleSubtitle(user.role)),
         const SizedBox(height: 20),
         SfFormCard(
           child: Row(
@@ -2003,11 +2531,17 @@ class _GenericProfileView extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       user.username,
-                      style: const TextStyle(color: SfColors.muted, fontSize: 13),
+                      style: const TextStyle(
+                        color: SfColors.muted,
+                        fontSize: 13,
+                      ),
                     ),
                     Text(
                       '${user.officeName} · LGU Urbiztondo',
-                      style: const TextStyle(color: SfColors.muted, fontSize: 12),
+                      style: const TextStyle(
+                        color: SfColors.muted,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -2020,10 +2554,7 @@ class _GenericProfileView extends StatelessWidget {
           SfSummaryCard(
             title: 'Session',
             rows: [
-              MapEntry(
-                'Role',
-                'Department head · this office only',
-              ),
+              MapEntry('Role', 'Department head · this office only'),
               MapEntry(
                 'Office scope',
                 '${user.officeName} (${user.officeCode})',
@@ -2041,8 +2572,7 @@ class _GenericProfileView extends StatelessWidget {
         SfPrimaryButton(
           label: 'Log out',
           onPressed: () async {
-            await context.read<AuthProvider>().logout();
-            if (context.mounted) context.go('/login');
+            await sfLogout(context);
           },
         ),
       ],

@@ -1,10 +1,10 @@
 <?php
 // POST /auth-forgot-password.php
 // Body: { "username": "..." }
-// Generates a password reset token and emails it (falls back to showing code for dev)
+// Generates a password reset code and sends it through the private email channel.
 
 require __DIR__ . '/config.php';
-require_once __DIR__ . '/mailtrap-api-config.php'; // Using Mailtrap API instead of SMTP
+require_once __DIR__ . '/mailtrap-api-config.php'; // Mail channel: SMTP (Gmail) when SMTP_HOST is set, otherwise the Mailtrap API
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -12,6 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $body = get_json_body();
 $username = trim((string)($body['username'] ?? ''));
+smartflow_public_auth_limit('recovery', 10, $username, 5);
 
 if ($username === '') {
     json_response(['success' => false, 'message' => 'Username is required'], 400);
@@ -61,7 +62,6 @@ $pdo->prepare('
 $expiresAt = (string)$pdo->query('SELECT expires_at FROM password_resets WHERE id = ' . (int)$pdo->lastInsertId())->fetchColumn();
 
 $userEmail = $user['email'] ?? null;
-$emailSent = false;
 
 // Try to send email via Mailtrap API if user has email
 if (!empty($userEmail)) {
@@ -71,18 +71,13 @@ if (!empty($userEmail)) {
         "If you did not request this reset, please ignore this email.\n\n" .
         "SmartFlow LGU System";
     
-    $emailResult = send_email_mailtrap_api($userEmail, 'SmartFlow Password Reset Code', $emailBody);
-    $emailSent = $emailResult['success'];
+    smartflow_send_email($userEmail, 'SmartFlow Password Reset Code', $emailBody, 'password_reset');
 }
 
 $response = [
     'success' => true,
     'message' => 'If an account exists with that username, a password reset code has been generated.',
-    'expires_at' => $expiresAt,
 ];
 
-// Always include reset code for demo purposes (in production, remove this line)
-$response['dev_reset_code'] = $resetCode;
-$response['email_sent'] = $emailSent; // true = sent via email, false = show code only
-
+// The same public response applies in every environment, including maintenance mode.
 json_response($response);

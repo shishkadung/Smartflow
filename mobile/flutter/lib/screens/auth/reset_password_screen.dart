@@ -85,7 +85,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       if (!mounted) return;
 
       setState(() {
-        _successMessage = result['message']?.toString() ??
+        _successMessage =
+            result['message']?.toString() ??
             'Password updated. You can sign in now.';
       });
 
@@ -93,9 +94,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         if (mounted) context.go('/login');
       });
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } catch (e) {
-      setState(() => _error = apiErrorMessage(e));
+      if (mounted) setState(() => _error = apiErrorMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -139,8 +140,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle_outline,
-                      color: SfColors.green, size: 20),
+                  const Icon(
+                    Icons.check_circle_outline,
+                    color: SfColors.green,
+                    size: 20,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -225,8 +229,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             if (_error != null) ...[
               const SizedBox(height: 12),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: SfColors.red.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
@@ -237,8 +243,11 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.error_outline,
-                        size: 16, color: SfColors.red),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 16,
+                      color: SfColors.red,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(

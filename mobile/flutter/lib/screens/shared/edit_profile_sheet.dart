@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_client.dart';
+import '../../services/smartflow_api.dart';
 import '../../theme/smartflow_theme.dart';
 import '../../widgets/sf_widgets.dart';
 import '../staff/clerk_widgets.dart';
@@ -32,13 +33,19 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
   late final TextEditingController _userCtrl;
   late final TextEditingController _emailCtrl;
   late final AppUser _user;
+  late final AuthProvider _auth;
+  late final String _sessionToken;
+  late final SmartflowApi _api;
   bool _loading = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _user = context.read<AuthProvider>().user!;
+    _auth = context.read<AuthProvider>();
+    _user = _auth.user!;
+    _sessionToken = _auth.token!;
+    _api = _auth.api;
     _nameCtrl = TextEditingController(text: _user.name);
     _userCtrl = TextEditingController(text: _user.username);
     _emailCtrl = TextEditingController(text: _user.email ?? '');
@@ -69,6 +76,12 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
   }
 
   Future<void> _submit() async {
+    if (_auth.loggingOut || !_auth.isCurrentSession(_sessionToken, _user.id)) {
+      setState(
+        () => _error = 'Your sign-in changed. Close and reopen this form.',
+      );
+      return;
+    }
     final problem = _validate();
     if (problem != null) {
       setState(() => _error = problem);
@@ -81,17 +94,19 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
     });
 
     try {
-      final auth = context.read<AuthProvider>();
-      final data = await auth.api.updateProfile(
+      final data = await _api.updateProfile(
         name: _nameCtrl.text.trim(),
         username: _userCtrl.text.trim(),
         email: _emailCtrl.text.trim(),
       );
       final raw = data['user'];
       if (raw is Map<String, dynamic>) {
-        await auth.refreshUser(AppUser.fromJson(raw));
+        await _auth.refreshUser(
+          AppUser.fromJson(raw),
+          expectedToken: _sessionToken,
+        );
       }
-      if (!mounted) return;
+      if (!mounted || !_auth.isCurrentSession(_sessionToken, _user.id)) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Profile updated'),
@@ -100,14 +115,14 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
       );
       Navigator.of(context).pop(true);
     } on ApiException catch (e) {
-      if (mounted) {
+      if (mounted && _auth.isCurrentSession(_sessionToken, _user.id)) {
         setState(() {
           _error = e.message;
           _loading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && _auth.isCurrentSession(_sessionToken, _user.id)) {
         setState(() {
           _error = e.toString();
           _loading = false;
@@ -176,84 +191,95 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
                     'Name, username, and email appear on custody records. Email is used for password reset.',
                     style: TextStyle(
                       fontSize: 12,
-                    color: SfColors.muted,
-                    height: 1.4,
+                      color: SfColors.muted,
+                      height: 1.4,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                _label('Full name'),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _nameCtrl,
-                  textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                _label('Username'),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _userCtrl,
-                  autocorrect: false,
-                  decoration: const InputDecoration(border: OutlineInputBorder()),
-                ),
-                const SizedBox(height: 12),
-                _label('Email'),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  autocorrect: false,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    hintText: 'you@urbiztondo.gov.ph',
+                  const SizedBox(height: 16),
+                  _label('Full name'),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _nameCtrl,
+                    textCapitalization: TextCapitalization.words,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                    ),
                   ),
-                  onSubmitted: _loading ? null : (_) => _submit(),
-                ),
-                const SizedBox(height: 14),
-                Container(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                  decoration: BoxDecoration(
-                    color: SfColors.navy.withValues(alpha: 0.04),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: SfColors.navy.withValues(alpha: 0.08)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _readonlyRow('Role', _roleLine),
-                      const SizedBox(height: 6),
-                      _readonlyRow(
-                        _user.role == 'admin' ? 'Home office' : 'Office',
-                        '${_user.officeName} (${_user.officeCode})',
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _user.role == 'admin'
-                            ? 'Role and home office are fixed for this municipal account.'
-                            : 'Assigned by admin — cannot change here.',
-                        style: const TextStyle(fontSize: 11, color: SfColors.muted),
-                      ),
-                    ],
-                  ),
-                ),
-                if (_error != null) ...[
                   const SizedBox(height: 12),
-                  SfErrorBanner(message: _error!),
+                  _label('Username'),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _userCtrl,
+                    autocorrect: false,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _label('Email'),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _emailCtrl,
+                    keyboardType: TextInputType.emailAddress,
+                    autocorrect: false,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: 'you@urbiztondo.gov.ph',
+                    ),
+                    onSubmitted: _loading ? null : (_) => _submit(),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                    decoration: BoxDecoration(
+                      color: SfColors.navy.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: SfColors.navy.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _readonlyRow('Role', _roleLine),
+                        const SizedBox(height: 6),
+                        _readonlyRow(
+                          _user.role == 'admin' ? 'Home office' : 'Office',
+                          '${_user.officeName} (${_user.officeCode})',
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          _user.role == 'admin'
+                              ? 'Role and home office are fixed for this municipal account.'
+                              : 'Assigned by admin — cannot change here.',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: SfColors.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    SfErrorBanner(message: _error!),
+                  ],
+                  const SizedBox(height: 16),
+                  SfPrimaryButton(
+                    label: _loading ? 'Saving…' : 'Save profile',
+                    loading: _loading,
+                    onPressed: _loading ? null : _submit,
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _loading
+                        ? null
+                        : () => Navigator.of(context).pop(false),
+                    child: const Text('Cancel'),
+                  ),
                 ],
-                const SizedBox(height: 16),
-                SfPrimaryButton(
-                  label: _loading ? 'Saving…' : 'Save profile',
-                  loading: _loading,
-                  onPressed: _loading ? null : _submit,
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: _loading ? null : () => Navigator.of(context).pop(false),
-                  child: const Text('Cancel'),
-                ),
-              ],
+              ),
             ),
-          ),
           ),
         ),
       ),
@@ -261,31 +287,39 @@ class _EditProfileSheetState extends State<EditProfileSheet> {
   }
 
   Widget _label(String text) => Text(
-        text,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: SfColors.muted,
-        ),
-      );
+    text,
+    style: const TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      color: SfColors.muted,
+    ),
+  );
 
   Widget _readonlyRow(String label, String value) => Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 56,
-            child: Text(
-              label,
-              style: const TextStyle(fontSize: 12, color: SfColors.muted, fontWeight: FontWeight.w600),
-            ),
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      SizedBox(
+        width: 56,
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            color: SfColors.muted,
+            fontWeight: FontWeight.w600,
           ),
-          Expanded(
-            child: Text(
-              value,
-              textAlign: TextAlign.right,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: SfColors.ink),
-            ),
+        ),
+      ),
+      Expanded(
+        child: Text(
+          value,
+          textAlign: TextAlign.right,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: SfColors.ink,
           ),
-        ],
-      );
+        ),
+      ),
+    ],
+  );
 }

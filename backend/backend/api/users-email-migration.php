@@ -2,7 +2,7 @@
 // GET /users-email-migration.php
 // Adds email column to users table if not exists
 
-require __DIR__ . '/config.php';
+require __DIR__ . '/dev-block.php';
 
 smartflow_dev_localhost_or_admin($pdo);
 

@@ -1,174 +1,115 @@
 <?php
 // GET /head-analytics.php?office_id=1&month=2026-05
-// Department head: office-scoped performance analytics (not municipal COA report).
-// Auth: Bearer token required.
+// Office performance: each document belongs to exactly one category per month.
 
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/thresholds-helper.php';
 require_once __DIR__ . '/routing-helper.php';
+smartflow_ensure_documents_filed_columns($pdo);
+require_once __DIR__ . '/office-access-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
 }
-
-require_user_id();
-
+$userId = require_user_id();
 $officeId = (int)($_GET['office_id'] ?? 0);
 $month = trim((string)($_GET['month'] ?? date('Y-m')));
 if ($officeId <= 0) {
     json_response(['success' => false, 'message' => 'office_id is required'], 400);
 }
-if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
-    json_response(['success' => false, 'message' => 'month must be YYYY-MM'], 400);
+smartflow_require_office_scope($pdo, $userId, $officeId);
+if (!preg_match('/^(\d{4})-(0[1-9]|1[0-2])$/', $month, $parts) || (int)$parts[1] < 1000) {
+    json_response(['success' => false, 'message' => 'month must be a valid YYYY-MM'], 400);
+}
+$monthStart = $month . '-01 00:00:00';
+$monthEnd = date('Y-m-t 23:59:59', strtotime($monthStart));
+smartflow_ensure_processing_thresholds($pdo);
+$trailCompleteSql = smartflow_sql_trail_complete('m.document_id');
+
+// Pair each IN visit with its first following OUT. IDs break ties when both
+// scans occur in the same second. Only the final visit can end by completion:
+// explicit filing uses its recorded time; fixed routes finish on final receipt.
+$visitsSql = "
+    SELECT m.document_id, m.scanned_at AS in_scanned_at,
+           COALESCE((
+               SELECT m2.scanned_at FROM movements m2
+               WHERE m2.document_id = m.document_id
+                 AND m2.office_id = m.office_id AND m2.status = 'OUT'
+                 AND (m2.scanned_at > m.scanned_at
+                      OR (m2.scanned_at = m.scanned_at AND m2.id > m.id))
+               ORDER BY m2.scanned_at, m2.id LIMIT 1
+           ), CASE WHEN m.id = (
+               SELECT last_m.id FROM movements last_m
+               WHERE last_m.document_id = m.document_id
+               ORDER BY last_m.scanned_at DESC, last_m.id DESC LIMIT 1
+           ) AND {$trailCompleteSql} THEN COALESCE(d.filed_at, m.scanned_at) END) AS out_scanned_at,
+           COALESCE(pt.max_hours, :default_hours) AS max_hours
+    FROM movements m
+    JOIN documents d ON d.id = m.document_id
+    LEFT JOIN processing_thresholds pt
+        ON pt.office_id = m.office_id AND pt.document_type = d.type AND pt.is_active = 1
+    WHERE m.office_id = :oid AND m.status = 'IN'
+      AND m.scanned_at BETWEEN :start AND :end
+";
+// A late visit takes priority over an open visit, which takes priority over
+// completed on-time visits. Returns therefore cannot count in two categories.
+$documentsSql = "
+    SELECT v.document_id,
+           MAX(CASE WHEN COALESCE(v.out_scanned_at, NOW()) >
+               DATE_ADD(v.in_scanned_at, INTERVAL v.max_hours HOUR) THEN 1 ELSE 0 END) AS is_delayed,
+           MAX(v.out_scanned_at IS NULL) AS is_unforwarded,
+           MAX(TIMESTAMPDIFF(SECOND, v.in_scanned_at,
+               COALESCE(v.out_scanned_at, NOW()))) AS seconds_at
+    FROM ({$visitsSql}) v
+    GROUP BY v.document_id
+";
+$bindings = [':oid' => $officeId, ':start' => $monthStart, ':end' => $monthEnd,
+    ':default_hours' => smartflow_threshold_defaults()['max_hours']];
+$stmt = $pdo->prepare("SELECT COUNT(*) AS processed,
+    COALESCE(SUM(is_delayed), 0) AS delayed_count,
+    COALESCE(SUM(CASE WHEN is_delayed = 0 AND is_unforwarded = 1 THEN 1 ELSE 0 END), 0) AS unforwarded_count,
+    COALESCE(SUM(CASE WHEN is_delayed = 0 AND is_unforwarded = 0 THEN 1 ELSE 0 END), 0) AS on_time_count
+    FROM ({$documentsSql}) classified");
+$stmt->execute($bindings);
+$counts = $stmt->fetch();
+$processed = (int)$counts['processed'];
+$categories = ['on_time' => (int)$counts['on_time_count'],
+    'unforwarded' => (int)$counts['unforwarded_count'], 'delayed' => (int)$counts['delayed_count']];
+
+// Allocate rounding remainders so populated percentage tiles total exactly 100.
+$percentages = []; $remainders = [];
+foreach ($categories as $key => $count) {
+    $percentages[$key] = $processed > 0 ? intdiv($count * 100, $processed) : 0;
+    $remainders[$key] = $processed > 0 ? ($count * 100) % $processed : 0;
+}
+if ($processed > 0) {
+    arsort($remainders, SORT_NUMERIC);
+    $remaining = 100 - array_sum($percentages);
+    foreach (array_keys($remainders) as $key) {
+        if ($remaining-- <= 0) break;
+        $percentages[$key]++;
+    }
 }
 
-$monthStart = $month . '-01 00:00:00';
-$monthEnd   = date('Y-m-t 23:59:59', strtotime($monthStart));
-smartflow_ensure_processing_thresholds($pdo);
-$analyticsTrailCompleteSql = smartflow_sql_trail_complete('m.document_id');
-
-$stmtProcessed = $pdo->prepare('
-    SELECT COUNT(DISTINCT document_id) AS c
-    FROM movements
-    WHERE office_id = :oid
-      AND status = \'IN\'
-      AND scanned_at BETWEEN :start AND :end
-');
-$stmtProcessed->execute([':oid' => $officeId, ':start' => $monthStart, ':end' => $monthEnd]);
-$processed = (int)($stmtProcessed->fetch()['c'] ?? 0);
-
-$stmtCounts = $pdo->prepare("
-    SELECT
-        COUNT(DISTINCT CASE
-            WHEN (
-                (t.out_min_scanned_at IS NULL AND
-                 TIMESTAMPDIFF(HOUR, t.in_scanned_at, NOW()) >= t.maxh)
-                OR
-                (t.out_min_scanned_at IS NOT NULL AND
-                 TIMESTAMPDIFF(HOUR, t.in_scanned_at, t.out_min_scanned_at) >= t.maxh)
-            )
-            THEN t.document_id
-        END) AS delayed_count,
-
-        COUNT(DISTINCT CASE
-            WHEN t.out_min_scanned_at IS NOT NULL
-             AND TIMESTAMPDIFF(HOUR, t.in_scanned_at, t.out_min_scanned_at) < t.maxh
-            THEN t.document_id
-        END) AS on_time_count,
-
-        COUNT(DISTINCT CASE
-            WHEN t.out_min_scanned_at IS NULL
-             AND TIMESTAMPDIFF(HOUR, t.in_scanned_at, NOW()) < t.maxh
-            THEN t.document_id
-        END) AS unforwarded_count
-    FROM (
-        SELECT
-            m.document_id,
-            m.scanned_at AS in_scanned_at,
-            COALESCE((
-                SELECT MIN(m2.scanned_at)
-                FROM movements m2
-                WHERE m2.document_id = m.document_id
-                  AND m2.scanned_at > m.scanned_at
-                  AND m2.status = 'OUT'
-                  AND m2.office_id = m.office_id
-            ), CASE WHEN {$analyticsTrailCompleteSql} THEN m.scanned_at END) AS out_min_scanned_at,
-            COALESCE(pt.max_hours, 48) AS maxh
-        FROM movements m
-        JOIN documents d ON d.id = m.document_id
-        LEFT JOIN processing_thresholds pt
-               ON pt.office_id = m.office_id
-              AND pt.document_type = d.type
-              AND pt.is_active = 1
-        WHERE m.office_id = :oid
-          AND m.status = 'IN'
-          AND m.scanned_at BETWEEN :start AND :end
-    ) t
-");
-$stmtCounts->execute([
-    ':oid' => $officeId,
-    ':start' => $monthStart,
-    ':end' => $monthEnd,
-]);
-$counts = $stmtCounts->fetch();
-
-$delayedCount = (int)($counts['delayed_count'] ?? 0);
-$onTimeCount = (int)($counts['on_time_count'] ?? 0);
-$unforwardedCount = (int)($counts['unforwarded_count'] ?? 0);
-
-$onTimePercent = $processed > 0 ? (int)round(($onTimeCount / $processed) * 100) : 0;
-$unforwardedPercent = $processed > 0
-    ? (int)round(($unforwardedCount / $processed) * 100)
-    : 0;
-$delayedPercent = $processed > 0 ? (int)round(($delayedCount / $processed) * 100) : 0;
-
-// Back-compat for the Flutter client.
-$lateCount = $delayedCount;
-
-$stmtSlow = $pdo->prepare("
-    SELECT t.document_id, t.hours_at
-    FROM (
-        SELECT
-            t0.document_id,
-            TIMESTAMPDIFF(HOUR, t0.in_scanned_at,
-                COALESCE(t0.out_min_scanned_at, NOW())
-            ) AS hours_at,
-            t0.maxh
-        FROM (
-            SELECT
-                m.document_id,
-                m.scanned_at AS in_scanned_at,
-                COALESCE((
-                    SELECT MIN(m2.scanned_at)
-                    FROM movements m2
-                    WHERE m2.document_id = m.document_id
-                      AND m2.scanned_at > m.scanned_at
-                      AND m2.status = 'OUT'
-                      AND m2.office_id = m.office_id
-                ), CASE WHEN {$analyticsTrailCompleteSql} THEN m.scanned_at END) AS out_min_scanned_at,
-                COALESCE(pt.max_hours, 48) AS maxh
-            FROM movements m
-            JOIN documents d ON d.id = m.document_id
-            LEFT JOIN processing_thresholds pt
-                   ON pt.office_id = m.office_id
-                  AND pt.document_type = d.type
-                  AND pt.is_active = 1
-            WHERE m.office_id = :oid
-              AND m.status = 'IN'
-              AND m.scanned_at BETWEEN :start AND :end
-        ) t0
-    ) t
-    WHERE t.hours_at >= t.maxh
-    ORDER BY t.hours_at DESC
-    LIMIT 10
-");
-$stmtSlow->execute([
-    ':oid' => $officeId,
-    ':start' => $monthStart,
-    ':end' => $monthEnd,
-]);
-$slowDocs = array_map(function ($r) {
-    return [
-        'document_id' => $r['document_id'],
-        'hours'         => (int)$r['hours_at'],
-    ];
-}, $stmtSlow->fetchAll());
+$stmtSlow = $pdo->prepare("SELECT document_id, FLOOR(seconds_at / 3600) AS hours_at
+    FROM ({$documentsSql}) classified WHERE is_delayed = 1
+    ORDER BY seconds_at DESC, document_id LIMIT 10");
+$stmtSlow->execute($bindings);
+$slowDocs = array_map(static fn ($r) => [
+    'document_id' => $r['document_id'], 'hours' => (int)$r['hours_at'],
+], $stmtSlow->fetchAll());
 
 json_response([
-    'success'   => true,
-    'office_id' => $officeId,
-    'month'     => $month,
+    'success' => true, 'office_id' => $officeId, 'month' => $month,
     'stats' => [
-        'processed'       => $processed,
-        // Back-compat: older client uses `late_count` as “delayed”.
-        'late_count' => $lateCount,
-        'on_time_percent' => $onTimePercent,
-        // 3-way breakdown for the compliance tiles.
-        'on_time_count' => $onTimeCount,
-        'unforwarded_count' => $unforwardedCount,
-        'delayed_count' => $delayedCount,
-        'unforwarded_percent' => $unforwardedPercent,
-        'delayed_percent' => $delayedPercent,
+        'processed' => $processed,
+        'late_count' => $categories['delayed'], // Flutter compatibility.
+        'on_time_count' => $categories['on_time'],
+        'unforwarded_count' => $categories['unforwarded'],
+        'delayed_count' => $categories['delayed'],
+        'on_time_percent' => $percentages['on_time'],
+        'unforwarded_percent' => $percentages['unforwarded'],
+        'delayed_percent' => $percentages['delayed'],
     ],
     'slow_documents' => $slowDocs,
 ]);

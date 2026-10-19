@@ -32,20 +32,38 @@ if ($targetId === $adminId) {
     json_response(['success' => false, 'message' => 'You cannot deactivate your own account'], 403);
 }
 
+$pdo->beginTransaction();
+// Serialize admin status changes before taking individual target locks. A
+// locking read also sees the current count after another deactivation commits.
+$admins = $pdo->query("SELECT id, is_active FROM users WHERE role = 'admin' ORDER BY id FOR UPDATE")->fetchAll();
+$activeAdmins = 0;
+$actingAdminActive = false;
+foreach ($admins as $admin) {
+    if ((int)$admin['is_active'] === 1) {
+        $activeAdmins++;
+        if ((int)$admin['id'] === $adminId) $actingAdminActive = true;
+    }
+}
+if (!$actingAdminActive || user_id_from_token(get_bearer_token()) !== $adminId) {
+    $pdo->rollBack();
+    json_response(['success' => false, 'message' => 'Your session has ended. Please sign in again.'], 401);
+}
 $stmt = $pdo->prepare('
     SELECT id, username, role, is_active
     FROM users
     WHERE id = :id
-    LIMIT 1
+    LIMIT 1 FOR UPDATE
 ');
 $stmt->execute([':id' => $targetId]);
 $target = $stmt->fetch();
 if (!$target) {
+    $pdo->rollBack();
     json_response(['success' => false, 'message' => 'User not found'], 404);
 }
 
 if (!$active && (string)$target['role'] === 'admin') {
-    if (smartflow_count_active_admins($pdo) <= 1) {
+    if ((int)$target['is_active'] === 1 && $activeAdmins <= 1) {
+        $pdo->rollBack();
         json_response([
             'success' => false,
             'message' => 'Cannot deactivate the last active admin account',
@@ -58,6 +76,8 @@ $upd->execute([
     ':active' => $active ? 1 : 0,
     ':id'     => $targetId,
 ]);
+if (!$active) revoke_user_tokens($targetId);
+$pdo->commit();
 
 smartflow_audit_action(
     $pdo,

@@ -9,6 +9,7 @@ import '../../providers/auth_provider.dart';
 import '../../theme/sf_icons.dart';
 import '../../theme/smartflow_theme.dart';
 import '../../utils/format_time.dart';
+import '../../utils/recent_docs.dart';
 import '../../widgets/sf_help.dart';
 import '../../widgets/sf_page.dart';
 import '../../widgets/sf_pdf_chrome.dart';
@@ -20,6 +21,12 @@ export '../../widgets/sf_account_menu.dart'
         sfProfileRouteForRole,
         sfIsProfileSecurityView,
         sfIsOnProfilePage;
+
+/// On hold (19 October 2026): the Office checklists entry is hidden from the Head and Admin Menu
+/// until the client confirms offices will publish required attachments. The screen, its routes
+/// (`/head/checklists`, `/admin/checklists`), the API endpoint and the data are kept; set this to
+/// true to show the entry again. The web has no checklist management at all.
+const bool kOfficeChecklistsMenuEnabled = false;
 
 /// Resolve API-relative avatar path to absolute URL.
 String? sfAvatarAbsoluteUrl(String? relative) {
@@ -63,8 +70,12 @@ class SfNavBadgeScope extends InheritedWidget {
       alertCount != oldWidget.alertCount;
 }
 
-/// Role Menu sheet — opened from the bottom **Menu** tab (tools, not profile).
-Future<void> showSfRoleMoreSheet(BuildContext context) {
+/// Role tools sheet — opened from the final Menu tab in bottom navigation.
+Future<void> showSfRoleMoreSheet(
+  BuildContext context, {
+  int pendingSignups = 0,
+  int pendingRequests = 0,
+}) {
   final role = context.read<AuthProvider>().user?.role ?? 'staff';
   final helpPage = sfHelpPageForPath(GoRouterState.of(context).uri.path);
   final requestsRoute = switch (role) {
@@ -74,110 +85,118 @@ Future<void> showSfRoleMoreSheet(BuildContext context) {
   };
 
   final requests = SfMoreDestination(
-    icon: Icons.swap_horiz_rounded,
-    title: 'Document requests',
-    subtitle: 'Inbox and outgoing requests',
+    icon: Icons.inbox_outlined,
+    title: 'Requests',
     route: requestsRoute,
+    badge: pendingRequests > 0 ? pendingRequests : null,
   );
   final help = helpPage == null
       ? null
       : SfMoreDestination(
           icon: Icons.help_outline_rounded,
-          title: 'How to use this page',
-          subtitle: 'Tips for the screen you are on',
+          title: 'Help',
           onTap: () => showSfHelpSheet(context, helpPage),
         );
+  final documents = SfMoreDestination(
+    icon: Icons.folder_open_rounded,
+    title: 'Documents',
+    route: '/$role/documents',
+  );
 
-  late final List<SfMoreDestination> roleItems;
+  late final List<SfMoreDestination> destinations;
   late final String subtitle;
   switch (role) {
     case 'head':
-      subtitle = 'Scan, register, analytics, and history.';
-      roleItems = const [
-        SfMoreDestination(
-          icon: SfIcons.clerkScan,
-          title: 'Scan',
-          subtitle: 'Mark IN or OUT when a folder is at your desk',
-          route: '/head/scan',
-        ),
-        SfMoreDestination(
-          icon: SfIcons.headRegister,
-          title: 'Register document',
-          subtitle: 'New folder for your office',
-          route: '/head/register',
-        ),
-        SfMoreDestination(
+      subtitle = '';
+      destinations = [
+        const SfMoreDestination(
           icon: SfIcons.headAnalytics,
           title: 'Analytics',
-          subtitle: 'Office throughput · delays',
           route: '/head/analytics',
         ),
-        SfMoreDestination(
+        const SfMoreDestination(
           icon: SfIcons.clerkHistory,
           title: 'History',
-          subtitle: 'Browse movements · audit trail',
           route: '/head/history',
         ),
+        documents,
+        requests,
+        if (kOfficeChecklistsMenuEnabled)
+          const SfMoreDestination(
+            icon: Icons.checklist_rounded,
+            title: 'Office checklists',
+            route: '/head/checklists',
+          ),
+        ?help,
       ];
     case 'admin':
-      subtitle = 'Users, alerts, offices, and system tools.';
-      roleItems = const [
+      subtitle = '';
+      destinations = [
+        documents,
+        requests,
+        if (kOfficeChecklistsMenuEnabled)
+          const SfMoreDestination(
+            icon: Icons.checklist_rounded,
+            title: 'Office checklists',
+            route: '/admin/checklists',
+          ),
         SfMoreDestination(
-          icon: SfIcons.adminUsers,
-          title: 'Users',
-          subtitle: 'Approve sign-ups and manage accounts',
-          route: '/admin/users',
+          icon: Icons.settings_outlined,
+          title: 'Administration',
+          badge: pendingSignups > 0 ? pendingSignups : null,
+          onTap: () => showSfMoreSheet(
+            context,
+            title: 'Administration',
+            subtitle: '',
+            destinations: [
+              SfMoreDestination(
+                icon: SfIcons.adminUsers,
+                title: 'Users',
+                route: '/admin/users',
+                badge: pendingSignups > 0 ? pendingSignups : null,
+              ),
+              const SfMoreDestination(
+                icon: SfIcons.adminOffices,
+                title: 'Offices',
+                route: '/admin/offices',
+              ),
+              const SfMoreDestination(
+                icon: Icons.tune_rounded,
+                title: 'Alert time limits',
+                route: '/admin/thresholds',
+              ),
+              const SfMoreDestination(
+                icon: SfIcons.clerkScan,
+                title: 'QR monitor',
+                route: '/admin/qr-monitor',
+              ),
+              const SfMoreDestination(
+                icon: SfIcons.adminSystem,
+                title: 'System',
+                route: '/admin/system',
+              ),
+            ],
+          ),
         ),
-        SfMoreDestination(
-          icon: SfIcons.clerkAlerts,
-          title: 'Alerts',
-          subtitle: 'Late folders across municipal offices',
-          route: '/admin/alerts',
-        ),
-        SfMoreDestination(
-          icon: SfIcons.adminOffices,
-          title: 'Offices',
-          subtitle: 'Municipal offices · health',
-          route: '/admin/offices',
-        ),
-        SfMoreDestination(
-          icon: Icons.tune_rounded,
-          title: 'Thresholds',
-          subtitle: 'Processing time limits',
-          route: '/admin/thresholds',
-        ),
-        SfMoreDestination(
-          icon: SfIcons.clerkScan,
-          title: 'QR scan monitor',
-          subtitle: 'Accepted vs rejected scans',
-          route: '/admin/qr-monitor',
-        ),
-        SfMoreDestination(
-          icon: SfIcons.adminSystem,
-          title: 'System',
-          subtitle: 'API · health · reset tools',
-          route: '/admin/system',
-        ),
+        ?help,
       ];
     default:
-      subtitle = 'Register and history.';
-      roleItems = const [
-        SfMoreDestination(
-          icon: SfIcons.clerkRegister,
-          title: 'Register document',
-          subtitle: 'New folder · get QR ID',
+      subtitle = '';
+      destinations = [
+        const SfMoreDestination(
+          icon: Icons.create_new_folder_outlined,
+          title: 'Register folder',
           route: '/staff/register',
         ),
-        SfMoreDestination(
+        const SfMoreDestination(
           icon: SfIcons.clerkHistory,
           title: 'History',
-          subtitle: 'Browse movements · open audit trail',
           route: '/staff/history',
         ),
+        requests,
+        ?help,
       ];
   }
-
-  final destinations = [...roleItems, requests, if (help != null) help];
 
   return showSfMoreSheet(
     context,
@@ -187,7 +206,19 @@ Future<void> showSfRoleMoreSheet(BuildContext context) {
   );
 }
 
-/// Role dashboard route (bottom-nav home).
+/// Inbox requests waiting on this office. Zero when the count cannot be loaded.
+Future<int> sfPendingRequestCount(BuildContext context) async {
+  try {
+    final data = await context
+        .read<AuthProvider>()
+        .api
+        .documentRequestsSummary();
+    return (data['pending_inbox_count'] as num?)?.toInt() ?? 0;
+  } catch (_) {
+    return 0;
+  }
+}
+
 String sfRoleHomeRoute(String? role) {
   switch (role) {
     case 'head':
@@ -205,15 +236,21 @@ bool sfIsPrimaryNavRoute(String path, String? role) {
     case 'head':
       return path == '/head' ||
           path == '/head/queue' ||
-          path == '/head/alerts';
+          path == '/head/scan' ||
+          path == '/head/alerts' ||
+          path == '/head/profile';
     case 'admin':
       return path == '/admin' ||
           path == '/admin/history' ||
-          path == '/admin/reports';
+          path == '/admin/reports' ||
+          path == '/admin/alerts' ||
+          path == '/admin/profile';
     default:
       return path == '/staff' ||
+          path == '/staff/alerts' ||
           path == '/staff/scan' ||
-          path == '/staff/alerts';
+          path == '/staff/documents' ||
+          path == '/staff/profile';
   }
 }
 
@@ -258,6 +295,7 @@ class SfPageBackButton extends StatelessWidget {
 
   final String? fallbackRoute;
   final String? label;
+
   /// When true, hides back on primary bottom-nav tabs if nothing to pop.
   final bool hideOnRoleHome;
 
@@ -329,20 +367,14 @@ class SfClerkTabTitle extends StatelessWidget {
         if (screen != null)
           SfClerkPageOverviewCard(screen: screen!, compact: true)
         else
-          _LegacyTabTitle(
-            title: title,
-            subtitle: subtitle,
-          ),
+          _LegacyTabTitle(title: title, subtitle: subtitle),
       ],
     );
   }
 }
 
 class _LegacyTabTitle extends StatelessWidget {
-  const _LegacyTabTitle({
-    required this.title,
-    this.subtitle,
-  });
+  const _LegacyTabTitle({required this.title, this.subtitle});
 
   final String title;
   final String? subtitle;
@@ -354,7 +386,8 @@ class _LegacyTabTitle extends StatelessWidget {
       children: [
         Text(
           title,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+          style:
+              Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.2,
@@ -467,7 +500,8 @@ class SfClerkPageOverviewCard extends StatelessWidget {
         body = dashboardSubtitleForOffice(user.officeCode);
       case SfClerkScreen.scan:
         title = 'Scan';
-        body = 'Mark IN when a folder arrives · OUT when you send it.';
+        body =
+            'Receive (IN) when a folder arrives · Send (OUT) when you send it.';
       case SfClerkScreen.register:
         title = 'Register';
         body = registerSubtitleForOffice(user.officeCode);
@@ -486,17 +520,13 @@ class SfClerkPageOverviewCard extends StatelessWidget {
         body = 'Photo, name, email, password, or sign out.';
       case SfClerkScreen.registerSuccess:
         title = documentId ?? 'Document registered';
-        body = 'Print the QR label and attach it to the folder.';
+        body = 'Your QR is saved in SmartFlow. Download or print it if needed.';
       case SfClerkScreen.requests:
         title = 'Requests';
         body = requestsSubtitleForOffice(user.officeCode);
     }
 
-    return SfPageOverviewCard(
-      title: title,
-      body: body,
-      compact: useCompact,
-    );
+    return SfPageOverviewCard(title: title, body: body, compact: useCompact);
   }
 }
 
@@ -510,10 +540,7 @@ class SfDashboardOverviewCard extends StatelessWidget {
   }
 }
 
-/// Soft page intro card — same shell on every role screen.
-///
-/// Soft paper card under the navy shell chrome (avoids double-navy stack).
-/// Title + caption always sit inside the card (ops copy stays short).
+/// Consistent page heading and complete supporting copy for every role.
 class SfPageOverviewCard extends StatelessWidget {
   const SfPageOverviewCard({
     super.key,
@@ -532,162 +559,41 @@ class SfPageOverviewCard extends StatelessWidget {
   final List<SfOverviewChipData> chips;
   final String? navHint;
 
-  /// Ops screens: shorter padding; body still shown (one line).
+  /// Retained for role callers; headings remain consistent on every page.
   final bool compact;
-
-  String get _caption {
-    final t = body.trim();
-    if (t.isEmpty) return t;
-    if (!compact) return t;
-    final cut = t.indexOf(RegExp(r'[.…]'));
-    if (cut > 12 && cut < 96) return t.substring(0, cut + 1);
-    if (t.length <= 96) return t;
-    return '${t.substring(0, 93).trimRight()}…';
-  }
 
   @override
   Widget build(BuildContext context) {
-    final caption = _caption;
-    final showCaption = caption.isNotEmpty;
     final highlight = chips.where((c) => c.highlight != null).toList();
     final chip = highlight.isNotEmpty
         ? highlight.first
         : (chips.isNotEmpty ? chips.first : null);
-    final padV = compact ? 12.0 : 14.0;
-
-    return Container(
-      width: double.infinity,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        color: SfColors.paper,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: SfColors.navy.withValues(alpha: 0.10)),
-        boxShadow: [
-          BoxShadow(
-            color: SfColors.ink.withValues(alpha: 0.06),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Stack(
-        children: [
-          // Navy + gold top rule
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            child: Container(
-              height: 3,
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    SfColors.navy,
-                    SfColors.blue,
-                    Color(0xFFC9B896),
-                  ],
-                ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SfPageTitle(title: title, subtitle: body),
+        if (chip != null) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: SfColors.navy.withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: SfColors.navy.withValues(alpha: 0.12)),
+            ),
+            child: Text(
+              chip.trailing == null
+                  ? chip.label
+                  : '${chip.label} ${chip.trailing}',
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: chip.highlight ?? SfColors.navy,
               ),
             ),
           ),
-          Positioned(
-            right: -28,
-            top: -36,
-            child: IgnorePointer(
-              child: Container(
-                width: 110,
-                height: 110,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      const Color(0xFF1D4ED8).withValues(alpha: 0.10),
-                      const Color(0xFF1D4ED8).withValues(alpha: 0.0),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(16, padV + 2, 14, padV),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontSize: compact ? 17 : 18,
-                        fontWeight: FontWeight.w700,
-                        height: 1.15,
-                        letterSpacing: -0.2,
-                        color: SfColors.navy,
-                      ) ??
-                      TextStyle(
-                        fontSize: compact ? 17 : 18,
-                        fontWeight: FontWeight.w700,
-                        height: 1.15,
-                        letterSpacing: -0.2,
-                        color: SfColors.navy,
-                      ),
-                ),
-                if (showCaption) ...[
-                  const SizedBox(height: 6),
-                  Container(
-                    width: 28,
-                    height: 2,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(2),
-                      gradient: LinearGradient(
-                        colors: [
-                          SfColors.gold.withValues(alpha: 0.95),
-                          SfColors.gold.withValues(alpha: 0.0),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  Text(
-                    caption,
-                    maxLines: compact ? 2 : 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: compact ? 12.5 : 13,
-                      color: SfColors.muted.withValues(alpha: 0.95),
-                      height: 1.4,
-                      letterSpacing: 0.05,
-                    ),
-                  ),
-                ],
-                if (chip != null) ...[
-                  const SizedBox(height: 10),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: SfColors.navy.withValues(alpha: 0.05),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: SfColors.navy.withValues(alpha: 0.12),
-                      ),
-                    ),
-                    child: Text(
-                      chip.trailing == null
-                          ? chip.label
-                          : '${chip.label} ${chip.trailing}',
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: chip.highlight ?? SfColors.navy,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
         ],
-      ),
+      ],
     );
   }
 }
@@ -802,15 +708,16 @@ class SfClerkSectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontWeight: FontWeight.w800,
-            fontSize: 14,
-            color: SfColors.ink,
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+              color: SfColors.ink,
+            ),
           ),
         ),
-        const Spacer(),
         if (link != null)
           onLinkTap != null
               ? TextButton(
@@ -829,7 +736,7 @@ class SfClerkSectionHeader extends StatelessWidget {
               : Text(
                   link!,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: SfColors.muted.withValues(alpha: 0.9),
                   ),
@@ -1019,7 +926,7 @@ class SfClerkModuleTile extends StatelessWidget {
   }
 }
 
-/// Three stat pills — received / sent / on desk (clerk home).
+/// One overview strip — received / sent / on desk (clerk home).
 class SfDashboardStatRow extends StatelessWidget {
   const SfDashboardStatRow({
     super.key,
@@ -1038,6 +945,7 @@ class SfDashboardStatRow extends StatelessWidget {
   final VoidCallback? onInFlowTap;
   final VoidCallback? onOutFlowTap;
   final VoidCallback? onActiveTap;
+
   /// Optional one-line explanation under the row (reduces "why is on desk 0?" confusion).
   final String? hint;
 
@@ -1046,7 +954,7 @@ class SfDashboardStatRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
+        SfStatStrip(
           children: [
             SfDashboardStatCell(
               value: inFlow,
@@ -1055,7 +963,6 @@ class SfDashboardStatRow extends StatelessWidget {
               color: SfColors.countInk(inFlow, live: SfColors.green),
               onTap: onInFlowTap,
             ),
-            const SizedBox(width: 8),
             SfDashboardStatCell(
               value: outFlow,
               label: 'Sent',
@@ -1063,7 +970,6 @@ class SfDashboardStatRow extends StatelessWidget {
               color: SfColors.countInk(outFlow),
               onTap: onOutFlowTap,
             ),
-            const SizedBox(width: 8),
             SfDashboardStatCell(
               value: activeTags,
               label: 'On desk',
@@ -1094,26 +1000,18 @@ class SfDashboardStatSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(
-        3,
-        (_) => Expanded(
-          child: Container(
-            height: 72,
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-              color: SfColors.paper,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0x120F172A)),
-            ),
-            child: const Center(
-              child: SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          ),
+    return Container(
+      height: 86,
+      decoration: BoxDecoration(
+        color: SfColors.paper,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: SfColors.border),
+      ),
+      child: const Center(
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
         ),
       ),
     );
@@ -1125,7 +1023,7 @@ class SfDashboardStatCell extends StatelessWidget {
     super.key,
     required this.value,
     required this.label,
-    required this.sublabel,
+    this.sublabel = '',
     required this.color,
     this.onTap,
   });
@@ -1138,59 +1036,46 @@ class SfDashboardStatCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cell = Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
-      decoration: BoxDecoration(
-        color: SfColors.paper,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0x1A0B1F3A)),
-      ),
+    final cell = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
       child: Column(
         children: [
           Text(
             value,
             style: TextStyle(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
               height: 1,
               color: color,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(
             label,
             textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: SfColors.ink,
-            ),
-          ),
-          Text(
-            sublabel,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 9,
+              fontSize: 12,
               fontWeight: FontWeight.w600,
               color: SfColors.muted,
             ),
           ),
+          if (sublabel.isNotEmpty)
+            Text(
+              sublabel,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: SfColors.muted,
+              ),
+            ),
         ],
       ),
     );
 
     return Expanded(
-      child: onTap == null
-          ? cell
-          : Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: onTap,
-                borderRadius: BorderRadius.circular(16),
-                child: cell,
-              ),
-            ),
+      child: onTap == null ? cell : InkWell(onTap: onTap, child: cell),
     );
   }
 }
@@ -1235,7 +1120,7 @@ class SfClerkActiveDocumentRow extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Icon(
-                    SfIcons.moduleScan,
+                    SfIcons.documents,
                     size: 20,
                     color: SfColors.green,
                   ),
@@ -1246,30 +1131,33 @@ class SfClerkActiveDocumentRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        documentId,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
-                        ),
-                      ),
-                      Text(
-                        title,
+                        title.isEmpty ? documentId : title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 11,
-                          color: SfColors.muted,
-                          height: 1.35,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          height: 1.3,
                         ),
                       ),
+                      if (title.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          documentId,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: SfColors.muted,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
                       if (lastScannedAt != null) ...[
                         const SizedBox(height: 2),
                         Text(
                           formatMovementListTime(lastScannedAt),
                           style: const TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: SfColors.blue,
+                            fontSize: 11,
+                            color: SfColors.muted,
                           ),
                         ),
                       ],
@@ -1286,7 +1174,7 @@ class SfClerkActiveDocumentRow extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           SizedBox(
-            height: 36,
+            width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: markingOut ? null : onMarkOut,
               icon: markingOut
@@ -1296,7 +1184,7 @@ class SfClerkActiveDocumentRow extends StatelessWidget {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
                   : const Icon(Icons.outbound_rounded, size: 18),
-              label: Text(markingOut ? 'Forwarding…' : 'Mark OUT (forward)'),
+              label: Text(markingOut ? 'Forwarding…' : 'Send (OUT)'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: SfColors.blue,
                 side: BorderSide(color: SfColors.blue.withValues(alpha: 0.35)),
@@ -1367,22 +1255,26 @@ class SfClerkIncomingDocRow extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        documentId,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
-                        ),
-                      ),
-                      Text(
-                        title,
+                        title.isEmpty ? documentId : title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 11,
-                          color: SfColors.muted,
-                          height: 1.35,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          height: 1.3,
                         ),
                       ),
+                      if (title.isNotEmpty) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          documentId,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: SfColors.muted,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 4),
                       Wrap(
                         spacing: 6,
@@ -1407,8 +1299,8 @@ class SfClerkIncomingDocRow extends StatelessWidget {
                                   ? 'OUT · $fromOfficeCode → $sentToOfficeCode'
                                   : 'OUT · $fromOfficeCode',
                               style: TextStyle(
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w800,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
                                 color: fromColor,
                               ),
                             ),
@@ -1417,8 +1309,7 @@ class SfClerkIncomingDocRow extends StatelessWidget {
                             Text(
                               formatMovementListTime(outAt),
                               style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
+                                fontSize: 11,
                                 color: SfColors.muted,
                               ),
                             ),
@@ -1437,7 +1328,7 @@ class SfClerkIncomingDocRow extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           SizedBox(
-            height: 36,
+            width: double.infinity,
             child: FilledButton.icon(
               onPressed: receiving ? null : onMarkIn,
               icon: receiving
@@ -1446,17 +1337,12 @@ class SfClerkIncomingDocRow extends StatelessWidget {
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        valueColor:
-                            AlwaysStoppedAnimation<Color>(Colors.white),
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                       ),
                     )
                   : const Icon(Icons.call_received_rounded, size: 18),
-              label: Text(
-                receiving ? 'Receiving…' : 'Mark IN',
-              ),
-              style: FilledButton.styleFrom(
-                backgroundColor: SfColors.green,
-              ),
+              label: Text(receiving ? 'Receiving…' : 'Receive (IN)'),
+              style: FilledButton.styleFrom(backgroundColor: SfColors.green),
             ),
           ),
         ],
@@ -1467,23 +1353,20 @@ class SfClerkIncomingDocRow extends StatelessWidget {
 
 /// Empty desk state when no documents are IN at the office.
 class SfClerkEmptyDeskCard extends StatelessWidget {
-  const SfClerkEmptyDeskCard({super.key, this.message});
+  const SfClerkEmptyDeskCard({
+    super.key,
+    this.title = 'Your desk is clear',
+    this.message = 'Registered folders at your office will appear here.',
+    this.icon = Icons.inventory_2_outlined,
+  });
 
-  /// Optional override; CTA remains Open Scanner.
-  final String? message;
+  final String title;
+  final String message;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    return SfFormCard(
-      flat: true,
-      padding: EdgeInsets.zero,
-      child: SfEmptyState(
-        icon: Icons.inventory_2_outlined,
-        title: message ?? 'No folders IN here right now',
-        actionLabel: 'Open Scanner',
-        onAction: () => context.go('/staff/scan'),
-      ),
-    );
+    return SfEmptyState(icon: icon, title: title, subtitle: message);
   }
 }
 
@@ -1701,11 +1584,10 @@ class SfClerkPageHeader extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'SMARTFLOW',
+                    'SmartFlow',
                     style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.5,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                       color: SfColors.muted.withValues(alpha: 0.85),
                     ),
                   ),
@@ -1733,7 +1615,7 @@ class SfClerkPageHeader extends StatelessWidget {
                 ],
               ),
             ),
-            if (trailing != null) trailing!,
+            ?trailing,
           ],
         ),
         const SizedBox(height: 10),
@@ -1824,72 +1706,12 @@ class SfModuleCard extends StatelessWidget {
                 ),
               ),
               if (badge != null) ...[
-                SfStatusPill(
-                  label: badge!,
-                  tone: SfPillTone.warning,
-                ),
+                SfStatusPill(label: badge!, tone: SfPillTone.warning),
                 const SizedBox(width: 4),
               ],
               Icon(
                 Icons.chevron_right,
                 color: SfColors.muted.withValues(alpha: 0.5),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Request attention only — Scan / Alerts / Requests live in bottom nav + header ⇄.
-class SfClerkStartHereCard extends StatelessWidget {
-  const SfClerkStartHereCard({
-    super.key,
-    this.requestStatusHint,
-  });
-
-  /// Short update line for My requests (declined / approved / pending).
-  final String? requestStatusHint;
-
-  @override
-  Widget build(BuildContext context) {
-    final hint = requestStatusHint?.trim();
-    if (hint == null || hint.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Material(
-      color: SfColors.gold.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: () => context.go('/staff/requests'),
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.mark_email_unread_outlined,
-                size: 18,
-                color: SfColors.gold,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  hint,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: SfColors.ink,
-                    height: 1.3,
-                  ),
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                size: 20,
-                color: SfColors.muted,
               ),
             ],
           ),
@@ -1914,70 +1736,24 @@ class SfAlertsSummaryRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return SfStatStrip(
       children: [
-        Expanded(
-          child: _countTile(
-            label: 'Overdue',
-            count: delayed,
-            color: SfColors.red,
-          ),
+        SfDashboardStatCell(
+          label: 'Overdue',
+          value: '$delayed',
+          color: SfColors.red,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _countTile(
-            label: 'Due soon',
-            count: dueSoon,
-            color: SfColors.gold,
-          ),
+        SfDashboardStatCell(
+          label: 'Due soon',
+          value: '$dueSoon',
+          color: SfColors.gold,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _countTile(
-            label: 'No IN scan',
-            count: unconfirmed,
-            color: SfColors.blue,
-          ),
+        SfDashboardStatCell(
+          label: 'Receipt not recorded',
+          value: '$unconfirmed',
+          color: SfColors.blue,
         ),
       ],
-    );
-  }
-
-  Widget _countTile({
-    required String label,
-    required int count,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      decoration: BoxDecoration(
-        color: SfColors.paper,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '$count',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w700,
-              color: SfColors.muted,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -2011,7 +1787,7 @@ class SfAlertFilterChips extends StatelessWidget {
           _chip('All', SfAlertFilter.all, delayed + dueSoon + unconfirmed),
           _chip('Overdue', SfAlertFilter.delayed, delayed),
           _chip('Due soon', SfAlertFilter.dueSoon, dueSoon),
-          _chip('No IN scan', SfAlertFilter.unconfirmed, unconfirmed),
+          _chip('Receipt not recorded', SfAlertFilter.unconfirmed, unconfirmed),
         ],
       ),
     );
@@ -2064,7 +1840,8 @@ class SfProfileAccountCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final photo = sfAvatarAbsoluteUrl(user.avatarUrl);
-    final roleLine = roleLabel ??
+    final roleLine =
+        roleLabel ??
         '${_profileRoleShort(user)} · ${user.officeName} (${user.officeCode})';
 
     return SfFormCard(
@@ -2076,7 +1853,7 @@ class SfProfileAccountCard extends StatelessWidget {
             children: [
               SfSquareGradientAvatar(
                 initials: SfUserAvatar.fromName(user.name),
-                size: 72,
+                size: 52,
                 imageUrl: photo,
               ),
               const SizedBox(width: 14),
@@ -2086,35 +1863,30 @@ class SfProfileAccountCard extends StatelessWidget {
                   children: [
                     Text(
                       user.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 16,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         color: SfColors.navy,
+                        height: 1.2,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       roleLine,
                       style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12.5,
-                        color: SfColors.ink,
+                        fontSize: 13,
+                        color: SfColors.muted,
+                        height: 1.4,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '@${user.username}',
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 13,
                         color: SfColors.muted,
                       ),
                     ),
                   ],
                 ),
-              ),
-              SfDeptBadge(
-                label: user.officeCode,
-                officeCode: user.officeCode,
               ),
             ],
           ),
@@ -2123,71 +1895,30 @@ class SfProfileAccountCard extends StatelessWidget {
             const Divider(height: 1),
             const SizedBox(height: 12),
             Text(
-              deskSectionTitle ?? "Today's desk (your office)",
-              style: const TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 12,
-                color: SfColors.muted,
-              ),
+              deskSectionTitle ?? "Today's office activity",
+              style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 10),
-            Row(
+            SfStatStrip(
               children: [
-                Expanded(
-                  child: _statMini(
-                    stat1Label ?? 'Received',
-                    inFlow!,
-                    SfColors.countInk(inFlow, live: SfColors.green),
-                  ),
+                SfDashboardStatCell(
+                  label: stat1Label ?? 'Received',
+                  value: inFlow!,
+                  color: SfColors.countInk(inFlow, live: SfColors.green),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _statMini(
-                    stat2Label ?? 'Sent',
-                    outFlow!,
-                    SfColors.countInk(outFlow),
-                  ),
+                SfDashboardStatCell(
+                  label: stat2Label ?? 'Sent',
+                  value: outFlow!,
+                  color: SfColors.countInk(outFlow),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _statMini(
-                    stat3Label ?? 'On desk',
-                    activeTags!,
-                    SfColors.countInk(activeTags, live: SfColors.blue),
-                  ),
+                SfDashboardStatCell(
+                  label: stat3Label ?? 'On desk',
+                  value: activeTags!,
+                  color: SfColors.countInk(activeTags, live: SfColors.blue),
                 ),
               ],
             ),
           ],
-        ],
-      ),
-    );
-  }
-
-  Widget _statMini(String label, String value, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-      decoration: BoxDecoration(
-        color: SfColors.paper,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0x1A0B1F3A)),
-      ),
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 9, color: SfColors.muted),
-          ),
         ],
       ),
     );
@@ -2444,7 +2175,7 @@ class SfProfilePhotoCard extends StatelessWidget {
           'Profile photo',
           style: TextStyle(
             fontWeight: FontWeight.w700,
-            fontSize: 14,
+            fontSize: 16,
             color: SfColors.navy,
           ),
         ),
@@ -2454,11 +2185,18 @@ class SfProfilePhotoCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
-                'JPEG, PNG, or WebP · max 2 MB. Shown on your account menu.',
-                style: TextStyle(fontSize: 12, color: SfColors.muted, height: 1.35),
+                'Shown on your profile and account menu. Use a JPEG, PNG, or WebP up to 2 MB.',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: SfColors.muted,
+                  height: 1.35,
+                ),
               ),
               const SizedBox(height: 14),
-              Row(
+              Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   GestureDetector(
                     onTap: photoBusy ? null : onChangePhoto,
@@ -2493,27 +2231,26 @@ class SfProfilePhotoCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        FilledButton.tonal(
-                          onPressed: photoBusy ? null : onChangePhoto,
-                          child: Text(
-                            photoBusy
-                                ? 'Uploading…'
-                                : (user.hasAvatar ? 'Change photo' : 'Upload photo'),
-                          ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      FilledButton.tonal(
+                        onPressed: photoBusy ? null : onChangePhoto,
+                        child: Text(
+                          photoBusy
+                              ? 'Uploading…'
+                              : (user.hasAvatar
+                                    ? 'Change photo'
+                                    : 'Upload photo'),
                         ),
-                        if (user.hasAvatar && onRemovePhoto != null)
-                          TextButton(
-                            onPressed: photoBusy ? null : onRemovePhoto,
-                            child: const Text('Remove'),
-                          ),
-                      ],
-                    ),
+                      ),
+                      if (user.hasAvatar && onRemovePhoto != null)
+                        TextButton(
+                          onPressed: photoBusy ? null : onRemovePhoto,
+                          child: const Text('Remove'),
+                        ),
+                    ],
                   ),
                 ],
               ),
@@ -2525,7 +2262,7 @@ class SfProfilePhotoCard extends StatelessWidget {
   }
 }
 
-/// Session block with logout (Account & security).
+/// Grouped account details, sign-in controls and guidance.
 class SfProfileSessionCard extends StatelessWidget {
   const SfProfileSessionCard({
     super.key,
@@ -2548,10 +2285,10 @@ class SfProfileSessionCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Text(
-          'Session & security',
+          'Account details',
           style: TextStyle(
             fontWeight: FontWeight.w700,
-            fontSize: 14,
+            fontSize: 16,
             color: SfColors.navy,
           ),
         ),
@@ -2560,72 +2297,102 @@ class SfProfileSessionCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _row('Status', 'Signed in · official session'),
-              _row('User', '@${user.username}'),
-              _row('App', 'SmartFlow · Municipality of Urbiztondo'),
+              _row('Name', user.name),
+              _row('Username', '@${user.username}'),
+              _row(
+                'Email',
+                user.email?.trim().isNotEmpty == true
+                    ? user.email!
+                    : 'No email recorded',
+              ),
               if (onEditProfile != null) ...[
                 const SizedBox(height: 10),
                 _ProfileActionRow(
                   icon: Icons.badge_outlined,
                   iconColor: SfColors.navy,
                   label: 'Edit profile',
-                  subtitle: 'Update name, username, and email on office records.',
+                  subtitle: 'Update your name, username and email.',
                   onTap: onEditProfile!,
-                ),
-              ],
-              if (onChangePassword != null) ...[
-                const SizedBox(height: 4),
-                _ProfileActionRow(
-                  icon: Icons.lock_reset_rounded,
-                  iconColor: SfColors.blue,
-                  label: 'Change password',
-                  subtitle: 'Update your sign-in password.',
-                  onTap: onChangePassword!,
-                ),
-              ],
-              if (onShowTips != null) ...[
-                const SizedBox(height: 4),
-                _ProfileActionRow(
-                  icon: Icons.menu_book_outlined,
-                  iconColor: SfColors.navy,
-                  label: 'Show getting-started tips',
-                  subtitle:
-                      'Role guide (once). Page help is always the top-bar ?.',
-                  onTap: onShowTips!,
                 ),
               ],
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 20),
+        const Text(
+          'Sign-in & security',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+            color: SfColors.navy,
+          ),
+        ),
+        const SizedBox(height: 10),
+        SfFormCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _row('Status', 'Signed in'),
+              _row('Office', '${user.officeName} (${user.officeCode})'),
+              if (onChangePassword != null) ...[
+                const SizedBox(height: 10),
+                _ProfileActionRow(
+                  icon: Icons.lock_reset_rounded,
+                  iconColor: SfColors.blue,
+                  label: 'Change password',
+                  subtitle: 'Changing your password requires a new sign-in.',
+                  onTap: onChangePassword!,
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (onShowTips != null) ...[
+          const SizedBox(height: 14),
+          SfFormCard(
+            child: _ProfileActionRow(
+              icon: Icons.menu_book_outlined,
+              iconColor: SfColors.navy,
+              label: 'Show getting-started tips',
+              subtitle:
+                  'Review your role guide. Page help is in the top-right Menu.',
+              onTap: onShowTips!,
+            ),
+          ),
+        ],
+        const SizedBox(height: 20),
         SfProfileLogoutButton(onLogout: onLogout),
+        const SizedBox(height: 8),
+        const Text(
+          'Sign out when you finish using a shared device.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 13, color: SfColors.muted, height: 1.4),
+        ),
       ],
     );
   }
 
   Widget _row(String k, String v) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 64,
-              child: Text(
-                k,
-                style: const TextStyle(fontSize: 11, color: SfColors.muted),
-              ),
-            ),
-            Expanded(
-              child: Text(
-                v,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 84,
+          child: Text(
+            k,
+            style: const TextStyle(fontSize: 13, color: SfColors.muted),
+          ),
         ),
-      );
+        Expanded(
+          child: Text(
+            v,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _ProfileActionRow extends StatelessWidget {
@@ -2671,15 +2438,15 @@ class _ProfileActionRow extends StatelessWidget {
                     Text(
                       label,
                       style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
                       style: const TextStyle(
-                        fontSize: 11,
+                        fontSize: 13,
                         color: SfColors.muted,
                         height: 1.35,
                       ),
@@ -2713,6 +2480,8 @@ class SfAlertCardWithActions extends StatelessWidget {
     required this.pill1,
     required this.pill2,
     this.rule,
+    this.primaryTone = SfPillTone.danger,
+    this.secondaryTone = SfPillTone.warning,
     this.onOpen,
     this.onRemindLater,
     this.openLabel = 'Open Scan',
@@ -2724,6 +2493,8 @@ class SfAlertCardWithActions extends StatelessWidget {
   final String pill1;
   final String pill2;
   final String? rule;
+  final SfPillTone primaryTone;
+  final SfPillTone secondaryTone;
   final VoidCallback? onOpen;
   final VoidCallback? onRemindLater;
   final String openLabel;
@@ -2794,22 +2565,14 @@ class SfAlertCardWithActions extends StatelessWidget {
               spacing: 6,
               runSpacing: 6,
               children: [
-                SfStatusPill(
-                  label: safePill1,
-                  tone: SfPillTone.danger,
-                ),
-                SfStatusPill(
-                  label: safePill2,
-                  tone: SfPillTone.warning,
-                ),
+                SfStatusPill(label: safePill1, tone: primaryTone),
+                SfStatusPill(label: safePill2, tone: secondaryTone),
               ],
             ),
             if (safeRule.isNotEmpty) ...[
               const SizedBox(height: 8),
               Text(
                 safeRule,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 10,
                   color: SfColors.muted.withValues(alpha: 0.9),
@@ -2948,10 +2711,7 @@ class SfHistoryDocumentSummary extends StatelessWidget {
                 label: status.toUpperCase(),
                 tone: isIn ? SfPillTone.success : SfPillTone.neutral,
               ),
-              SfStatusPill(
-                label: office,
-                tone: SfPillTone.neutral,
-              ),
+              SfStatusPill(label: office, tone: SfPillTone.neutral),
               SfStatusPill(
                 label: '$movementCount scan${movementCount == 1 ? '' : 's'}',
                 tone: SfPillTone.neutral,
@@ -2987,107 +2747,172 @@ class SfHistoryDocumentSummary extends StatelessWidget {
   }
 }
 
-/// Timeline row for audit trail (page 8).
-class SfMovementTimelineTile extends StatelessWidget {
-  const SfMovementTimelineTile({
+/// One stop on a folder trail: office action, the person, and the time.
+class SfPersonAvatar extends StatelessWidget {
+  const SfPersonAvatar({
     super.key,
-    required this.status,
-    required this.officeName,
-    required this.officeCode,
-    required this.scannedAt,
-    required this.username,
-    required this.remarks,
-    required this.isLast,
-    this.destinationOfficeCode,
-    this.destinationOfficeName,
+    required this.name,
+    this.avatarUrl,
+    this.size = 28,
   });
 
-  final String status;
-  final String officeName;
-  final String officeCode;
-  final String scannedAt;
-  final String username;
-  final String remarks;
-  final bool isLast;
-  final String? destinationOfficeCode;
-  final String? destinationOfficeName;
+  final String name;
+  final String? avatarUrl;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
-    final isIn = status.toUpperCase() == 'IN';
-    final dotColor = isIn ? SfColors.green : SfColors.blue;
+    final url = sfAvatarAbsoluteUrl(avatarUrl);
+    final initials = SfUserAvatar.fromName(name);
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        color: SfColors.navy,
+        shape: BoxShape.circle,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: url == null
+          ? Text(
+              initials,
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: size * 0.36,
+              ),
+            )
+          : Image.network(
+              url,
+              width: size,
+              height: size,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => Text(
+                initials,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  fontSize: size * 0.36,
+                ),
+              ),
+            ),
+    );
+  }
+}
+
+class SfTrailStop extends StatelessWidget {
+  const SfTrailStop({
+    super.key,
+    required this.title,
+    required this.personName,
+    required this.when,
+    required this.dotColor,
+    required this.isLast,
+    this.avatarUrl,
+    this.personDetail,
+    this.note,
+  });
+
+  final String title;
+  final String personName;
+  final String when;
+  final Color dotColor;
+  final bool isLast;
+  final String? avatarUrl;
+  final String? personDetail;
+  final String? note;
+
+  @override
+  Widget build(BuildContext context) {
+    final detail = personDetail?.trim() ?? '';
+    final personLine = detail.isEmpty ? personName : '$personName · $detail';
+    final remark = note?.trim() ?? '';
     return IntrinsicHeight(
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            width: 28,
+            width: 22,
             child: Column(
               children: [
                 Container(
-                  width: 12,
-                  height: 12,
+                  width: 10,
+                  height: 10,
+                  margin: const EdgeInsets.only(top: 4),
                   decoration: BoxDecoration(
                     color: dotColor,
                     shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: [
-                      BoxShadow(
-                        color: dotColor.withValues(alpha: 0.4),
-                        blurRadius: 6,
-                      ),
-                    ],
                   ),
                 ),
                 if (!isLast)
                   Expanded(
-                    child: Container(
-                      width: 2,
-                      color: const Color(0x1A1D4ED8),
-                    ),
+                    child: Container(width: 2, color: const Color(0xFFD5DCE6)),
                   ),
               ],
             ),
           ),
           Expanded(
             child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
-              child: SfFormCard(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        SfStatusPill(
-                          label: status.toUpperCase(),
-                          tone: isIn ? SfPillTone.success : SfPillTone.neutral,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            '$officeName ($officeCode)',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13,
-                            ),
+              padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            height: 1.3,
+                            color: SfColors.ink,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    if (!isIn &&
-                        destinationOfficeCode != null &&
-                        destinationOfficeCode!.isNotEmpty)
-                      _line(
-                        'To',
-                        '${destinationOfficeName ?? destinationOfficeCode} ($destinationOfficeCode)',
                       ),
-                    _line('Time', formatMovementListTime(scannedAt)),
-                    _line('User', username),
-                    _line('Remarks', remarks.isEmpty ? '—' : remarks),
+                      const SizedBox(width: 8),
+                      Text(
+                        when,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: SfColors.muted,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      SfPersonAvatar(name: personName, avatarUrl: avatarUrl),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          personLine,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: SfColors.ink,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (remark.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      remark,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        height: 1.35,
+                        color: SfColors.muted,
+                      ),
+                    ),
                   ],
-                ),
+                ],
               ),
             ),
           ),
@@ -3095,31 +2920,77 @@ class SfMovementTimelineTile extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _line(String k, String v) => Padding(
-        padding: const EdgeInsets.only(top: 3),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+/// Recent tracking IDs inside a lookup card. Chips wrap so the ID is never cut.
+class SfQuickOpenChips extends StatelessWidget {
+  const SfQuickOpenChips({
+    super.key,
+    required this.docs,
+    required this.onOpen,
+    required this.onClear,
+    this.enabled = true,
+  });
+
+  final List<RecentDocRef> docs;
+  final ValueChanged<String> onOpen;
+  final VoidCallback onClear;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    if (docs.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
           children: [
-            SizedBox(
-              width: 58,
+            const Expanded(
               child: Text(
-                k,
-                style: const TextStyle(fontSize: 11, color: SfColors.muted),
+                'Quick open',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: SfColors.ink,
+                ),
               ),
             ),
-            Expanded(
-              child: Text(
-                v,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
+            TextButton(
+              onPressed: enabled ? onClear : null,
+              style: TextButton.styleFrom(
+                foregroundColor: SfColors.muted,
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                minimumSize: const Size(0, 28),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text(
+                'Clear',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               ),
             ),
           ],
         ),
-      );
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final doc in docs)
+              ActionChip(
+                label: Text(
+                  doc.chipLabel,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                onPressed: enabled ? () => onOpen(doc.id) : null,
+                visualDensity: VisualDensity.compact,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
 }
 
 class SfErrorBanner extends StatelessWidget {
@@ -3230,11 +3101,9 @@ class _ShimmerBarState extends State<_ShimmerBar>
   }
 }
 
-String clerkRoleLabel(AppUser user) =>
-    'Employee (Clerk) · ${user.officeCode}';
+String clerkRoleLabel(AppUser user) => 'Employee (Clerk) · ${user.officeCode}';
 
-String headRoleLabel(AppUser user) =>
-    'Department Head · ${user.officeCode}';
+String headRoleLabel(AppUser user) => 'Department Head · ${user.officeCode}';
 
 String _profileRoleShort(AppUser user) {
   switch (user.role) {

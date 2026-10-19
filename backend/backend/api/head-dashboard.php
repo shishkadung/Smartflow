@@ -6,58 +6,21 @@
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/thresholds-helper.php';
 require_once __DIR__ . '/routing-helper.php';
+smartflow_ensure_documents_filed_columns($pdo);
+require_once __DIR__ . '/office-access-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
 }
 
-require_user_id();
+$userId = require_user_id();
 
 $officeId = (int)($_GET['office_id'] ?? 0);
 if ($officeId <= 0) {
     json_response(['success' => false, 'message' => 'office_id is required'], 400);
 }
 
-$stmtInOffice = $pdo->prepare("
-    SELECT COUNT(*) AS c
-    FROM (
-        SELECT m.document_id,
-               (SELECT m2.status FROM movements m2
-                WHERE m2.document_id = m.document_id
-                ORDER BY m2.scanned_at DESC, m2.id DESC LIMIT 1) AS last_status,
-               (SELECT m2.office_id FROM movements m2
-                WHERE m2.document_id = m.document_id
-                ORDER BY m2.scanned_at DESC, m2.id DESC LIMIT 1) AS last_office
-        FROM movements m
-        GROUP BY m.document_id
-    ) t
-    WHERE t.last_status = 'IN' AND t.last_office = :oid
-");
-$stmtInOffice->execute([':oid' => $officeId]);
-$inOffice = (int)($stmtInOffice->fetch()['c'] ?? 0);
-
-$stmtOverdue = $pdo->prepare("
-    SELECT COUNT(*) AS c
-    FROM (
-        SELECT m.document_id,
-               (SELECT m2.status FROM movements m2
-                WHERE m2.document_id = m.document_id
-                ORDER BY m2.scanned_at DESC, m2.id DESC LIMIT 1) AS last_status,
-               (SELECT m2.office_id FROM movements m2
-                WHERE m2.document_id = m.document_id
-                ORDER BY m2.scanned_at DESC, m2.id DESC LIMIT 1) AS last_office,
-               (SELECT m2.scanned_at FROM movements m2
-                WHERE m2.document_id = m.document_id
-                ORDER BY m2.scanned_at DESC, m2.id DESC LIMIT 1) AS last_scanned
-        FROM movements m
-        GROUP BY m.document_id
-    ) t
-    WHERE t.last_status = 'IN'
-      AND t.last_office = :oid
-      AND TIMESTAMPDIFF(HOUR, t.last_scanned, NOW()) >= :maxh
-");
-$stmtOverdue->execute([':oid' => $officeId, ':maxh' => 168]);
-$overdue = (int)($stmtOverdue->fetch()['c'] ?? 0);
+smartflow_require_office_scope($pdo, $userId, $officeId);
 
 $monthStart = date('Y-m-01 00:00:00');
 $stmtAvg = $pdo->prepare("
@@ -115,8 +78,7 @@ $sqlQueue = "
     WHERE
         (latest.status = 'IN' AND latest.office_id = :oid_in)
      OR (latest.status = 'OUT' AND latest.office_id = :oid_out)
-    ORDER BY latest.scanned_at DESC
-    LIMIT 50
+    ORDER BY latest.scanned_at DESC, d.id DESC
 ";
 $stmtQueue = $pdo->prepare($sqlQueue);
 $stmtQueue->execute([':oid_in' => $officeId, ':oid_out' => $officeId]);

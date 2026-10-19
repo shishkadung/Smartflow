@@ -2,6 +2,25 @@
 
 declare(strict_types=1);
 
+/** Explicit named Others folders keep their own workflow, even with financial words in the name. */
+function smartflow_type_is_other(string $type): bool
+{
+    return str_starts_with(strtolower(trim($type)), 'others:');
+}
+
+function smartflow_type_is_dv(string $type): bool
+{
+    $type = strtolower(trim($type));
+    return !smartflow_type_is_other($type)
+        && (str_contains($type, 'disbursement') || str_contains($type, 'voucher'));
+}
+
+function smartflow_type_is_approved_budget(string $type): bool
+{
+    $type = strtolower(trim($type));
+    return !smartflow_type_is_other($type) && str_contains($type, 'approved budget');
+}
+
 /**
  * Suggested next office for Mark OUT (LGU DV path).
  *
@@ -20,7 +39,7 @@ function smartflow_suggest_forward_destination(
     $from = strtoupper(trim($fromOfficeCode));
     $visited = array_map(static fn ($c) => strtoupper(trim((string)$c)), $visitedOfficeCodes);
 
-    if (str_contains($type, 'approved budget') || $type === 'budget') {
+    if (smartflow_type_is_approved_budget($type) || $type === 'budget') {
         if ($from === 'ACC' && in_array('BUD', $visited, true)) {
             return null;
         }
@@ -42,7 +61,7 @@ function smartflow_suggest_forward_destination(
         ];
     }
 
-    if (str_contains($type, 'disbursement') || str_contains($type, 'voucher')) {
+    if (smartflow_type_is_dv($type)) {
         if ($from === 'ENG') {
             return [
                 'code' => 'BUD',
@@ -108,36 +127,116 @@ function smartflow_suggest_forward_destination(
  */
 function smartflow_sql_trail_complete(string $documentIdExpr): string
 {
+    $predicate = smartflow_sql_trail_complete_known_latest('tcd', 'tcm', 'tco');
+    return "EXISTS (
+        SELECT 1 FROM documents tcd
+        JOIN movements tcm ON tcm.document_id=tcd.id AND tcm.id = (SELECT tcl.id FROM movements tcl WHERE tcl.document_id=tcd.id ORDER BY tcl.scanned_at DESC,tcl.id DESC LIMIT 1)
+        JOIN offices tco ON tco.id=tcm.office_id
+        WHERE tcd.id = {$documentIdExpr} AND {$predicate}
+    )";
+}
+
+/** Same completion rule when a queue already joined the latest movement and office. */
+function smartflow_sql_trail_complete_known_latest(string $document, string $movement, string $office): string
+{
     $visited = static fn (string $code): string => "EXISTS (
         SELECT 1 FROM movements tcv
         JOIN offices tcvo ON tcvo.id = tcv.office_id
-        WHERE tcv.document_id = tcd.id AND tcv.status = 'IN' AND tcvo.code = '{$code}'
+        WHERE tcv.document_id = {$document}.id AND tcv.status = 'IN' AND tcvo.code = '{$code}'
     )";
     $visitedTre = $visited('TRE');
     $visitedMay = $visited('MAY');
     $visitedBud = $visited('BUD');
 
-    return "EXISTS (
-        SELECT 1
-        FROM documents tcd
-        JOIN movements tcm ON tcm.id = (
-            SELECT tcl.id FROM movements tcl
-            WHERE tcl.document_id = tcd.id
-            ORDER BY tcl.scanned_at DESC, tcl.id DESC
-            LIMIT 1
-        )
-        JOIN offices tco ON tco.id = tcm.office_id
-        WHERE tcd.id = {$documentIdExpr}
-          AND tcm.status = 'IN'
+    return "({$movement}.status = 'IN'
           AND (
-            (
-              (LOWER(tcd.type) LIKE '%disbursement%' OR LOWER(tcd.type) LIKE '%voucher%')
-              AND {$visitedMay}
-              AND (tco.code = 'TRE' OR (tco.code = 'ACC' AND {$visitedTre}))
-            )
-            OR (tco.code = 'ACC' AND LOWER(tcd.type) LIKE '%approved budget%' AND {$visitedBud})
+            (LOWER({$document}.type) NOT REGEXP '^[[:space:]]*others:' AND (
+              (
+                (LOWER({$document}.type) LIKE '%disbursement%' OR LOWER({$document}.type) LIKE '%voucher%')
+                AND {$visitedMay}
+                AND ({$office}.code = 'TRE' OR ({$office}.code = 'ACC' AND {$visitedTre}))
+              )
+              OR ({$office}.code = 'ACC' AND LOWER({$document}.type) LIKE '%approved budget%' AND {$visitedBud})
+            ))
+            OR {$document}.filed_at IS NOT NULL
           )
     )";
+}
+
+function smartflow_type_has_fixed_route(string $type): bool
+{
+    $type = strtolower(trim($type));
+    return smartflow_type_is_dv($type)
+        || smartflow_type_is_approved_budget($type)
+        || $type === 'budget';
+}
+
+function smartflow_ensure_documents_filed_columns(PDO $pdo): void
+{
+    static $ready = false;
+    if ($ready) {
+        return;
+    }
+    $stmt = $pdo->query("
+        SELECT COLUMN_NAME FROM information_schema.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'documents'
+          AND COLUMN_NAME IN ('filed_at', 'filed_by')
+    ");
+    $existing = array_map('strtolower', $stmt->fetchAll(PDO::FETCH_COLUMN));
+    if (!in_array('filed_at', $existing, true)) {
+        $pdo->exec('ALTER TABLE documents ADD COLUMN filed_at DATETIME NULL');
+    }
+    if (!in_array('filed_by', $existing, true)) {
+        $pdo->exec('ALTER TABLE documents ADD COLUMN filed_by INT UNSIGNED NULL');
+    }
+    $ready = true;
+}
+
+/**
+ * @param array{status?:string,office_code?:string,office_id?:int|string} $last
+ * @return array{office_id:int,office_code:string,office_name:string,reason:string}|null
+ */
+function smartflow_build_suggested_forward(PDO $pdo, string $documentId, string $type, array $last): ?array
+{
+    if (strtoupper((string)($last['status'] ?? '')) !== 'IN') {
+        return null;
+    }
+    $stmtVisited = $pdo->prepare('
+        SELECT DISTINCT ofc.code
+        FROM movements m
+        JOIN offices ofc ON ofc.id = m.office_id
+        WHERE m.document_id = :id AND m.status = :st
+    ');
+    $stmtVisited->execute([':id' => $documentId, ':st' => 'IN']);
+    $visited = array_map(
+        static fn ($row) => strtoupper((string)$row['code']),
+        $stmtVisited->fetchAll()
+    );
+    $hint = smartflow_suggest_forward_destination($type, (string)($last['office_code'] ?? ''), $visited);
+    if ($hint === null) {
+        return null;
+    }
+    $stmtCode = $pdo->prepare('SELECT id FROM offices WHERE code = :code LIMIT 1');
+    $stmtCode->execute([':code' => $hint['code']]);
+    $destId = $stmtCode->fetchColumn();
+    $destId = $destId === false ? null : (int)$destId;
+    $fromId = (int)($last['office_id'] ?? 0);
+    if ($destId === null || $destId === $fromId) {
+        return null;
+    }
+    $stmtDest = $pdo->prepare('SELECT name, code FROM offices WHERE id = :id LIMIT 1');
+    $stmtDest->execute([':id' => $destId]);
+    $destRow = $stmtDest->fetch();
+    if (!$destRow) {
+        return null;
+    }
+    return [
+        'office_id' => $destId,
+        'office_code' => $destRow['code'],
+        'office_name' => $destRow['name'],
+        'reason' => $hint['reason'],
+    ];
 }
 
 function smartflow_document_trail_complete(PDO $pdo, string $documentId): bool

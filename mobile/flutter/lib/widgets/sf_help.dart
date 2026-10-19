@@ -35,7 +35,10 @@ class SfHelpIconButton extends StatelessWidget {
 }
 
 Future<void> showSfHelpSheet(BuildContext context, SfHelpPage page) {
-  final guide = sfHelpGuide(page);
+  final guide = sfHelpGuide(
+    page,
+    role: context.read<AuthProvider>().user?.role ?? 'staff',
+  );
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -80,88 +83,88 @@ Future<void> showSfHelpSheet(BuildContext context, SfHelpPage page) {
                           Icons.menu_book_rounded,
                           color: SfColors.blue,
                           size: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        guide.title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: SfColors.navy,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  guide.purpose,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    height: 1.45,
-                    color: SfColors.ink,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                const Text(
-                  'Steps',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.4,
-                    color: SfColors.muted,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                ...guide.steps.asMap().entries.map((e) {
-                  final n = e.key + 1;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 24,
-                          height: 24,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: SfColors.navy.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            '$n',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                              color: SfColors.navy,
-                            ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          guide.title,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: SfColors.navy,
                           ),
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            e.value,
-                            style: const TextStyle(
-                              fontSize: 13.5,
-                              height: 1.4,
-                              color: SfColors.ink,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    guide.purpose,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      height: 1.45,
+                      color: SfColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  const Text(
+                    'Steps',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                      color: SfColors.muted,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...guide.steps.asMap().entries.map((e) {
+                    final n = e.key + 1;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 24,
+                            height: 24,
+                            alignment: Alignment.center,
+                            decoration: BoxDecoration(
+                              color: SfColors.navy.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              '$n',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: SfColors.navy,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  );
-                }),
-                const SizedBox(height: 8),
-                FilledButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Got it'),
-                ),
-              ],
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              e.value,
+                              style: const TextStyle(
+                                fontSize: 13.5,
+                                height: 1.4,
+                                color: SfColors.ink,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Got it'),
+                  ),
+                ],
+              ),
             ),
-          ),
           ),
         ),
       );
@@ -218,7 +221,7 @@ Future<void> showSfRoleTipDialog(
               ),
               const SizedBox(height: 4),
               Text(
-                'Tip: tap the top-bar ? for page help anytime.',
+                'Tip: open Menu in the bottom navigation for page help anytime.',
                 style: TextStyle(
                   fontSize: 12,
                   color: SfColors.muted.withValues(alpha: 0.95),

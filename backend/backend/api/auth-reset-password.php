@@ -5,6 +5,7 @@
 
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/audit-helper.php';
+require_once __DIR__ . '/users-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -14,6 +15,7 @@ $body = get_json_body();
 $username = trim((string)($body['username'] ?? ''));
 $code = trim((string)($body['code'] ?? ''));
 $newPassword = (string)($body['new_password'] ?? '');
+smartflow_public_auth_limit('reset', 30, $username, 10);
 
 if ($username === '' || $code === '' || $newPassword === '') {
     json_response(['success' => false, 'message' => 'Username, code, and new_password are required'], 400);
@@ -38,6 +40,7 @@ if (!$user || !(int)($user['is_active'] ?? 1)) {
 }
 
 $userId = (int)$user['id'];
+smartflow_ensure_users_password_reset_columns($pdo);
 
 // Find the most recent unused, non-expired token for this user
 $stmt = $pdo->prepare('
@@ -46,7 +49,7 @@ $stmt = $pdo->prepare('
     WHERE user_id = :user_id
       AND used_at IS NULL
       AND expires_at > NOW()
-    ORDER BY created_at DESC
+    ORDER BY created_at DESC, id DESC
     LIMIT 1
 ');
 $stmt->execute([':user_id' => $userId]);
@@ -56,14 +59,25 @@ if (!$resetRecord || !password_verify($code, $resetRecord['token_hash'])) {
     json_response(['success' => false, 'message' => 'Invalid or expired reset code'], 401);
 }
 
+// Serialize code use so one reset code cannot update the password twice.
+$pdo->beginTransaction();
+$lock = $pdo->prepare('SELECT used_at, expires_at > NOW() AS valid_time FROM password_resets WHERE id = ? FOR UPDATE');
+$lock->execute([$resetRecord['id']]);
+$locked = $lock->fetch();
+if (!$locked || $locked['used_at'] !== null || !(int)$locked['valid_time']) {
+    $pdo->rollBack();
+    json_response(['success' => false, 'message' => 'Invalid or expired reset code'], 401);
+}
 // Hash and update the new password
 $passwordHash = password_hash($newPassword, PASSWORD_DEFAULT);
-$pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id')
+$pdo->prepare('UPDATE users SET password_hash = :hash, must_change_password = 0, temp_password_expires_at = NULL WHERE id = :id')
     ->execute([':hash' => $passwordHash, ':id' => $userId]);
 
 // Mark the reset token as used
 $pdo->prepare('UPDATE password_resets SET used_at = NOW() WHERE id = :id')
     ->execute([':id' => $resetRecord['id']]);
+$pdo->prepare('UPDATE auth_tokens SET is_revoked = 1 WHERE user_id = ?')->execute([$userId]);
+$pdo->commit();
 
 smartflow_audit_action($pdo, 'user.password_reset', $userId, 'Reset password with emailed code');
 

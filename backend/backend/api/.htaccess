@@ -1,6 +1,14 @@
 # Make sure Apache forwards the Authorization header to PHP.
 # Without this, get_bearer_token() in config.php may not see the token.
 RewriteEngine On
+<FilesMatch "(^\.|\.(sql|log)$)">
+    Require all denied
+</FilesMatch>
+<FilesMatch "(?i)^(?:dev-.*|users-email-migration)\.php$">
+    Require all denied
+</FilesMatch>
+RewriteRule ^(?:dev-[^/]*|users-email-migration)\.php(?:/.*)?$ - [F,L,NC]
+RewriteRule ^(?:cache|logs)/ - [F,L]
 CGIPassAuth On
 RewriteCond %{HTTP:Authorization} .+
 RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]

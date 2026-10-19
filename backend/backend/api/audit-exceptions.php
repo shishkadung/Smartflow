@@ -12,6 +12,7 @@
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/movements-helper.php';
 require_once __DIR__ . '/report-period-helper.php';
+require_once __DIR__ . '/routing-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -38,6 +39,8 @@ $hours = max(1, min(168, (int)($_GET['hours'] ?? 24)));
 $cutoff = date('Y-m-d H:i:s', time() - ($hours * 3600));
 
 $range = (isset($_GET['period']) || isset($_GET['month'])) ? smartflow_report_period($_GET) : null;
+$asOf = $range === null ? date('Y-m-d H:i:s') : min($range['end'], date('Y-m-d H:i:s'));
+$cutoff = date('Y-m-d H:i:s', strtotime($asOf) - ($hours * 3600));
 $inRange = static fn (string $at): bool => $range === null
     || ($at >= $range['start'] && $at <= $range['end']);
 
@@ -56,7 +59,9 @@ if ($range !== null) {
     ');
     $stmtDocs->execute([':start' => $range['start'], ':end' => $range['end']]);
 } else {
-    $stmtDocs = $pdo->query($docSelect . ' ORDER BY d.date_registered DESC LIMIT 500');
+    // Inspect every trail: older pending folders remain relevant even after
+    // hundreds of newer folders have been registered.
+    $stmtDocs = $pdo->query($docSelect . ' ORDER BY d.date_registered DESC');
 }
 
 $officeNames = [
@@ -71,7 +76,7 @@ $stmtMv = $pdo->prepare('
     FROM movements m
     JOIN offices o ON o.id = m.office_id
     LEFT JOIN offices d ON d.id = m.destination_office_id
-    WHERE m.document_id = :id
+    WHERE m.document_id = :id AND m.scanned_at <= :as_of
     ORDER BY m.scanned_at ASC, m.id ASC
 ');
 
@@ -79,7 +84,7 @@ $exceptions = [];
 
 foreach ($stmtDocs->fetchAll() as $doc) {
     $docId = (string)$doc['id'];
-    $stmtMv->execute([':id' => $docId]);
+    $stmtMv->execute([':id' => $docId, ':as_of' => $asOf]);
     $mvs = $stmtMv->fetchAll();
     if (!$mvs) {
         continue;
@@ -120,9 +125,8 @@ foreach ($stmtDocs->fetchAll() as $doc) {
         }
     }
 
-    $type = strtolower((string)$doc['type']);
-    $isDv = str_contains($type, 'disbursement') || str_contains($type, 'voucher');
-    $isBudget = str_contains($type, 'approved budget');
+    $isDv = smartflow_type_is_dv((string)$doc['type']);
+    $isBudget = smartflow_type_is_approved_budget((string)$doc['type']);
     if (!$isDv && !$isBudget) {
         continue;
     }
@@ -153,8 +157,8 @@ foreach ($stmtDocs->fetchAll() as $doc) {
                         'last_scanned_at' => (string)$m['scanned_at'],
                         'office_code'     => $code,
                     ];
+                    break;
                 }
-                break;
             }
         }
         $seen[$code] = true;

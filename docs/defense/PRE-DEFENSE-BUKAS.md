@@ -72,7 +72,7 @@ flutter run
 - [ ] Phone (kung mobile demo)
 - [ ] **[DEMO-SCENARIOS-COMPLETE.md](DEMO-SCENARIOS-COMPLETE.md)** (lahat ng scenario)
 - [ ] [START-HERE.md](START-HERE.md) (cheat sheet)
-- [ ] `docs/design/use-cases/SMARTFLOW-USE-CASE-DIAGRAM.html` (browser backup slide)
+- [ ] `thesis-work/2026-09-29_SmartFlow-Figures/Figure_1.2_Use_Case_Diagram_Updated.png` (backup slide)
 - [ ] Client questionnaire answers (Google Doc / print)
 - [ ] Optional: printed QR label sample
 

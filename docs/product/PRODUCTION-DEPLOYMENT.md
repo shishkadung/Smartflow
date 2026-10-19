@@ -105,22 +105,16 @@ flutter build appbundle --release --dart-define=ENV=production
 
 ### Database Backup Setup
 
-1. **Automated Backups**
-```bash
-# Add to crontab (daily at 2 AM)
-0 2 * * * /path/to/scripts/backup-database.ps1
+The checked-in system tools currently use reviewed Windows/XAMPP paths; configure and verify an intended hosting target separately. A system snapshot includes database, private environment, stable QR key and uploads. A database-only dump is insufficient for full-system recovery.
+
+```powershell
+.\scripts\backup-system.ps1
+.\scripts\verify-system-backup.ps1 -Snapshot "backups\<created-system-snapshot>"
 ```
 
-2. **Manual Backup**
-```bash
-cd /path/to/Capstone\ 1\ -Neil
-.\scripts\backup-database.ps1
-```
+Verification imports only to its own generated temporary schema, checks the snapshot and removes that schema; it never restores the live database. Backup creation also imports the actual dump to build consistent manifest hashes and continuity-folder evidence, so the backup account needs create/drop permission and scratch capacity for one temporary restore. An empty-folder installation reports original-folder QR verification as not applicable while still checking schema, data, key and uploads. Current automated evidence uses synthetic snapshots without mutating operational records, accounts or sessions; production capacity, concurrent DDL and independently changing uploads still need their own acceptance. See [Testing](../TESTING.md), the [stabilization matrix](../testing/STABILIZATION-MATRIX-2026-10-16.md) and the [implementation report](../../.runtime/stabilization-2026-10-16/report.md).
 
-3. **Restore if Needed**
-```bash
-.\scripts\restore-database.ps1 -BackupFile "backups\smartflow_backup_2024-01-15_02-00-00.sql"
-```
+For scheduling, use the intended host's scheduler with these tested platform requirements; a Linux crontab entry invoking a Windows `.ps1` is not a validated deployment procedure. The legacy `backup-database.ps1` and manually confirmed `restore-database.ps1` are database-only tools. Restore now preserves known-good UTF-8 SQL bytes, but Unicode capture by the legacy backup wrapper is not established by that restore test. A live recovery plan must restore the matching database, configuration, signing key and uploads together after a verified isolated rehearsal.
 
 ## Post-Deployment
 

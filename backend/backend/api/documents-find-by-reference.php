@@ -25,7 +25,7 @@ if ($reference === '') {
 }
 
 smartflow_ensure_documents_logbook_columns($pdo);
-$needle = '%Reference: ' . $reference . '%';
+$needle = "\nReference: " . $reference . "\n";
 
 $stmt = $pdo->prepare('
     SELECT
@@ -38,7 +38,10 @@ $stmt = $pdo->prepare('
         o.code AS origin_office_code
     FROM documents d
     JOIN offices o ON o.id = d.origin_office_id
-    WHERE d.reference_no = :ref OR d.description LIKE :needle
+    WHERE d.reference_no = :ref OR (
+        (d.reference_no IS NULL OR TRIM(d.reference_no) = \'\')
+        AND LOCATE(:needle, CONCAT(CHAR(10), REPLACE(d.description, CHAR(13), \'\'), CHAR(10))) > 0
+    )
     ORDER BY d.date_registered DESC
     LIMIT 5
 ');

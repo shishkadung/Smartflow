@@ -1,5 +1,6 @@
+import '../../widgets/home_folder_actions.dart';
+import '../../utils/live_refresh.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -27,8 +28,12 @@ class HeadShell extends StatefulWidget {
   State<HeadShell> createState() => _HeadShellState();
 }
 
-class _HeadShellState extends State<HeadShell> {
+class _HeadShellState extends State<HeadShell> with LiveRefresh<HeadShell> {
   int _alertCount = 0;
+  int _pendingRequests = 0;
+
+  @override
+  Future<void> refreshLiveData() => _loadAlertCount();
 
   @override
   void initState() {
@@ -44,6 +49,9 @@ class _HeadShellState extends State<HeadShell> {
       final list = data['alerts'] as List<dynamic>? ?? [];
       final visible = await AlertActionsStore.visibleCount(list);
       if (mounted) refreshAlertBadge(visible);
+      if (!mounted) return;
+      final pending = await sfPendingRequestCount(context);
+      if (mounted) setState(() => _pendingRequests = pending);
     } catch (_) {}
   }
 
@@ -54,28 +62,13 @@ class _HeadShellState extends State<HeadShell> {
   static const _primaryTabs = [
     '/head',
     '/head/queue',
+    '/head/scan',
     '/head/alerts',
   ];
 
-  static const _menuRoutes = [
-    '/head/scan',
-    '/head/register',
-    '/head/analytics',
-    '/head/history',
-  ];
-
-  int _indexForPath(String loc) {
-    final primary = _primaryTabs.indexWhere((t) => loc == t);
-    if (primary >= 0) return primary;
-    if (_menuRoutes.contains(loc)) return 3;
-    return -1;
-  }
+  int _indexForPath(String loc) => _primaryTabs.indexWhere((t) => loc == t);
 
   void _onTab(int i) {
-    if (i == 3) {
-      showSfRoleMoreSheet(context);
-      return;
-    }
     context.go(_primaryTabs[i]);
     _loadAlertCount();
   }
@@ -84,12 +77,18 @@ class _HeadShellState extends State<HeadShell> {
   Widget build(BuildContext context) {
     final loc = GoRouterState.of(context).uri.path;
     final index = _indexForPath(loc);
+    final profileActive = sfIsOnProfilePage(loc, 'head');
 
     return SfNavBadgeScope(
       alertCount: _alertCount,
       child: SfAppScaffold(
         currentIndex: index,
         onTab: _onTab,
+        onMenu: () =>
+            showSfRoleMoreSheet(context, pendingRequests: _pendingRequests),
+        onProfile: () => context.go(sfProfileRouteForRole('head')),
+        profileActive: profileActive,
+        menuActive: index < 0 && !profileActive,
         tabs: [
           const SfNavTab(
             icon: SfIcons.headHome,
@@ -100,6 +99,11 @@ class _HeadShellState extends State<HeadShell> {
             icon: SfIcons.headQueue,
             activeIcon: SfIcons.headQueueActive,
             label: 'Queue',
+          ),
+          const SfNavTab(
+            icon: SfIcons.clerkScan,
+            activeIcon: SfIcons.clerkScanActive,
+            label: 'Scan',
             elevated: true,
           ),
           SfNavTab(
@@ -108,11 +112,7 @@ class _HeadShellState extends State<HeadShell> {
             label: 'Alerts',
             badge: _alertCount > 0 ? _alertCount : null,
           ),
-          const SfNavTab(
-            icon: SfIcons.more,
-            activeIcon: SfIcons.moreActive,
-            label: 'Menu',
-          ),
+          const SfNavTab(icon: SfIcons.menu, label: 'Menu'),
         ],
         body: widget.child,
       ),
@@ -129,21 +129,25 @@ class HeadDashboardScreen extends StatefulWidget {
   State<HeadDashboardScreen> createState() => _HeadDashboardScreenState();
 }
 
-class _HeadDashboardScreenState extends State<HeadDashboardScreen> {
+class _HeadDashboardScreenState extends State<HeadDashboardScreen>
+    with LiveRefresh<HeadDashboardScreen> {
+  @override
+  Future<void> refreshLiveData() => _load(silent: true);
+
   Map<String, dynamic>? _stats;
   List<Map<String, dynamic>> _queue = [];
   List<Map<String, dynamic>> _recentScans = [];
   String? _error;
   bool _loading = true;
+  bool _loadInFlight = false;
   DateTime? _lastLoaded;
 
   List<Map<String, dynamic>> get _overdueItems => _queue
       .where((q) => q['status_label'] == 'overdue')
       .toList(growable: false);
 
-  List<Map<String, dynamic>> get _forwardedItems => _queue
-      .where(headQueueAwaitingReceive)
-      .toList(growable: false);
+  List<Map<String, dynamic>> get _forwardedItems =>
+      _queue.where(headQueueAwaitingReceive).toList(growable: false);
 
   @override
   void initState() {
@@ -154,39 +158,23 @@ class _HeadDashboardScreenState extends State<HeadDashboardScreen> {
     });
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool silent = false}) async {
+    if (!mounted ||
+        !context.read<AuthProvider>().isAuthenticated ||
+        _loadInFlight) {
+      return;
+    }
+    _loadInFlight = true;
     final oid = context.read<AuthProvider>().user!.officeId;
     setState(() {
-      _loading = true;
-      _error = null;
+      if (!silent) {
+        _loading = true;
+      }
     });
     try {
       final api = context.read<AuthProvider>().api;
       final dash = await api.headDashboard(oid);
-      final alertData = await api.alerts(oid);
       if (!mounted) return;
-      context.findAncestorStateOfType<_HeadShellState>()?.refreshAlertBadge(
-            (alertData['alerts'] as List<dynamic>? ?? []).length,
-          );
-      final list = alertData['alerts'] as List<dynamic>? ?? [];
-      final keys = list
-          .map((a) => Map<String, dynamic>.from(a as Map))
-          .map((m) => (
-                documentId: m['document_id']?.toString() ?? '',
-                kind: m['kind']?.toString() ?? '',
-              ))
-          .toList();
-      final actions = await AlertActionsStore.stateForMany(keys);
-      var visibleAlerts = 0;
-      for (final a in list) {
-        final m = a as Map;
-        final k = '${m['document_id']}::${m['kind']}';
-        if (!(actions[k]?.isHidden ?? false)) visibleAlerts++;
-      }
-      if (!mounted) return;
-      context.findAncestorStateOfType<_HeadShellState>()?.refreshAlertBadge(
-            visibleAlerts,
-          );
       setState(() {
         _stats = dash['stats'] as Map<String, dynamic>?;
         _queue = (dash['queue'] as List<dynamic>? ?? [])
@@ -196,6 +184,7 @@ class _HeadDashboardScreenState extends State<HeadDashboardScreen> {
             .map((e) => Map<String, dynamic>.from(e as Map))
             .toList();
         _loading = false;
+        _error = null;
         _lastLoaded = DateTime.now();
       });
     } on ApiException catch (e) {
@@ -212,15 +201,17 @@ class _HeadDashboardScreenState extends State<HeadDashboardScreen> {
           _loading = false;
         });
       }
+    } finally {
+      _loadInFlight = false;
     }
   }
 
   void _openHistory(String docId) {
-    context.push('/head/history', extra: {'documentId': docId});
+    context.push('/head/documents?id=${Uri.encodeQueryComponent(docId)}');
   }
 
   void _goQueue({String? filter}) {
-    context.go('/head/queue', extra: {if (filter != null) 'filter': filter});
+    context.go('/head/queue', extra: {'filter': ?filter});
   }
 
   @override
@@ -236,41 +227,40 @@ class _HeadDashboardScreenState extends State<HeadDashboardScreen> {
           const SfAuthenticatedPageHeader(),
           const SizedBox(height: 12),
           const SfHeadPageOverviewCard(screen: SfHeadScreen.home),
-          const SizedBox(height: 12),
-          SfPrimaryButton(
+          const SizedBox(height: 16),
+          if (_error != null) ...[
+            SfErrorBanner(
+              message: s == null
+                  ? 'Dashboard unavailable. $_error'
+                  : 'Refresh failed. Showing previously loaded data; counts may be out of date.\n$_error',
+            ),
+            const SizedBox(height: 8),
+            SfSecondaryOutlineButton(
+              label: _loading ? 'Retrying…' : 'Try again',
+              onPressed: _loading ? null : _load,
+            ),
+            const SizedBox(height: 12),
+          ],
+          HomeFolderActions(
+            overview: _loading
+                ? const SfLoadingCard()
+                : s == null
+                ? null
+                : SfHeadStatRow(
+                    inOffice: s['in_office'] as int? ?? 0,
+                    overdue: s['overdue'] as int? ?? 0,
+                    avgHours: (s['avg_hours'] as num?)?.toDouble() ?? 0,
+                    onInOfficeTap: () => _goQueue(filter: 'in_office'),
+                    onOverdueTap: () => _goQueue(filter: 'overdue'),
+                  ),
+          ),
+          SfSecondaryOutlineButton(
             label: 'Open office queue',
             onPressed: () => context.go('/head/queue'),
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            SfErrorBanner(message: _error!),
-          ],
-          if (_loading)
-            const Padding(
-              padding: EdgeInsets.only(top: 16),
-              child: SfLoadingCard(),
-            )
-          else if (s != null) ...[
-            if (_lastLoaded != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                'Updated ${formatSmartflowTime(_lastLoaded!.toIso8601String())} · pull to refresh',
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: SfColors.muted,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            SfHeadStatRow(
-              inOffice: s['in_office'] as int? ?? 0,
-              overdue: s['overdue'] as int? ?? 0,
-              avgHours: (s['avg_hours'] as num?)?.toDouble() ?? 0,
-              onInOfficeTap: () => _goQueue(filter: 'in_office'),
-              onOverdueTap: () => _goQueue(filter: 'overdue'),
-            ),
-            if (_overdueItems.isEmpty &&
+          if (!_loading && s != null) ...[
+            if (_error == null &&
+                _overdueItems.isEmpty &&
                 _forwardedItems.isEmpty &&
                 (s['in_office'] as int? ?? 0) > 0) ...[
               const SizedBox(height: 14),
@@ -320,6 +310,14 @@ class _HeadDashboardScreenState extends State<HeadDashboardScreen> {
                 onTapDoc: _openHistory,
               ),
             ],
+            if (_lastLoaded != null) ...[
+              const SizedBox(height: 16),
+              Text(
+                '${_error == null ? 'Updated' : 'Last successful update'} ${formatSmartflowTime(_lastLoaded!.toIso8601String())} · pull to refresh',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: SfColors.muted),
+              ),
+            ],
           ],
         ],
       ),
@@ -353,13 +351,24 @@ class HeadQueueScreen extends StatefulWidget {
   State<HeadQueueScreen> createState() => _HeadQueueScreenState();
 }
 
-class _HeadQueueScreenState extends State<HeadQueueScreen> {
+class _HeadQueueScreenState extends State<HeadQueueScreen>
+    with LiveRefresh<HeadQueueScreen> {
+  @override
+  Future<void> refreshLiveData() => _load(silent: true);
+
   final _searchCtrl = TextEditingController();
   List<Map<String, dynamic>> _queue = [];
   String? _error;
   bool _loading = true;
+  bool _reading = false;
+  DateTime? _lastLoaded;
+  int _request = 0;
+  late final AuthProvider _auth;
+  late final Object _identity;
   late SfHeadQueueFilter _filter;
   _HeadQueueSort _sort = _HeadQueueSort.hoursDesc;
+
+  bool get _current => mounted && _auth.sessionIdentity == _identity;
 
   String _normalizedStatus(Map<String, dynamic> item) =>
       item['status_label']?.toString().trim().toLowerCase() ?? '';
@@ -390,7 +399,6 @@ class _HeadQueueScreenState extends State<HeadQueueScreen> {
       statusPill: statusPill,
       hoursPending: _asInt(m['hours_pending']),
       onTap: () => _openHistory(id),
-      onCopyId: id.isNotEmpty ? () => _copyId(id) : null,
     );
   }
 
@@ -410,7 +418,16 @@ class _HeadQueueScreenState extends State<HeadQueueScreen> {
   /// Queue rows as direct [ListView] children (avoids nested scroll + flex issues).
   List<Widget> _activeDocumentListChildren(List<Map<String, dynamic>> visible) {
     if (_loading) return [const SfLoadingCard()];
+    if (_lastLoaded == null) return [];
     if (_queue.isEmpty) {
+      if (_error != null) {
+        return [
+          const SfInfoBanner(
+            text:
+                'The last successful read found no documents. Retry to verify the current queue.',
+          ),
+        ];
+      }
       return [
         SfEmptyState(
           icon: Icons.inbox_outlined,
@@ -420,6 +437,17 @@ class _HeadQueueScreenState extends State<HeadQueueScreen> {
       ];
     }
     if (visible.isEmpty) {
+      if (_searchCtrl.text.trim().isNotEmpty) {
+        return [
+          SfEmptyState(
+            icon: Icons.search_off_rounded,
+            title: 'No matching documents',
+            subtitle: 'Clear the search to show folders in this view.',
+            actionLabel: 'Clear search',
+            onAction: _searchCtrl.clear,
+          ),
+        ];
+      }
       return [
         SfEmptyState(
           icon: Icons.filter_list_off_outlined,
@@ -436,6 +464,8 @@ class _HeadQueueScreenState extends State<HeadQueueScreen> {
   @override
   void initState() {
     super.initState();
+    _auth = context.read<AuthProvider>();
+    _identity = _auth.sessionIdentity;
     _filter = widget.initialFilter ?? SfHeadQueueFilter.all;
     _searchCtrl.addListener(() {
       if (mounted) setState(() {});
@@ -455,8 +485,7 @@ class _HeadQueueScreenState extends State<HeadQueueScreen> {
   int get _countOverdue =>
       _queue.where((q) => _normalizedStatus(q) == 'overdue').length;
 
-  int get _countForwarded =>
-      _queue.where(headQueueAwaitingReceive).length;
+  int get _countForwarded => _queue.where(headQueueAwaitingReceive).length;
 
   List<Map<String, dynamic>> get _visible {
     final q = _searchCtrl.text.trim().toUpperCase();
@@ -493,59 +522,64 @@ class _HeadQueueScreenState extends State<HeadQueueScreen> {
           final hb = _asInt(b['hours_pending']);
           return ha.compareTo(hb);
         case _HeadQueueSort.idAsc:
-          return (a['document_id']?.toString() ?? '')
-              .compareTo(b['document_id']?.toString() ?? '');
+          return (a['document_id']?.toString() ?? '').compareTo(
+            b['document_id']?.toString() ?? '',
+          );
       }
     });
     return list;
   }
 
-  Future<void> _load() async {
-    final oid = context.read<AuthProvider>().user!.officeId;
+  Future<void> _load({bool silent = false}) async {
+    if (!_current || !_auth.isAuthenticated || (silent && _loading)) {
+      return;
+    }
+    final request = ++_request;
+    final oid = _auth.user!.officeId;
     setState(() {
-      _loading = true;
-      _error = null;
+      _reading = true;
+      if (!silent) {
+        _loading = true;
+      }
     });
     try {
-      final data = await context.read<AuthProvider>().api.headDashboard(oid);
-      if (!mounted) return;
+      final data = await _auth.api.headDashboard(oid);
+      if (!_current || request != _request) return;
       setState(() {
-        _queue = (data['queue'] as List<dynamic>? ?? [])
-            .map((e) {
-              final item = Map<String, dynamic>.from(e as Map);
-              item['status_label'] =
-                  item['status_label']?.toString().trim().toLowerCase();
-              return item;
-            })
-            .toList();
+        _queue = (data['queue'] as List<dynamic>? ?? []).map((e) {
+          final item = Map<String, dynamic>.from(e as Map);
+          item['status_label'] = item['status_label']
+              ?.toString()
+              .trim()
+              .toLowerCase();
+          return item;
+        }).toList();
         _loading = false;
+        _reading = false;
+        _error = null;
+        _lastLoaded = DateTime.now();
       });
     } on ApiException catch (e) {
-      if (mounted) {
+      if (_current && request == _request) {
         setState(() {
           _error = e.message;
           _loading = false;
+          _reading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (_current && request == _request) {
         setState(() {
           _error = apiErrorMessage(e);
           _loading = false;
+          _reading = false;
         });
       }
     }
   }
 
   void _openHistory(String docId) {
-    context.push('/head/history', extra: {'documentId': docId});
-  }
-
-  void _copyId(String id) {
-    Clipboard.setData(ClipboardData(text: id));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tracking ID copied')),
-    );
+    context.push('/head/documents?id=${Uri.encodeQueryComponent(docId)}');
   }
 
   @override
@@ -563,7 +597,26 @@ class _HeadQueueScreenState extends State<HeadQueueScreen> {
           const SfHeadPageOverviewCard(screen: SfHeadScreen.queue),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            SfErrorBanner(message: _error!),
+            SfErrorBanner(
+              message: _lastLoaded == null
+                  ? 'Queue unavailable. $_error'
+                  : 'Refresh failed. Previously loaded queue and counts may be stale. $_error',
+            ),
+            TextButton(
+              onPressed: _reading ? null : _load,
+              child: const Text('Retry queue'),
+            ),
+          ],
+          if (_lastLoaded != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              '${_error == null ? 'Updated' : 'Last successful update'} ${formatSmartflowTime(_lastLoaded!.toIso8601String())} · pull to refresh',
+              style: const TextStyle(fontSize: 12, color: SfColors.muted),
+            ),
+          ],
+          if (_reading && !_loading) ...[
+            const SizedBox(height: 8),
+            const LinearProgressIndicator(),
           ],
           const SizedBox(height: 12),
           TextField(
@@ -599,18 +652,26 @@ class _HeadQueueScreenState extends State<HeadQueueScreen> {
           const SizedBox(height: 14),
           Row(
             children: [
-              const Text(
-                'Active documents',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+              const Expanded(
+                flex: 3,
+                child: Text(
+                  'Active documents',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                ),
               ),
-              const Spacer(),
-              if (!_loading)
-                Text(
-                  '${visible.length} of ${_queue.length}',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: SfColors.muted,
+              const SizedBox(width: 12),
+              // A tight flex child so the count sits at the right edge instead of the middle of the row.
+              if (!_loading && _lastLoaded != null)
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    '${visible.length} of ${_queue.length}${_error == null ? '' : ' · stale'}',
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: SfColors.muted,
+                    ),
                   ),
                 ),
             ],
@@ -639,10 +700,10 @@ class _HeadQueueScreenState extends State<HeadQueueScreen> {
       label: Text(label),
       selected: selected,
       onSelected: (_) => setState(() => _sort = value),
-      selectedColor: SfColors.blue.withValues(alpha: 0.15),
-      checkmarkColor: SfColors.blue,
+      selectedColor: SfColors.navy.withValues(alpha: 0.1),
+      checkmarkColor: SfColors.navy,
       labelStyle: TextStyle(
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
       ),
     );
@@ -658,7 +719,11 @@ class HeadAlertsScreen extends StatefulWidget {
   State<HeadAlertsScreen> createState() => _HeadAlertsScreenState();
 }
 
-class _HeadAlertsScreenState extends State<HeadAlertsScreen> {
+class _HeadAlertsScreenState extends State<HeadAlertsScreen>
+    with LiveRefresh<HeadAlertsScreen> {
+  @override
+  Future<void> refreshLiveData() => _load(silent: true);
+
   List<dynamic> _alerts = [];
   Map<String, AlertActionState> _actions = const {};
   String? _error;
@@ -737,19 +802,28 @@ class _HeadAlertsScreenState extends State<HeadAlertsScreen> {
   Future<void> _refreshActions(List<dynamic> source) async {
     final keys = source
         .map((a) => Map<String, dynamic>.from(a as Map))
-        .map((m) => (
-              documentId: m['document_id']?.toString() ?? '',
-              kind: m['kind']?.toString() ?? '',
-            ))
+        .map(
+          (m) => (
+            documentId: m['document_id']?.toString() ?? '',
+            kind: m['kind']?.toString() ?? '',
+          ),
+        )
         .toList();
     final actions = await AlertActionsStore.stateForMany(keys);
     if (mounted) setState(() => _actions = actions);
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool silent = false}) async {
+    if (!mounted ||
+        !context.read<AuthProvider>().isAuthenticated ||
+        (silent && _loading)) {
+      return;
+    }
     final oid = context.read<AuthProvider>().user!.officeId;
     setState(() {
-      _loading = true;
+      if (!silent) {
+        _loading = true;
+      }
       _error = null;
     });
     try {
@@ -763,8 +837,8 @@ class _HeadAlertsScreenState extends State<HeadAlertsScreen> {
         return !_stateFor(m).isHidden;
       }).length;
       context.findAncestorStateOfType<_HeadShellState>()?.refreshAlertBadge(
-            visible,
-          );
+        visible,
+      );
       setState(() {
         _alerts = list;
         _loading = false;
@@ -799,11 +873,13 @@ class _HeadAlertsScreenState extends State<HeadAlertsScreen> {
       return !_stateFor(m).isHidden;
     }).length;
     context.findAncestorStateOfType<_HeadShellState>()?.refreshAlertBadge(
-          visible,
-        );
+      visible,
+    );
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Text('Hidden until tomorrow. Undo if you still need it.'),
+        content: const Text(
+          'Hidden until tomorrow. Undo if you still need it.',
+        ),
         action: SnackBarAction(
           label: 'Undo',
           onPressed: () async {
@@ -816,7 +892,7 @@ class _HeadAlertsScreenState extends State<HeadAlertsScreen> {
   }
 
   void _openHistory(String docId) {
-    context.push('/head/history', extra: {'documentId': docId});
+    context.push('/head/documents?id=${Uri.encodeQueryComponent(docId)}');
   }
 
   String _compactText(dynamic value) =>
@@ -832,29 +908,40 @@ class _HeadAlertsScreenState extends State<HeadAlertsScreen> {
     final kind = m['kind']?.toString() ?? 'delayed';
     final delayed = kind == 'delayed';
     final dueSoon = kind == 'due_soon';
-    final unconfirmed = kind == 'unconfirmed';
+    final isOut =
+        m['last_status']?.toString().toUpperCase() == 'OUT' ||
+        kind == 'unconfirmed';
     final docId = _compactText(m['document_id']);
     final docTitle = _compactText(m['document_title']) != ''
         ? _compactText(m['document_title'])
         : _compactText(m['title']);
-    final days = _asInt(m['days_pending']);
     final hours = _asInt(m['hours_pending']);
+    final days = hours ~/ 24;
     final pendingLabel = days > 0
         ? '$days day${days == 1 ? '' : 's'}'
         : '${hours}h';
     final accent = delayed
         ? SfColors.red
         : (dueSoon ? SfColors.gold : SfColors.blue);
-    final pill1 = unconfirmed
-        ? 'Waiting for other office'
-        : (delayed ? 'Still on your desk' : 'Due soon');
-    final rule = m['threshold_rule']?.toString();
+    final pill1 = delayed
+        ? 'Overdue'
+        : (dueSoon ? 'Due soon' : 'Receipt not recorded');
+    final detail = _compactText(m['detail']);
+    final deadline = _compactText(m['due_at_display']).isNotEmpty
+        ? _compactText(m['due_at_display'])
+        : _compactText(m['due_at']);
+    final threshold = _compactText(m['threshold_rule']);
+    final rule = [
+      if (detail.isNotEmpty) detail,
+      if (deadline.isNotEmpty) 'Deadline: $deadline',
+      if (threshold.isNotEmpty && threshold != detail) threshold,
+    ].join('\n');
     final office = _compactText(m['last_office_name']);
     final title = docTitle.isNotEmpty ? docTitle : 'Document alert';
     final subtitle = [
       if (docId.isNotEmpty) docId,
-      if (office.isNotEmpty) office,
-      pendingLabel == '${hours}h' ? '$hours hours at this desk' : pendingLabel,
+      if (office.isNotEmpty) isOut ? 'Sent from $office' : 'At $office',
+      '$pendingLabel since ${isOut ? 'sending' : 'receipt'}',
     ].join(' · ');
 
     return SfAlertCardWithActions(
@@ -862,7 +949,15 @@ class _HeadAlertsScreenState extends State<HeadAlertsScreen> {
       subtitle: subtitle,
       accent: accent,
       pill1: pill1,
-      pill2: pendingLabel,
+      pill2: isOut && (delayed || dueSoon)
+          ? 'Receipt not recorded'
+          : pendingLabel,
+      primaryTone: delayed
+          ? SfPillTone.danger
+          : dueSoon
+          ? SfPillTone.warning
+          : SfPillTone.neutral,
+      secondaryTone: isOut ? SfPillTone.neutral : SfPillTone.muted,
       rule: rule,
       onOpen: docId.isNotEmpty ? () => _openHistory(docId) : null,
       onRemindLater: () => _remindLater(m),
@@ -893,7 +988,7 @@ class _HeadAlertsScreenState extends State<HeadAlertsScreen> {
       SfAlertFilter.all => 'All',
       SfAlertFilter.delayed => 'Overdue',
       SfAlertFilter.dueSoon => 'Due soon',
-      SfAlertFilter.unconfirmed => 'No IN scan',
+      SfAlertFilter.unconfirmed => 'Receipt not recorded',
     };
 
     return RefreshIndicator(
@@ -905,9 +1000,15 @@ class _HeadAlertsScreenState extends State<HeadAlertsScreen> {
           const SfAuthenticatedPageHeader(),
           const SizedBox(height: 12),
           const SfHeadPageOverviewCard(screen: SfHeadScreen.alerts),
+          const SizedBox(height: 16),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            SfErrorBanner(message: _error!),
+            SfErrorBanner(
+              message: _lastLoaded == null
+                  ? 'Alerts unavailable. $_error'
+                  : 'Refresh failed. Previously loaded alerts may be stale. $_error',
+            ),
+            TextButton(onPressed: _load, child: const Text('Retry')),
           ],
           if (_loading)
             const SfLoadingCard()
@@ -929,9 +1030,9 @@ class _HeadAlertsScreenState extends State<HeadAlertsScreen> {
               const SizedBox(height: 12),
               if (_lastLoaded != null)
                 Text(
-                  'Updated ${formatSmartflowTime(_lastLoaded!.toIso8601String())} · pull to refresh',
+                  '${_error == null ? 'Updated' : 'Last successful update'} ${formatSmartflowTime(_lastLoaded!.toIso8601String())} · pull to refresh',
                   style: const TextStyle(
-                    fontSize: 10,
+                    fontSize: 12,
                     color: SfColors.muted,
                     fontWeight: FontWeight.w600,
                   ),
@@ -959,7 +1060,8 @@ class _HeadAlertsScreenState extends State<HeadAlertsScreen> {
                     ),
                     if (_filter != SfAlertFilter.all)
                       TextButton(
-                        onPressed: () => setState(() => _filter = SfAlertFilter.all),
+                        onPressed: () =>
+                            setState(() => _filter = SfAlertFilter.all),
                         child: const Text('Show all'),
                       ),
                   ],
@@ -982,7 +1084,13 @@ class _HeadAlertsScreenState extends State<HeadAlertsScreen> {
               else
                 ...visible.map(_buildAlertCardSafe),
             ] else if (hasAlerts && hidden > 0) ...[
-              const SfAlertsHealthyEmptyPanel(),
+              if (_error == null)
+                const SfAlertsHealthyEmptyPanel()
+              else
+                const Text(
+                  'Previously loaded reminders are hidden. Retry to verify current alerts.',
+                  style: TextStyle(color: SfColors.muted),
+                ),
               const SizedBox(height: 8),
               Text(
                 '$hidden reminder${hidden == 1 ? '' : 's'} hidden until tomorrow.',
@@ -1007,11 +1115,16 @@ class HeadAnalyticsScreen extends StatefulWidget {
   State<HeadAnalyticsScreen> createState() => _HeadAnalyticsScreenState();
 }
 
-class _HeadAnalyticsScreenState extends State<HeadAnalyticsScreen> {
+class _HeadAnalyticsScreenState extends State<HeadAnalyticsScreen>
+    with LiveRefresh<HeadAnalyticsScreen> {
+  @override
+  Future<void> refreshLiveData() => _load(silent: true);
+
   Map<String, dynamic>? _data;
   String? _error;
   bool _loading = true;
   DateTime? _lastLoaded;
+  int _request = 0;
   late String _month;
 
   @override
@@ -1021,30 +1134,40 @@ class _HeadAnalyticsScreenState extends State<HeadAnalyticsScreen> {
     _load();
   }
 
-  Future<void> _load() async {
+  Future<void> _load({bool silent = false}) async {
+    if (!mounted ||
+        !context.read<AuthProvider>().isAuthenticated ||
+        (silent && _loading)) {
+      return;
+    }
+    final request = ++_request;
     final oid = context.read<AuthProvider>().user!.officeId;
     setState(() {
-      _loading = true;
+      if (!silent) {
+        _loading = true;
+      }
       _error = null;
     });
     try {
-      final data =
-          await context.read<AuthProvider>().api.headAnalytics(oid, _month);
-      if (!mounted) return;
+      final data = await context.read<AuthProvider>().api.headAnalytics(
+        oid,
+        _month,
+      );
+      if (!mounted || request != _request) return;
       setState(() {
         _data = data;
         _loading = false;
         _lastLoaded = DateTime.now();
       });
     } on ApiException catch (e) {
-      if (mounted) {
+      if (mounted && request == _request) {
         setState(() {
           _error = e.message;
           _loading = false;
         });
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && request == _request) {
         setState(() {
           _error = apiErrorMessage(e);
           _loading = false;
@@ -1068,15 +1191,17 @@ class _HeadAnalyticsScreenState extends State<HeadAnalyticsScreen> {
   }
 
   void _openHistory(String docId) {
-    context.push('/head/history', extra: {'documentId': docId});
+    context.push('/head/documents?id=${Uri.encodeQueryComponent(docId)}');
   }
 
   @override
   Widget build(BuildContext context) {
     final stats = _data?['stats'] as Map<String, dynamic>?;
     final slow = _data?['slow_documents'] as List<dynamic>? ?? [];
-    final user = context.watch<AuthProvider>().user!;
-    final monthLabel = _data?['month']?.toString() ??
+    // Keep rebuilding when the signed-in user changes, even though the summary no longer prints the office.
+    context.watch<AuthProvider>();
+    final monthLabel =
+        _data?['month']?.toString() ??
         DateFormat('MMMM yyyy').format(DateTime.parse('$_month-01'));
     final processed = (stats?['processed'] as int?) ?? 0;
     final late = (stats?['late_count'] as int?) ?? 0;
@@ -1085,9 +1210,11 @@ class _HeadAnalyticsScreenState extends State<HeadAnalyticsScreen> {
     final unforwardedCount = (stats?['unforwarded_count'] as int?) ?? 0;
     final delayedCount = (stats?['delayed_count'] as int?) ?? late;
     // Prefer backend-provided breakdown; fallback to legacy residual math.
-    final delayed = (stats?['delayed_percent'] as int?) ??
+    final delayed =
+        (stats?['delayed_percent'] as int?) ??
         (processed > 0 ? ((late / processed) * 100).round() : 0);
-    final unforwarded = (stats?['unforwarded_percent'] as int?) ??
+    final unforwarded =
+        (stats?['unforwarded_percent'] as int?) ??
         (100 - onTime - delayed).clamp(0, 100);
 
     return RefreshIndicator(
@@ -1104,31 +1231,19 @@ class _HeadAnalyticsScreenState extends State<HeadAnalyticsScreen> {
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            SfErrorBanner(message: _error!),
+            SfErrorBanner(
+              message: _data == null
+                  ? 'Analytics unavailable. $_error'
+                  : 'Refresh failed. Previously loaded analytics may be stale. $_error',
+            ),
+            TextButton(onPressed: _load, child: const Text('Retry analytics')),
           ],
           const SizedBox(height: 12),
-          SfFormCard(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Row(
-              children: [
-                const Icon(Icons.calendar_month_rounded,
-                    size: 18, color: SfColors.blue),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    monthLabel,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: _pickMonth,
-                  child: const Text('Change month'),
-                ),
-              ],
-            ),
+          SfNavigationRow(
+            icon: Icons.calendar_month_outlined,
+            title: monthLabel,
+            subtitle: 'Change month',
+            onTap: _pickMonth,
           ),
           if (_loading)
             const Padding(
@@ -1149,23 +1264,17 @@ class _HeadAnalyticsScreenState extends State<HeadAnalyticsScreen> {
               unforwarded: unforwarded,
               delayed: delayed,
               monthLabel: 'Monthly',
+              onTimeFolders: onTimeCount,
+              unforwardedFolders: unforwardedCount,
+              delayedFolders: delayedCount,
             ),
             const SizedBox(height: 12),
+            // The rates and their folder counts are in the tiles above; the summary keeps only what they do not show.
             SfSummaryCard(
               title: 'Office summary',
               rows: [
-                MapEntry('Office', '${user.officeName} (${user.officeCode})'),
                 MapEntry('Month', monthLabel),
                 MapEntry('Documents touched', '$processed'),
-                MapEntry('On time', '$onTime% · $onTimeCount folder${onTimeCount == 1 ? '' : 's'}'),
-                MapEntry(
-                  'Unforwarded',
-                  '$unforwarded% · $unforwardedCount folder${unforwardedCount == 1 ? '' : 's'}',
-                ),
-                MapEntry(
-                  'Delayed',
-                  '$delayed% · $delayedCount folder${delayedCount == 1 ? '' : 's'}',
-                ),
                 MapEntry('Exceeded threshold', '$late'),
               ],
             ),
@@ -1173,25 +1282,25 @@ class _HeadAnalyticsScreenState extends State<HeadAnalyticsScreen> {
             SfSecondaryOutlineButton(
               label: 'Open overdue in queue',
               icon: SfIcons.headQueueActive,
-              onPressed: () => context.go(
-                '/head/queue',
-                extra: {'filter': 'overdue'},
-              ),
+              onPressed: () =>
+                  context.go('/head/queue', extra: {'filter': 'overdue'}),
             ),
           ],
           const SizedBox(height: 16),
           Row(
             children: [
-              const Text(
-                'Slow documents',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+              const Expanded(
+                child: Text(
+                  'Slow documents',
+                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 12),
               if (slow.isNotEmpty)
                 Text(
                   'Top ${slow.length.clamp(0, 5)}',
                   style: const TextStyle(
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: SfColors.muted,
                   ),
@@ -1199,11 +1308,16 @@ class _HeadAnalyticsScreenState extends State<HeadAnalyticsScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          if (!_loading && slow.isEmpty)
+          if (!_loading && _error == null && stats != null && slow.isEmpty)
             const SfEmptyState(
               icon: Icons.speed_rounded,
               title: 'No slow documents',
               subtitle: 'All processed items met the threshold this month.',
+            )
+          else if (!_loading && _error != null && slow.isEmpty)
+            const SfInfoBanner(
+              text:
+                  'Slow-document results are unavailable. Retry to verify this month’s activity.',
             )
           else
             ...slow.map((d) {
@@ -1213,8 +1327,10 @@ class _HeadAnalyticsScreenState extends State<HeadAnalyticsScreen> {
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: SfFormCard(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   child: InkWell(
                     onTap: id.isNotEmpty ? () => _openHistory(id) : null,
                     child: Row(
@@ -1247,7 +1363,7 @@ class _HeadAnalyticsScreenState extends State<HeadAnalyticsScreen> {
                               Text(
                                 '${hours}h at office · tap for history',
                                 style: const TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 12,
                                   color: SfColors.muted,
                                 ),
                               ),
@@ -1269,10 +1385,10 @@ class _HeadAnalyticsScreenState extends State<HeadAnalyticsScreen> {
           if (_lastLoaded != null && !_loading) ...[
             const SizedBox(height: 16),
             Text(
-              'Updated ${formatSmartflowTime(_lastLoaded!.toIso8601String())} · pull to refresh',
+              '${_error == null ? 'Updated' : 'Last successful update'} ${formatSmartflowTime(_lastLoaded!.toIso8601String())} · pull to refresh',
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 10,
+                fontSize: 12,
                 color: SfColors.muted,
                 fontWeight: FontWeight.w600,
               ),

@@ -1,8 +1,13 @@
 # Start Android emulator (after you create an AVD in Android Studio once)
+# Usage: .\scripts\start-emulator.ps1 -ColdBoot (ignore the saved emulator snapshot)
+param(
+    [switch]$ColdBoot
+)
+
 $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
 $env:Path = "$env:ANDROID_HOME\emulator;$env:ANDROID_HOME\platform-tools;C:\src\flutter\bin;" + $env:Path
 
-$avds = & "$env:ANDROID_HOME\emulator\emulator.exe" -list-avds 2>$null
+$avds = @(& "$env:ANDROID_HOME\emulator\emulator.exe" -list-avds 2>$null)
 if (-not $avds -or $avds.Count -eq 0) {
     Write-Host "No emulator found. In Android Studio:" -ForegroundColor Yellow
     Write-Host "  More Actions (3 dots) -> Virtual Device Manager -> Create Device"
@@ -12,7 +17,11 @@ if (-not $avds -or $avds.Count -eq 0) {
 }
 
 $name = $avds[0]
+$emulatorArguments = @("-avd", $name)
+if ($ColdBoot) {
+    $emulatorArguments += "-no-snapshot-load"
+}
 Write-Host "Starting emulator: $name"
-Start-Process -FilePath "$env:ANDROID_HOME\emulator\emulator.exe" -ArgumentList "-avd", $name
+Start-Process -FilePath "$env:ANDROID_HOME\emulator\emulator.exe" -ArgumentList $emulatorArguments
 Write-Host "Wait until home screen appears, then run:"
 Write-Host '  .\scripts\run-flutter.ps1'

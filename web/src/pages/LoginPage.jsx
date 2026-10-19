@@ -1,14 +1,16 @@
 import { useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import { AuthShell } from '../components/ui.jsx'
 import { homePath } from '../tracking.js'
 
-/** Twin of Flutter Get Started + Login — same strap, pitch, fields, links, footer. */
 export default function LoginPage() {
-  const { isAuthenticated, user, login } = useAuth()
+  const { isAuthenticated, user, login, sessionMessage } = useAuth()
   const navigate = useNavigate()
+  const { state } = useLocation()
+  const destination = typeof state?.from === 'string' && /^\/documents(?:\?|$)/.test(state.from) ? state.from : null
+  const notice = typeof state?.notice === 'string' ? state.notice : ''
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -16,7 +18,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
 
   if (isAuthenticated) {
-    return <Navigate to={homePath(user?.role)} replace />
+    return <Navigate to={destination || homePath(user?.role)} replace />
   }
 
   async function onSubmit(e) {
@@ -25,12 +27,13 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const path = await login(username.trim(), password)
-      navigate(path, { replace: true })
+      navigate(destination || path, { replace: true })
     } catch (err) {
       const msg = err instanceof ApiError
         ? err.message
-        : (err?.message === 'Failed to fetch'
-          ? 'Cannot connect to the municipal portal right now. Confirm the office network service is running, then try again.'
+        : (/^(Connection interrupted|Cannot reach|Failed to fetch)/.test(err?.message || '')
+          // Sign-in records nothing, so the shared "check whether the action was recorded" wording would mislead here.
+          ? 'Cannot connect to the municipal portal right now. You are not signed in. Check the office network, then try again.'
           : (err?.message || 'Could not sign in'))
       setError(msg)
     } finally {
@@ -42,11 +45,18 @@ export default function LoginPage() {
     <AuthShell
       layout="split"
       welcome="Inter-office document tracking"
-      strap="Official portal · Authorized users"
+      strap="Office account"
       title="Sign in"
-      body="Secure QR handoffs and custody records for the Municipality of Urbiztondo — for accountability and COA preparation."
+      body="Sign in with your office account to track folders and requests."
+      points={[
+        'Find which office holds a folder now',
+        'Follow request tickets between offices',
+        'Staff record handoffs; heads and administrators monitor',
+      ]}
     >
       <form className="form-card auth-split__form" onSubmit={onSubmit}>
+        {notice && !error && !sessionMessage ? <div className="ok" role="status">{notice}</div> : null}
+        {sessionMessage && !error ? <div className="error" role="alert">{sessionMessage}</div> : null}
         {error ? <div className="error" role="alert">{error}</div> : null}
         <div className="field">
           <label htmlFor="sf-login-user">Username</label>
@@ -78,17 +88,19 @@ export default function LoginPage() {
               {showPassword ? 'Hide' : 'Show'}
             </button>
           </div>
+          <div className="auth-forgot"><Link to="/forgot-password">Forgot password?</Link></div>
         </div>
         <button className="btn btn--navy" type="submit" disabled={loading}>
           {loading ? 'Signing in…' : 'Sign in'}
         </button>
-        <p className="auth-session-note">
-          Sessions and custody events are logged for municipal accountability.
-        </p>
-        <div className="auth-links">
-          <Link to="/forgot-password">Forgot password?</Link>
-          <Link to="/signup">Request access</Link>
+        <div className="auth-newuser">
+          <span>No account yet?</span>
+          <div className="auth-links">
+            <Link to="/signup">Request access</Link>
+            <Link to="/signup/pending">Check access request</Link>
+          </div>
         </div>
+        <p className="auth-session-note">Sign-ins are recorded.</p>
       </form>
     </AuthShell>
   )

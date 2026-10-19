@@ -1,4 +1,8 @@
 # Secrets
+/backups/
+**/.qr-secret
+**/cache/rate_limit/
+**/logs/
 .env
 **/.env
 !.env.example
@@ -30,6 +34,9 @@ Desktop.ini
 # Local dumps / screenshots
 sf-screen*.png
 sf-screen*.jpg
+# Local manifest for temporary controlled-overdue fixtures (no tokens).
+scripts/overdue-test-fixture.json
+scripts/head-test-fixture.json
 
 # Paper PDFs / Word files (kept locally, not in git)
 docs/thesis/files/
@@ -37,3 +44,18 @@ docs/thesis/files/
 # Figma import scratch output (regenerate with node mobile-mock/_build-batch.js)
 mobile-mock/_figma-batch/
 _archive/mobile-mock-figma-batch/
+
+# Web mock capture scratch (regenerate with node web-mock/scripts/capture.mjs)
+web-mock/_previews/
+web-mock/harness/.vite/
+scripts/mobile-qr-fixture.json
+scripts/digital-transfer-fixture.json
+scripts/partial-coverage-fixture.json
+web/.vite-cache/
+scripts/ui-followup-fixture.json
+backups-qr-contents/
+
+# Local evidence, temporary fixtures and agent state (large; never commit)
+/.runtime/
+/.run/
+/.claude/

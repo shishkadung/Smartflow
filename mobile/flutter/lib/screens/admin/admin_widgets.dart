@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -34,6 +35,7 @@ class SfAdminPageOverviewCard extends StatelessWidget {
     this.pendingSignups,
     this.pendingInbox,
     this.compact,
+    this.bodyOverride,
   });
 
   final SfAdminScreen screen;
@@ -42,6 +44,9 @@ class SfAdminPageOverviewCard extends StatelessWidget {
 
   /// When null, ops/config screens default to compact; Home / Reports / Profile stay full.
   final bool? compact;
+
+  /// A screen may describe its active filters using the shared overview style.
+  final String? bodyOverride;
 
   static bool _defaultCompact(SfAdminScreen screen) {
     switch (screen) {
@@ -73,14 +78,16 @@ class SfAdminPageOverviewCard extends StatelessWidget {
 
     switch (screen) {
       case SfAdminScreen.home:
-        title = 'Municipal dashboard';
+        title = 'Dashboard';
         body = 'Active custody across municipal offices.';
       case SfAdminScreen.scan:
         title = 'Scan';
-        body = 'Mark IN when a folder arrives at your office, or OUT when you send it.';
+        body =
+            'Receive (IN) when a folder arrives at your office, or Send (OUT) when you send it.';
       case SfAdminScreen.register:
         title = 'Register';
-        body = 'New folder for your office. Print the QR and attach it to the folder.';
+        body =
+            'New folder for your office. Your QR stays available in SmartFlow.';
       case SfAdminScreen.users:
         title = 'Users';
         body = 'Approve sign-ups and activate or deactivate accounts.';
@@ -97,15 +104,14 @@ class SfAdminPageOverviewCard extends StatelessWidget {
         title = 'Account & security';
         body = 'Photo, name, email, password, or sign out.';
       case SfAdminScreen.reports:
-        title = 'COA reports';
-        body =
-            'Monthly or annual handoff metrics from scan logs — not a financial review.';
+        title = 'Custody reports';
+        body = 'Handoff metrics by month, quarter, or year.';
       case SfAdminScreen.thresholds:
-        title = 'Thresholds';
-        body = 'Max hours per office and document type.';
+        title = 'Alert time limits';
+        body = 'When processing or a missing receipt should be flagged.';
       case SfAdminScreen.qrMonitor:
         title = 'QR monitor';
-        body = 'Accepted and rejected scans (last 48 hours).';
+        body = 'Accepted and rejected scans in the selected time window.';
       case SfAdminScreen.requests:
         title = 'Requests';
         body =
@@ -117,11 +123,10 @@ class SfAdminPageOverviewCard extends StatelessWidget {
 
     return SfPageOverviewCard(
       title: title,
-      body: body,
+      body: bodyOverride ?? body,
       compact: useCompact,
     );
   }
-
 }
 
 /// Municipal stat row for admin home — tap tiles for related screens.
@@ -150,39 +155,28 @@ class SfAdminStatRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
+        SfStatStrip(
           children: [
-            Expanded(
-              child: _tappable(
-                onTap: onActiveDocsTap,
-                child: SfStatCard(
-                  value: '$activeDocs',
-                  label: 'Active',
-                  color: SfColors.countInk(activeDocs, live: SfColors.blue),
-                ),
-              ),
+            SfDashboardStatCell(
+              value: '$activeDocs',
+              label: 'Active',
+              sublabel: 'Across offices',
+              color: SfColors.navy,
+              onTap: onActiveDocsTap,
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _tappable(
-                onTap: onOverdueTap,
-                child: SfStatCard(
-                  value: '$overdue',
-                  label: 'Overdue',
-                  color: SfColors.countInk(overdue, live: SfColors.red),
-                ),
-              ),
+            SfDashboardStatCell(
+              value: '$overdue',
+              label: 'Overdue',
+              sublabel: 'Follow up',
+              color: SfColors.countInk(overdue, live: SfColors.red),
+              onTap: onOverdueTap,
             ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: _tappable(
-                onTap: onPendingTap,
-                child: SfStatCard(
-                  value: '$pendingSignups',
-                  label: 'Sign-ups',
-                  color: SfColors.navy,
-                ),
-              ),
+            SfDashboardStatCell(
+              value: '$pendingSignups',
+              label: 'Sign-ups',
+              sublabel: 'Awaiting review',
+              color: SfColors.navy,
+              onTap: onPendingTap,
             ),
           ],
         ),
@@ -191,25 +185,13 @@ class SfAdminStatRow extends StatelessWidget {
           Text(
             hint!,
             style: const TextStyle(
-              fontSize: 11,
+              fontSize: 12,
               color: SfColors.muted,
               height: 1.35,
             ),
           ),
         ],
       ],
-    );
-  }
-
-  Widget _tappable({VoidCallback? onTap, required Widget child}) {
-    if (onTap == null) return child;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: child,
-      ),
     );
   }
 }
@@ -256,8 +238,8 @@ class SfAdminSystemStatusBanner extends StatelessWidget {
               Expanded(
                 child: Text(
                   apiOnline
-                      ? 'API online · municipal system reachable'
-                      : 'API offline · check XAMPP / LAN before demos',
+                      ? 'System online · municipal services available'
+                      : 'Services unavailable · contact your administrator',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -278,90 +260,19 @@ class SfAdminSystemStatusBanner extends StatelessWidget {
 
 /// Attention CTA when sign-ups are waiting — Users / COA / tools live in tabs + Menu.
 class SfAdminStartHereCard extends StatelessWidget {
-  const SfAdminStartHereCard({
-    super.key,
-    required this.pendingSignups,
-  });
+  const SfAdminStartHereCard({super.key, required this.pendingSignups});
 
   final int pendingSignups;
 
   @override
   Widget build(BuildContext context) {
-    if (pendingSignups <= 0) {
-      return const SizedBox.shrink();
-    }
-
-    return Material(
-      color: SfColors.paper,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: () => context.go('/admin/users'),
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: SfColors.gold.withValues(alpha: 0.4),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: SfColors.ink.withValues(alpha: 0.04),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: SfColors.gold.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.person_add_alt_1_rounded,
-                  color: SfColors.gold,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Review sign-up requests',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 14,
-                        color: SfColors.ink,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$pendingSignups pending approval',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: SfColors.muted,
-                        height: 1.35,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                size: 20,
-                color: SfColors.muted,
-              ),
-            ],
-          ),
-        ),
-      ),
+    if (pendingSignups <= 0) return const SizedBox.shrink();
+    return SfNavigationRow(
+      icon: Icons.person_add_alt_1_outlined,
+      title: 'Sign-up requests',
+      subtitle: '$pendingSignups pending approval',
+      subtitleColor: SfColors.gold,
+      onTap: () => context.go('/admin/users'),
     );
   }
 }
@@ -386,80 +297,62 @@ class SfAdminOfficeHealthTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dept = SfColors.dept(code);
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: SfFormCard(
         padding: EdgeInsets.zero,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border(
-                left: BorderSide(color: dept, width: 4),
-              ),
-            ),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            // The status sits beside the name instead of on its own row, so each office takes about a third less height.
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         name,
                         style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
                           color: SfColors.ink,
                         ),
                       ),
+                      const SizedBox(height: 4),
                       Text(
-                        code,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: dept,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '$inOffice on desk · $overdue overdue',
+                        '$code · $inOffice on desk · $overdue overdue',
                         style: const TextStyle(
-                          fontSize: 11,
+                          fontSize: 13,
                           color: SfColors.muted,
-                          height: 1.35,
+                          height: 1.4,
                         ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                if (overdue > 0)
-                  const SfStatusPill(
-                    label: 'Follow up',
-                    tone: SfPillTone.warning,
-                  )
-                else if (inOffice == 0 && docsProcessed == 0)
-                  const SfStatusPill(
-                    label: 'No activity',
-                    tone: SfPillTone.neutral,
-                  )
-                else
-                  const SfStatusPill(label: 'On track', tone: SfPillTone.success),
-                const SizedBox(width: 4),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 18,
-                  color: SfColors.muted,
+                SfStatusPill(
+                  label: overdue > 0
+                      ? 'Follow up'
+                      : inOffice == 0 && docsProcessed == 0
+                      ? 'No activity'
+                      : 'On track',
+                  tone: overdue > 0
+                      ? SfPillTone.warning
+                      : inOffice == 0 && docsProcessed == 0
+                      ? SfPillTone.neutral
+                      : SfPillTone.success,
                 ),
+                if (onTap != null)
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 20,
+                    color: SfColors.muted,
+                  ),
               ],
             ),
           ),
@@ -475,11 +368,15 @@ class SfAdminPendingSignupCard extends StatelessWidget {
     required this.request,
     required this.onApprove,
     required this.onReject,
+    this.enabled = true,
+    this.pendingAction,
   });
 
   final Map<String, dynamic> request;
   final VoidCallback onApprove;
   final VoidCallback onReject;
+  final bool enabled;
+  final String? pendingAction;
 
   @override
   Widget build(BuildContext context) {
@@ -502,20 +399,21 @@ class SfAdminPendingSignupCard extends StatelessWidget {
                   child: Text(
                     username,
                     style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
                       color: SfColors.ink,
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 const SfStatusPill(label: 'Pending', tone: SfPillTone.warning),
               ],
             ),
             const SizedBox(height: 6),
             Text(
-              'Wants $role · $office${officeCode.isNotEmpty ? ' ($officeCode)' : ''}',
+              'Requested role: $role\n$office${officeCode.isNotEmpty ? ' ($officeCode)' : ''}',
               style: const TextStyle(
-                fontSize: 12,
+                fontSize: 13,
                 color: SfColors.muted,
                 height: 1.35,
               ),
@@ -525,29 +423,57 @@ class SfAdminPendingSignupCard extends StatelessWidget {
               Text(
                 code,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: SfColors.navy,
                 ),
               ),
             ],
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: SfSecondaryOutlineButton(
-                    label: 'Reject',
-                    onPressed: onReject,
-                  ),
+            if (pendingAction != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  pendingAction == 'approve'
+                      ? 'Approving sign-up…'
+                      : 'Rejecting sign-up…',
+                  style: const TextStyle(color: SfColors.muted, fontSize: 13),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: SfPrimaryButton(
-                    label: 'Approve',
-                    onPressed: onApprove,
-                  ),
-                ),
-              ],
+              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final stacked =
+                    constraints.maxWidth < 300 ||
+                    MediaQuery.textScalerOf(context).scale(1) > 1.3;
+                final width = stacked
+                    ? constraints.maxWidth
+                    : (constraints.maxWidth - 10) / 2;
+                return Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    SizedBox(
+                      width: width,
+                      child: SfSecondaryOutlineButton(
+                        label: pendingAction == 'reject'
+                            ? 'Rejecting…'
+                            : 'Reject',
+                        onPressed: enabled ? onReject : null,
+                      ),
+                    ),
+                    SizedBox(
+                      width: width,
+                      child: SfPrimaryButton(
+                        label: pendingAction == 'approve'
+                            ? 'Approving…'
+                            : 'Approve',
+                        loading: pendingAction == 'approve',
+                        onPressed: enabled ? onApprove : null,
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           ],
         ),
@@ -556,11 +482,154 @@ class SfAdminPendingSignupCard extends StatelessWidget {
   }
 }
 
-/// Active / inactive municipal user row — job-first card (not a plain ListTile).
+/// Municipal account row with actions kept below the account details.
+const _generatedEmailDomain = '@urbiztondo.gov.ph';
+
+/// Addresses generated from the username were never confirmed by their owner, so they are flagged.
+bool sfEmailNeedsCheck(Map<String, dynamic> user) {
+  final email = (user['email']?.toString() ?? '').trim().toLowerCase();
+  final username = (user['username']?.toString() ?? '').toLowerCase();
+  return email.isEmpty || email == '$username$_generatedEmailDomain';
+}
+
+/// Same scope as the web Manage action: staff and head accounts only (administrators use Profile).
+bool sfAdminCanManageUser(Map<String, dynamic> user) {
+  final role = user['role']?.toString();
+  return role == 'staff' || role == 'head';
+}
+
+/// Temporary passwords are for active staff or head accounts other than the signed-in administrator.
+bool sfAdminCanResetPassword(Map<String, dynamic> user, int? selfId) =>
+    sfAdminCanManageUser(user) &&
+    user['is_active'] == true &&
+    user['id'] != selfId;
+
+final RegExp sfEmailPattern = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]{2,}$');
+
+/// Shows an administrator-issued temporary password once, in groups of four so it is easy to read aloud.
+class SfTemporaryPasswordDialog extends StatefulWidget {
+  const SfTemporaryPasswordDialog({
+    super.key,
+    required this.name,
+    required this.username,
+    required this.password,
+    this.expires,
+  });
+
+  final String name;
+  final String username;
+  final String password;
+  final String? expires;
+
+  static String grouped(String value) => RegExp(
+    '.{1,4}',
+  ).allMatches(value).map((m) => m.group(0)).join(' ');
+
+  @override
+  State<SfTemporaryPasswordDialog> createState() =>
+      _SfTemporaryPasswordDialogState();
+}
+
+class _SfTemporaryPasswordDialogState extends State<SfTemporaryPasswordDialog> {
+  bool _copied = false;
+
+  Future<void> _copy() async {
+    await Clipboard.setData(ClipboardData(text: widget.password));
+    if (mounted) setState(() => _copied = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      // The password cannot be shown again, so it is closed only by the explicit button.
+      canPop: false,
+      child: AlertDialog(
+        title: const Text('Temporary password'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('For ${widget.name} (@${widget.username}):'),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: SfColors.bg2,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: SfColors.border),
+                ),
+                child: SelectableText(
+                  SfTemporaryPasswordDialog.grouped(widget.password),
+                  key: const Key('temporary-password'),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontFamily: 'monospace',
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: _copy,
+                  icon: const Icon(Icons.copy_rounded, size: 18),
+                  label: Text(_copied ? 'Copied' : 'Copy password'),
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Share it privately (in person or by phone), never by chat or email. '
+                'It is shown only once, expires in 24 hours, and the user must choose a new password at their next sign-in.',
+                style: TextStyle(fontSize: 13, color: SfColors.muted, height: 1.4),
+              ),
+              if (widget.expires != null && widget.expires!.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  'Expires ${widget.expires}.',
+                  style: const TextStyle(fontSize: 13, color: SfColors.muted),
+                ),
+              ],
+              const SizedBox(height: 6),
+              const Text(
+                'Their other sessions were signed out and the old password no longer works.',
+                style: TextStyle(fontSize: 13, color: SfColors.muted, height: 1.4),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('I have shared it'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class SfAdminUserCard extends StatelessWidget {
-  const SfAdminUserCard({super.key, required this.user});
+  const SfAdminUserCard({
+    super.key,
+    required this.user,
+    this.onToggleActive,
+    this.busy = false,
+    this.isSelf = false,
+    this.onManage,
+  });
 
   final Map<String, dynamic> user;
+  final VoidCallback? onToggleActive;
+  final bool busy;
+  final bool isSelf;
+
+  /// Opens the Manage sheet (edit reset email, temporary password) for staff and head accounts.
+  final VoidCallback? onManage;
 
   @override
   Widget build(BuildContext context) {
@@ -571,59 +640,144 @@ class SfAdminUserCard extends StatelessWidget {
     final active = user['is_active'] as bool? ?? true;
     final dept = SfColors.dept(code.isNotEmpty ? code : 'ENG');
 
+    final avatar = Container(
+      width: 40,
+      height: 40,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: dept.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        code.isNotEmpty ? code.substring(0, code.length.clamp(0, 3)) : '?',
+        style: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: dept,
+        ),
+      ),
+    );
+    final identity = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          username,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+            color: SfColors.ink,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          '$role · $office',
+          style: const TextStyle(
+            fontSize: 13,
+            color: SfColors.muted,
+            height: 1.4,
+          ),
+        ),
+      ],
+    );
+    final pill = SfStatusPill(
+      label: active ? 'Active' : 'Inactive',
+      tone: active ? SfPillTone.success : SfPillTone.neutral,
+    );
+    final action = isSelf
+        ? const Text(
+            'Your account',
+            style: TextStyle(fontSize: 12, color: SfColors.muted),
+          )
+        : TextButton.icon(
+            onPressed: busy ? null : onToggleActive,
+            icon: Icon(
+              active ? Icons.person_off_outlined : Icons.person_add_alt_1,
+              size: 17,
+            ),
+            label: Text(
+              busy
+                  ? 'Updating…'
+                  : active
+                  ? 'Deactivate'
+                  : 'Activate',
+            ),
+          );
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: SfFormCard(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: dept.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                code.isNotEmpty ? code.substring(0, code.length.clamp(0, 3)) : '?',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: dept,
-                ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        child: InkWell(
+          onTap: onManage,
+          borderRadius: BorderRadius.circular(12),
+          child: Semantics(
+            button: onManage != null,
+            hint: onManage != null ? 'Opens account management' : null,
+            child: LayoutBuilder(
+          builder: (context, constraints) {
+            // Wide enough and normal text size: identity on the left, status and action stacked on the right.
+            // Narrow screens or enlarged text keep the stacked layout so nothing overflows.
+            final roomy =
+                constraints.maxWidth >= 330 &&
+                MediaQuery.textScalerOf(context).scale(14) <= 16;
+            if (roomy) {
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    username,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      fontSize: 14,
-                      color: SfColors.ink,
-                    ),
+                  avatar,
+                  const SizedBox(width: 12),
+                  Expanded(child: identity),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      pill,
+                      if (isSelf)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: action,
+                        )
+                      else
+                        action,
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '$role · $office',
-                    style: const TextStyle(
-                      fontSize: 12,
+                  if (onManage != null)
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
                       color: SfColors.muted,
-                      height: 1.3,
                     ),
-                  ),
                 ],
-              ),
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    avatar,
+                    const SizedBox(width: 12),
+                    Expanded(child: identity),
+                    if (onManage != null)
+                      const Icon(
+                        Icons.chevron_right_rounded,
+                        size: 20,
+                        color: SfColors.muted,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [pill, action],
+                ),
+              ],
+            );
+          },
             ),
-            SfStatusPill(
-              label: active ? 'Active' : 'Inactive',
-              tone: active ? SfPillTone.success : SfPillTone.neutral,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -650,7 +804,12 @@ class SfAdminProfileQuickLinks extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: _link(context, SfIcons.adminUsers, 'Users', '/admin/users'),
+              child: _link(
+                context,
+                SfIcons.adminUsers,
+                'Users',
+                '/admin/users',
+              ),
             ),
           ],
         ),
@@ -661,7 +820,7 @@ class SfAdminProfileQuickLinks extends StatelessWidget {
               child: _link(
                 context,
                 SfIcons.adminCoaSummary,
-                'COA summary',
+                'Custody summary',
                 '/admin/reports',
               ),
             ),
@@ -701,7 +860,7 @@ class SfAdminProfileQuickLinks extends StatelessWidget {
               Text(
                 label,
                 style: const TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -724,10 +883,9 @@ class SfCoaExportHero extends StatelessWidget {
     super.key,
     required this.monthLabel,
     required this.exportAllowed,
-    required this.onTimePercent,
-    required this.delayedPercent,
     required this.docsInPeriod,
     required this.onExport,
+    this.onPrint,
     this.submissionNote = '',
     this.onChangeMonth,
     this.pickerLabel = 'Month',
@@ -735,292 +893,86 @@ class SfCoaExportHero extends StatelessWidget {
 
   final String monthLabel;
   final bool exportAllowed;
-  final int onTimePercent;
-  final int delayedPercent;
   final int docsInPeriod;
-  final VoidCallback onExport;
+  final VoidCallback? onExport;
+  final VoidCallback? onPrint;
   final String submissionNote;
   final VoidCallback? onChangeMonth;
   final String pickerLabel;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: SfColors.paper,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x1A0B1F3A)),
-        boxShadow: [
-          BoxShadow(
-            color: SfColors.ink.withValues(alpha: 0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (onChangeMonth != null) ...[
+          SfNavigationRow(
+            icon: Icons.calendar_month_outlined,
+            title: monthLabel,
+            subtitle: 'Change ${pickerLabel.toLowerCase()}',
+            onTap: onChangeMonth!,
           ),
+          const SizedBox(height: 12),
         ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            width: double.infinity,
-            clipBehavior: Clip.antiAlias,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFFFFFFF),
-                  Color(0xFFF5F8FC),
-                  Color(0xFFEEF3FA),
-                ],
-                stops: [0.0, 0.55, 1.0],
-              ),
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  right: -28,
-                  top: -36,
-                  child: IgnorePointer(
-                    child: Container(
-                      width: 110,
-                      height: 110,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            SfColors.blue.withValues(alpha: 0.10),
-                            SfColors.blue.withValues(alpha: 0.0),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: -20,
-                  bottom: -28,
-                  child: IgnorePointer(
-                    child: Container(
-                      width: 88,
-                      height: 88,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            SfColors.rule.withValues(alpha: 0.22),
-                            SfColors.rule.withValues(alpha: 0.0),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  top: 12,
-                  bottom: 12,
-                  child: Container(
-                    width: 3,
-                    decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.horizontal(
-                        right: Radius.circular(3),
-                      ),
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          SfColors.rule.withValues(alpha: 0.35),
-                          SfColors.gold,
-                          SfColors.rule.withValues(alpha: 0.45),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 16, 12, 16),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'COA SUPPORT SUMMARY',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.0,
-                                color: SfColors.gold.withValues(alpha: 0.95),
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              monthLabel,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w700,
-                                    color: SfColors.navy,
-                                    height: 1.15,
-                                  ),
-                            ),
-                            const SizedBox(height: 6),
-                            Container(
-                              width: 28,
-                              height: 2,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(2),
-                                gradient: const LinearGradient(
-                                  colors: [SfColors.gold, Color(0x00B8860B)],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 7),
-                            Text(
-                              '$docsInPeriod documents with activity · municipal system',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: SfColors.muted,
-                                height: 1.35,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (onChangeMonth != null)
-                        TextButton(
-                          onPressed: onChangeMonth,
-                          style: TextButton.styleFrom(
-                            foregroundColor: SfColors.gold,
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                          ),
-                          child: Text(
-                            pickerLabel,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _CoaStatChip(
-                        label: 'On time',
-                        value: '$onTimePercent%',
-                        tone: SfColors.green,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _CoaStatChip(
-                        label: 'Delayed',
-                        value: '$delayedPercent%',
-                        tone: SfColors.red,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _CoaStatChip(
-                        label: 'Export',
-                        value: exportAllowed ? 'Ready' : 'Locked',
-                        tone: exportAllowed ? SfColors.blue : SfColors.muted,
-                      ),
-                    ),
-                  ],
-                ),
-                if (submissionNote.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    submissionNote,
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      color: SfColors.muted,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 14),
-                if (exportAllowed)
-                  SfPrimaryButton(
-                    label: 'Copy summary for COA',
-                    onPressed: onExport,
-                  )
-                else
+        SfFormCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
                   const Text(
-                    'Only Accounting administrators can copy municipal COA summaries.',
-                    style: TextStyle(fontSize: 12, color: SfColors.muted, height: 1.4),
+                    'Report export',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
                   ),
+                  SfStatusPill(
+                    label: exportAllowed ? 'Ready' : 'Restricted',
+                    tone: exportAllowed
+                        ? SfPillTone.success
+                        : SfPillTone.neutral,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                '$docsInPeriod documents with activity',
+                style: const TextStyle(fontSize: 13, color: SfColors.muted),
+              ),
+              if (submissionNote.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text(
+                  submissionNote,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: SfColors.muted,
+                    height: 1.4,
+                  ),
+                ),
               ],
-            ),
+              const SizedBox(height: 14),
+              if (exportAllowed) ...[
+                SfPrimaryButton(label: 'Download CSV', onPressed: onExport),
+                const SizedBox(height: 8),
+                SfSecondaryOutlineButton(
+                  label: 'Print / Save PDF',
+                  icon: Icons.print_outlined,
+                  onPressed: onPrint,
+                ),
+              ] else
+                const Text(
+                  'Accounting administrators can export municipal COA summaries.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: SfColors.muted,
+                    height: 1.4,
+                  ),
+                ),
+            ],
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CoaStatChip extends StatelessWidget {
-  const _CoaStatChip({
-    required this.label,
-    required this.value,
-    required this.tone,
-  });
-
-  final String label;
-  final String value;
-  final Color tone;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: tone.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: tone.withValues(alpha: 0.22)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-              color: tone,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: tone == SfColors.muted ? SfColors.ink : tone,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

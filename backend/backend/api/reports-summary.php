@@ -10,6 +10,7 @@
 
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/report-period-helper.php';
+require_once __DIR__ . '/report-export-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response([
@@ -21,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 $userId = require_user_id();
 
 $stmtUser = $pdo->prepare('
-    SELECT u.role, u.office_id, o.code AS office_code
+    SELECT u.role, u.name, u.office_id, o.name AS office_name, o.code AS office_code
     FROM users u
     JOIN offices o ON o.id = u.office_id
     WHERE u.id = :id AND u.is_active = 1
@@ -36,6 +37,9 @@ if (!$caller || $caller['role'] !== 'admin') {
     ], 403);
 }
 $exportAllowed = strtoupper((string)$caller['office_code']) === 'ACC';
+$format = $_GET['format'] ?? 'json';
+if (!in_array($format, ['json', 'csv', 'print'], true)) json_response(['success' => false, 'message' => 'Invalid report format'], 400);
+if ($format !== 'json' && !$exportAllowed) json_response(['success' => false, 'message' => 'Only Accounting administrators can export municipal summaries'], 403);
 
 $officeId = (int)($_GET['office_id'] ?? 0);
 if ($officeId <= 0) {
@@ -51,10 +55,12 @@ $month = $range['month'];
 $quarter = $range['quarter'];
 $year = $range['year'];
 $monthStart = $range['start'];
-$monthEnd = $range['end'];
+$monthEnd = min($range['end'], date('Y-m-d H:i:s'));
 $periodLabel = $range['label'];
 
 // Total documents that had any activity this month.
+$pdo->exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
+$pdo->beginTransaction();
 $stmtTotal = $pdo->prepare('
     SELECT COUNT(DISTINCT document_id) AS c
     FROM movements
@@ -83,10 +89,10 @@ foreach ($docIds as $docId) {
     $stmtMv = $pdo->prepare('
         SELECT status, scanned_at
         FROM movements
-        WHERE document_id = :id
+        WHERE document_id = :id AND scanned_at <= :end
         ORDER BY scanned_at ASC, id ASC
     ');
-    $stmtMv->execute([':id' => $docId]);
+    $stmtMv->execute([':id' => $docId, ':end' => $monthEnd]);
     $mvs = $stmtMv->fetchAll();
     if (!$mvs) {
         continue;
@@ -94,6 +100,7 @@ foreach ($docIds as $docId) {
 
     $lastOut = null;
     $matchedOnTime = false;
+    $matchedLate = false;
     $hadIn = false;
     $hadOut = false;
 
@@ -105,8 +112,9 @@ foreach ($docIds as $docId) {
             $hadIn = true;
             if ($lastOut !== null) {
                 $hours = (strtotime($m['scanned_at']) - strtotime($lastOut)) / 3600;
-                if ($hours <= 72) {
-                    $matchedOnTime = true;
+                if ($m['scanned_at'] >= $monthStart) {
+                    if ($hours <= 72) $matchedOnTime = true;
+                    else $matchedLate = true;
                 }
                 $lastOut = null;
             }
@@ -115,12 +123,14 @@ foreach ($docIds as $docId) {
 
     $lastStatus = $mvs[count($mvs) - 1]['status'];
 
-    if ($lastStatus === 'OUT') {
+    if ($matchedLate) {
+        $delayed++;
+    } elseif ($lastStatus === 'OUT') {
         // Forwarded; next office has not scanned IN yet.
         $unforwarded++;
     } elseif ($matchedOnTime) {
         $onTime++;
-    } elseif ($hadIn && !$hadOut) {
+    } elseif ($hadIn) {
         // Only received at an office (e.g. after register + IN scan) — still in process, not delayed.
         $onTime++;
     } else {
@@ -128,9 +138,23 @@ foreach ($docIds as $docId) {
     }
 }
 
-$pct = function (int $n) use ($totalDocs): int {
-    return $totalDocs > 0 ? (int)round(($n / $totalDocs) * 100) : 0;
-};
+// Allocate rounding remainders so non-empty reports always total 100%.
+$counts = [$onTime, $unforwarded, $delayed];
+$percentages = [0, 0, 0];
+if ($totalDocs > 0) {
+    $remainders = [];
+    foreach ($counts as $i => $count) {
+        $exact = $count * 100 / $totalDocs;
+        $percentages[$i] = (int)floor($exact);
+        $remainders[$i] = $exact - $percentages[$i];
+    }
+    arsort($remainders);
+    $missing = 100 - array_sum($percentages);
+    foreach (array_keys($remainders) as $i) {
+        if ($missing-- <= 0) break;
+        $percentages[$i]++;
+    }
+}
 
 // Office totals: count of distinct documents that touched each office this month.
 $stmtOffices = $pdo->prepare('
@@ -161,8 +185,9 @@ $stmtThis = $pdo->prepare('
 ');
 $stmtThis->execute([':oid' => $officeId, ':start' => $monthStart, ':end' => $monthEnd]);
 $thisOfficeDocs = (int)($stmtThis->fetch()['c'] ?? 0);
+$pdo->commit();
 
-json_response([
+$report = [
     'success' => true,
     'period'  => $period,
     'month'   => $month,
@@ -171,6 +196,12 @@ json_response([
     'period_label' => $periodLabel,
     'office_id' => $officeId,
     'export_allowed' => $exportAllowed,
+    'generated_at' => date('Y-m-d H:i:s'),
+    'timezone' => date_default_timezone_get(),
+    'period_start' => $monthStart,
+    'period_end' => $monthEnd,
+    'scope' => 'Municipal system (all offices)',
+    'prepared_by' => $caller['name'] . ' · ' . $caller['office_name'],
     'submission_note' => match ($period) {
         'year'    => 'Annual custody summary for COA preparation — pair with the monthly DV and collection reports already submitted.',
         'quarter' => 'Quarterly custody summary for COA preparation — covers the three monthly DV and collection report periods.',
@@ -183,16 +214,30 @@ json_response([
     'compliance' => [
         'on_time' => [
             'count'   => $onTime,
-            'percent' => $pct($onTime),
+            'percent' => $percentages[0],
         ],
         'unforwarded' => [
             'count'   => $unforwarded,
-            'percent' => $pct($unforwarded),
+            'percent' => $percentages[1],
         ],
         'delayed' => [
             'count'   => $delayed,
-            'percent' => $pct($delayed),
+            'percent' => $percentages[2],
         ],
     ],
     'office_totals' => $offices,
-]);
+];
+header('Cache-Control: no-store');
+if ($format === 'csv') {
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="SmartFlow-custody-' . date('Ymd', strtotime($monthStart)) . '-' . $period . '.csv"');
+    echo smartflow_report_csv($report);
+    exit;
+}
+if ($format === 'print') {
+    header('Content-Type: text/html; charset=utf-8');
+    header('Referrer-Policy: no-referrer');
+    echo smartflow_report_print($report);
+    exit;
+}
+json_response($report);

@@ -14,7 +14,15 @@ export function parseTrackingId(raw) {
   return match ? match[0].toUpperCase() : null
 }
 
-export function clerkScanActions({ lastStatus, lastOfficeId, myOfficeId, currentOfficeName }) {
+export function clerkScanActions({ lastStatus, lastOfficeId, myOfficeId, currentOfficeName, destinationOfficeId, destinationOfficeName, role = 'staff' }) {
+  if (role !== 'staff') {
+    return {
+      canIn: false,
+      canOut: false,
+      statusLine: lastStatus && lastOfficeId != null ? `${lastStatus} at ${currentOfficeName || `office #${lastOfficeId}`}` : 'No custody recorded yet',
+      blockReason: 'Read-only custody view. Office staff register folders and record physical handoffs.',
+    }
+  }
   if (!lastStatus || lastOfficeId == null) {
     return {
       canIn: true,
@@ -45,6 +53,14 @@ export function clerkScanActions({ lastStatus, lastOfficeId, myOfficeId, current
       canOut: false,
       statusLine,
       blockReason: `Still at ${office}. They must mark OUT before you can receive it.`,
+    }
+  }
+  if (status === 'OUT' && Number(destinationOfficeId) > 0 && Number(destinationOfficeId) !== Number(myOfficeId)) {
+    return {
+      canIn: false,
+      canOut: false,
+      statusLine,
+      blockReason: `Sent to ${destinationOfficeName || 'another office'}. Only that receiving office can confirm receipt. If the destination was recorded incorrectly, ask the sending office to correct it.`,
     }
   }
   return { canIn: true, canOut: false, statusLine, blockReason: null }
@@ -91,12 +107,18 @@ export function formatWhen(raw) {
 
 const RETURN_PREFIX = /^Returned to (.+?): (.*)$/s
 
-/** Split a movement's remarks into return info or a clerk note (auto-generated remarks are dropped). */
+/** Hide only an entire boilerplate remark; appended receipt evidence and clerk notes stay intact. */
 export function movementNote(m) {
   const remarks = String(m?.remarks || '').trim()
   const ret = remarks.match(RETURN_PREFIX)
   if (ret) return { isReturn: true, returnedTo: ret[1], note: ret[2] }
-  if (!remarks || /^(Received at |Forwarded from |Registered and received at origin office$)/.test(remarks)) {
+  const boilerplate = [
+    'Registered and received at origin office',
+    m?.office_name ? `Received at ${m.office_name}` : null,
+    m?.office_name && m?.destination_office_name && m?.destination_office_code
+      ? `Forwarded from ${m.office_name} → ${m.destination_office_name} (${m.destination_office_code})` : null,
+  ]
+  if (!remarks || boilerplate.includes(remarks)) {
     return { isReturn: false, note: '' }
   }
   return { isReturn: false, note: remarks }
@@ -106,6 +128,26 @@ export function homePath(role) {
   if (role === 'head') return '/head'
   if (role === 'admin') return '/admin'
   return '/home'
+}
+
+export function movementDestination({ destinationOfficeId, isReturn = false, returnReason = '' }) {
+  const destination = Number(destinationOfficeId)
+  if (!Number.isSafeInteger(destination) || destination <= 0) throw new Error('Choose a receiving office.')
+  if (!isReturn) return { destination_office_id: destination }
+  const reason = returnReason.trim()
+  if (reason.length < 5 || reason.length > 200) throw new Error('Enter a return reason between 5 and 200 characters.')
+  return { destination_office_id: destination, is_return: true, remarks: reason }
+}
+
+export function reportPeriodBounds(now = new Date()) {
+  const maxYear = now.getFullYear()
+  const minYear = maxYear - 14
+  const month = now.getMonth() + 1
+  const quarters = []
+  for (let year = maxYear; year >= minYear; year--) {
+    for (let quarter = year === maxYear ? Math.ceil(month / 3) : 4; quarter >= 1; quarter--) quarters.push(`${year}-Q${quarter}`)
+  }
+  return { minYear, maxYear, minMonth: `${minYear}-01`, maxMonth: `${maxYear}-${String(month).padStart(2, '0')}`, quarters }
 }
 
 export function statusLabel(status, category) {

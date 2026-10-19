@@ -7,17 +7,17 @@ String? scanErrorHint({String? scanError, String? qrError}) {
     case 'duplicate':
       return 'Wait a few seconds — the first scan was already saved.';
     case 'already_in_here':
-      return 'Use Mark OUT when you forward the folder to another office.';
+      return 'Use Send (OUT) when you forward the folder to another office.';
     case 'already_out_here':
-      return 'The next office must Mark IN when they receive it.';
+      return 'The next office confirms actual receipt. Use Correct recorded destination if the unreceived OUT names the wrong office.';
     case 'still_at_other_office':
     case 'not_in_at_office':
     case 'out_without_in':
       return 'Follow the physical custody: IN when it arrives, OUT when you send it.';
     case 'wrong_receiver':
-      return 'Only the office named on the last OUT can Mark IN.';
+      return 'Only the recorded destination can confirm actual receipt. Ask the sending office to correct a wrong destination before receipt.';
     case 'scan_session_expired':
-      return 'Open Scanner and scan the label again before Mark IN/OUT.';
+      return 'Open Scanner and scan the label again before Receive (IN) / Send (OUT).';
     case 'qr_expired':
       return 'Accounting can reprint a fresh secured label.';
     case 'qr_tampered':

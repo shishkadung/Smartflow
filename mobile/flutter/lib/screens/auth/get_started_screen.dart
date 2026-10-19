@@ -11,10 +11,9 @@ class GetStartedScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SfAuthShell(
-      strap: 'Official portal · Authorized users',
+      strap: 'Office account',
       headline: 'Inter-office document tracking',
-      body:
-          'Secure QR handoffs and custody records for the Municipality of Urbiztondo — for accountability and COA preparation.',
+      body: 'Use your office username to receive and release folders.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

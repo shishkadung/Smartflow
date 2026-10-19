@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -28,12 +30,42 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
   String _outcome = 'all';
   bool _loading = true;
   bool _exporting = false;
+  int _generation = 0;
+  int _exportGeneration = 0;
+  late Object _accountKey;
+  Object? _loadedQuery;
+  bool _fresh = false;
   String? _error;
   Map<String, dynamic>? _summary;
   List<Map<String, dynamic>> _events = const [];
   List<Map<String, dynamic>> _suspicious = const [];
   List<Map<String, dynamic>> _topReasons = const [];
   List<Map<String, dynamic>> _activity = const [];
+
+  Object get _identity {
+    final auth = context.read<AuthProvider>();
+    return (
+      auth,
+      auth.token,
+      auth.user?.id,
+      auth.user?.officeId,
+      auth.user?.role,
+    );
+  }
+
+  Object get _queryKey => (_identity, _hours, _outcome);
+
+  bool _isCurrent(int generation, Object query) =>
+      mounted && generation == _generation && query == _queryKey;
+
+  void _clearSnapshot() {
+    _summary = null;
+    _events = const [];
+    _suspicious = const [];
+    _topReasons = const [];
+    _activity = const [];
+    _loadedQuery = null;
+  }
 
   static const _activityLabels = {
     'signup.approve': 'Sign-up approved',
@@ -53,43 +85,85 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
   @override
   void initState() {
     super.initState();
+    _accountKey = _identity;
     _load();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final auth = Provider.of<AuthProvider>(context);
+    final identity = (
+      auth,
+      auth.token,
+      auth.user?.id,
+      auth.user?.officeId,
+      auth.user?.role,
+    );
+    if (_accountKey != identity) {
+      _accountKey = identity;
+      _exportGeneration++;
+      _exporting = false;
+      _load();
+    }
+  }
+
   Future<void> _load() async {
+    if (!mounted || _exporting) return;
+    final generation = ++_generation;
+    final query = _queryKey;
+    final auth = context.read<AuthProvider>();
     setState(() {
       _loading = true;
       _error = null;
+      _fresh = false;
+      if (_loadedQuery != query) _clearSnapshot();
     });
+    if (!auth.isAuthenticated) {
+      setState(() {
+        _clearSnapshot();
+        _error = 'Sign in again to load the QR monitor.';
+        _loading = false;
+      });
+      return;
+    }
     try {
-      final api = context.read<AuthProvider>().api;
+      final api = auth.api;
+      final hours = _hours;
+      final outcome = _outcome;
       final results = await Future.wait([
-        api.auditScans(hours: _hours, outcome: _outcome),
+        api.auditScans(hours: hours, outcome: outcome),
         api.auditActivity(hours: 168, limit: 50),
       ]);
       final data = results[0];
       final activity = results[1];
-      if (!mounted) return;
+      if (!_isCurrent(generation, query)) return;
       setState(() {
         _summary = data['summary'] as Map<String, dynamic>?;
-        _events = List<Map<String, dynamic>>.from(data['events'] as List? ?? []);
-        _suspicious =
-            List<Map<String, dynamic>>.from(data['suspicious'] as List? ?? []);
+        _events = List<Map<String, dynamic>>.from(
+          data['events'] as List? ?? [],
+        );
+        _suspicious = List<Map<String, dynamic>>.from(
+          data['suspicious'] as List? ?? [],
+        );
         _topReasons = List<Map<String, dynamic>>.from(
           data['top_reject_reasons'] as List? ?? [],
         );
-        _activity =
-            List<Map<String, dynamic>>.from(activity['events'] as List? ?? []);
+        _activity = List<Map<String, dynamic>>.from(
+          activity['events'] as List? ?? [],
+        );
+        _loadedQuery = query;
+        _fresh = true;
         _loading = false;
       });
     } on ApiException catch (e) {
-      if (!mounted) return;
+      if (!_isCurrent(generation, query)) return;
       setState(() {
         _error = e.message;
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!_isCurrent(generation, query)) return;
       setState(() {
         _error = apiErrorMessage(e);
         _loading = false;
@@ -98,25 +172,49 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
   }
 
   Future<void> _exportCsv() async {
+    if (_loading || _exporting || !_fresh || _loadedQuery != _queryKey) return;
+    final generation = _generation;
+    final query = _queryKey;
+    final exportGeneration = ++_exportGeneration;
+    final api = context.read<AuthProvider>().api;
+    final hours = _hours;
+    final outcome = _outcome;
     setState(() => _exporting = true);
     try {
-      final csv = await context.read<AuthProvider>().api.auditScansCsv(
-            hours: _hours,
-            outcome: _outcome,
-          );
-      await Clipboard.setData(ClipboardData(text: csv));
-      if (!mounted) return;
-      sfShowSuccessSnack(
+      final csv = await api.auditScansCsv(hours: hours, outcome: outcome);
+      if (!_isCurrent(generation, query) ||
+          !_fresh ||
+          exportGeneration != _exportGeneration) {
+        return;
+      }
+      final saved = await const MethodChannel('smartflow/report_export')
+          .invokeMethod<bool>('saveCsv', {
+            'filename':
+                'SmartFlow-scan-audit-${DateFormat('yyyyMMdd-HHmmss').format(DateTime.now())}.csv',
+            'bytes': Uint8List.fromList(
+              utf8.encode(csv.startsWith('\uFEFF') ? csv : '\uFEFF$csv'),
+            ),
+          });
+      if (saved != true) return;
+      if (!mounted ||
+          !_isCurrent(generation, query) ||
+          exportGeneration != _exportGeneration) {
+        return;
+      }
+      sfShowSuccessSnack(context, message: 'Scan audit CSV saved');
+    } catch (e) {
+      if (!mounted ||
+          !_isCurrent(generation, query) ||
+          exportGeneration != _exportGeneration) {
+        return;
+      }
+      ScaffoldMessenger.of(
         context,
-        message: 'Scan audit CSV copied — paste into Excel or Sheets',
-      );
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
     } finally {
-      if (mounted) setState(() => _exporting = false);
+      if (mounted && exportGeneration == _exportGeneration) {
+        setState(() => _exporting = false);
+      }
     }
   }
 
@@ -124,6 +222,8 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
   Widget build(BuildContext context) {
     final accepted = (_summary?['accepted'] as int?) ?? 0;
     final rejected = (_summary?['rejected'] as int?) ?? 0;
+    final windowLabel = _hours == 168 ? '7 days' : '$_hours hours';
+    final hasSnapshot = _loadedQuery == _queryKey;
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -133,13 +233,22 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
         children: [
           const SfAuthenticatedPageHeader(),
           const SizedBox(height: 12),
-          const SfAdminPageOverviewCard(
+          SfAdminPageOverviewCard(
             screen: SfAdminScreen.qrMonitor,
             compact: true,
+            bodyOverride: 'Accepted and rejected scans (last $windowLabel).',
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            SfErrorBanner(message: _error!),
+            SfErrorBanner(
+              message: hasSnapshot
+                  ? '$_error\nShowing the last successful results for this filter; they may be stale.'
+                  : _error!,
+            ),
+            TextButton(
+              onPressed: _loading || _exporting ? null : _load,
+              child: const Text('Retry QR monitor'),
+            ),
           ],
           const SizedBox(height: 12),
           Wrap(
@@ -150,7 +259,7 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
                 ChoiceChip(
                   label: Text(h == 168 ? '7 days' : '${h}h'),
                   selected: _hours == h,
-                  onSelected: _loading
+                  onSelected: _loading || _exporting
                       ? null
                       : (_) {
                           setState(() => _hours = h);
@@ -162,6 +271,7 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
+            runSpacing: 8,
             children: [
               _outcomeChip('All', 'all'),
               _outcomeChip('Accepted', 'success'),
@@ -171,31 +281,33 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
           const SizedBox(height: 14),
           if (_loading)
             const SfLoadingCard()
+          else if (!hasSnapshot)
+            const Text(
+              'QR monitor unavailable. Retry to verify scan counts and account activity.',
+              style: TextStyle(color: SfColors.muted),
+            )
           else ...[
-            Row(
+            SfStatStrip(
               children: [
-                Expanded(
-                  child: SfStatCard(
-                    value: '$accepted',
-                    label: 'Accepted',
-                    color: SfColors.green,
-                  ),
+                SfDashboardStatCell(
+                  value: '$accepted',
+                  label: 'Accepted',
+                  sublabel: '',
+                  color: SfColors.navy,
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: SfStatCard(
-                    value: '$rejected',
-                    label: 'Rejected',
-                    color: SfColors.red,
-                  ),
+                SfDashboardStatCell(
+                  value: '$rejected',
+                  label: 'Rejected',
+                  sublabel: '',
+                  color: SfColors.countInk(rejected, live: SfColors.red),
                 ),
               ],
             ),
             const SizedBox(height: 10),
             SfSecondaryOutlineButton(
-              label: _exporting ? 'Exporting…' : 'Copy CSV for compliance',
+              label: _exporting ? 'Exporting…' : 'Download scan CSV',
               icon: Icons.table_chart_outlined,
-              onPressed: _exporting ? null : _exportCsv,
+              onPressed: _exporting || !_fresh ? null : _exportCsv,
             ),
             if (_suspicious.isNotEmpty) ...[
               const SizedBox(height: 16),
@@ -206,7 +318,7 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
               const SizedBox(height: 4),
               const Text(
                 'Staff with 3+ rejected scans in this window — training or mis-scans.',
-                style: TextStyle(fontSize: 11, color: SfColors.muted),
+                style: TextStyle(fontSize: 12, color: SfColors.muted),
               ),
               const SizedBox(height: 8),
               ..._suspicious.map(_suspiciousTile),
@@ -224,8 +336,7 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
                 children: _topReasons
                     .map(
                       (r) => SfStatusPill(
-                        label:
-                            '${r['code']} · ${r['count']}',
+                        label: '${r['code']} · ${r['count']}',
                         tone: SfPillTone.warning,
                       ),
                     )
@@ -242,8 +353,7 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
               const SfEmptyState(
                 icon: SfIcons.clerkScan,
                 title: 'No scan events',
-                subtitle:
-                    'Try a longer window or run a demo scan as a clerk first.',
+                subtitle: 'Try a longer time window to see earlier scans.',
               )
             else
               ..._events.map(_eventTile),
@@ -255,14 +365,15 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
             const SizedBox(height: 4),
             const Text(
               'Sign-up reviews, user changes, thresholds, and request decisions.',
-              style: TextStyle(fontSize: 11, color: SfColors.muted),
+              style: TextStyle(fontSize: 12, color: SfColors.muted),
             ),
             const SizedBox(height: 8),
             if (_activity.isEmpty)
               const SfEmptyState(
                 icon: SfIcons.clerkScan,
                 title: 'No admin actions',
-                subtitle: 'Nothing was approved, changed, or decided in the last 7 days.',
+                subtitle:
+                    'Nothing was approved, changed, or decided in the last 7 days.',
               )
             else
               ..._activity.map(_activityTile),
@@ -276,7 +387,7 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
     return ChoiceChip(
       label: Text(label),
       selected: _outcome == value,
-      onSelected: _loading
+      onSelected: _loading || _exporting
           ? null
           : (_) {
               setState(() => _outcome = value);
@@ -322,7 +433,8 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
     final ok = ev['outcome']?.toString() == 'success';
     final docId = ev['document_id']?.toString() ?? '—';
     final office = ev['office_code']?.toString() ?? '';
-    final user = ev['user_name']?.toString() ?? ev['username']?.toString() ?? '';
+    final user =
+        ev['user_name']?.toString() ?? ev['username']?.toString() ?? '';
     final status = ev['status']?.toString();
     final scanError = ev['scan_error']?.toString();
     final when = formatMovementListTime(ev['created_at']?.toString());
@@ -334,34 +446,41 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
+            // Outcome, folder, movement and time share one wrapping row instead of four lines.
+            Wrap(
+              spacing: 10,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 SfStatusPill(
                   label: ok ? 'Accepted' : 'Rejected',
                   tone: ok ? SfPillTone.success : SfPillTone.warning,
                 ),
-                const Spacer(),
+                Text(
+                  docId,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+                if (status != null && status.isNotEmpty)
+                  Text(
+                    status,
+                    style: const TextStyle(fontSize: 12, color: SfColors.blue),
+                  ),
                 Text(
                   when,
-                  style: const TextStyle(fontSize: 10, color: SfColors.muted),
+                  style: const TextStyle(fontSize: 12, color: SfColors.muted),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
-              docId,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
-            ),
-            if (status != null && status.isNotEmpty)
-              Text(
-                status,
-                style: const TextStyle(fontSize: 11, color: SfColors.blue),
-              ),
-            const SizedBox(height: 4),
-            Text(
-              [if (office.isNotEmpty) office, if (user.isNotEmpty) user]
-                  .join(' · '),
-              style: const TextStyle(fontSize: 11, color: SfColors.muted),
+              [
+                if (office.isNotEmpty) office,
+                if (user.isNotEmpty) user,
+              ].join(' · '),
+              style: const TextStyle(fontSize: 12, color: SfColors.muted),
             ),
             const SizedBox(height: 6),
             Text(
@@ -373,7 +492,7 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
               Text(
                 'Code: $scanError',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 12,
                   fontWeight: FontWeight.w700,
                   color: SfColors.gold.withValues(alpha: 0.95),
                 ),

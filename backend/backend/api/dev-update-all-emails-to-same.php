@@ -2,7 +2,6 @@
 // GET /dev-update-all-emails-to-same.php
 // Update ALL users to use smartflow2k26@gmail.com for testing
 
-require __DIR__ . '/config.php';
 require __DIR__ . '/dev-block.php';
 
 $testEmail = 'smartflow2k26@gmail.com';

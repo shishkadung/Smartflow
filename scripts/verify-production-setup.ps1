@@ -47,7 +47,7 @@ Write-Host "=== Backend Configuration ===" -ForegroundColor Yellow
 if (Test-FileExists "backend\backend\api\.env" "Environment file exists") { $PassCount++ } else { $FailCount++ }
 if (Test-FileExists "backend\backend\api\.env.example" "Environment example exists") { $PassCount++ } else { $FailCount++ }
 if (Test-FileContains "backend\backend\api\.env" "DB_HOST=" "Database host configured") { $PassCount++ } else { $FailCount++ }
-if (Test-FileContains "backend\backend\api\.env" "ALLOW_DEV_TOOLS=" "Dev tools flag configured") { $PassCount++ } else { $FailCount++ }
+if (Test-FileContains "backend\backend\api\.env" '(?m)^\s*ALLOW_DEV_TOOLS\s*=\s*false\s*$' "Maintenance explicitly disabled") { $PassCount++ } else { $FailCount++ }
 if (Test-FileContains "backend\backend\api\.env" "CORS_ALLOWED_ORIGINS=" "CORS configured") { $PassCount++ } else { $FailCount++ }
 
 # Security Features
@@ -55,6 +55,10 @@ Write-Host ""
 Write-Host "=== Security Features ===" -ForegroundColor Yellow
 
 if (Test-FileExists "backend\backend\api\dev-block.php" "Dev tools blocker exists") { $PassCount++ } else { $FailCount++ }
+if (Test-FileContains "backend\backend\api\dev-block.php" "PHP_SAPI !== 'cli'" "HTTP maintenance rejected before configuration") { $PassCount++ } else { $FailCount++ }
+if (Test-FileContains "backend\backend\api\dev-block.php" '--allow-maintenance' "CLI maintenance requires explicit confirmation") { $PassCount++ } else { $FailCount++ }
+if (Test-FileExists "backend\backend\api\dev-tools-policy.php" "Fail-closed maintenance policy exists") { $PassCount++ } else { $FailCount++ }
+if (Test-FileContains "backend\backend\api\.htaccess" 'users-email-migration' "Apache denies maintenance scripts") { $PassCount++ } else { $FailCount++ }
 if (Test-FileExists "backend\backend\api\rate-limit.php" "Rate limiter exists") { $PassCount++ } else { $FailCount++ }
 if (Test-FileExists "backend\backend\api\auth-tokens-migration.sql" "Auth tokens migration exists") { $PassCount++ } else { $FailCount++ }
 
@@ -118,14 +122,14 @@ Write-Host "Total: $($PassCount + $FailCount)" -ForegroundColor Yellow
 
 if ($FailCount -eq 0) {
     Write-Host ""
-    Write-Host "✓ All production hardening checks passed!" -ForegroundColor Green
+    Write-Host "Static configuration checks passed. Runtime, transport, backup and device acceptance still need their own evidence." -ForegroundColor Green
     Write-Host ""
     Write-Host "Next steps:" -ForegroundColor Cyan
     Write-Host "1. Copy backend\backend\api\.env.example to .env and set production values" -ForegroundColor Yellow
     Write-Host "2. Set ALLOW_DEV_TOOLS=false in .env for production" -ForegroundColor Yellow
     Write-Host "3. Import auth-tokens-migration.sql into database" -ForegroundColor Yellow
     Write-Host "4. Generate Android keystore and configure keystore.properties" -ForegroundColor Yellow
-    Write-Host "5. Test API health: http://localhost/Smartflow/backend/backend/api/dev-api-health.php" -ForegroundColor Yellow
+    Write-Host "5. Test API reachability: http://localhost/Smartflow/backend/backend/api/offices-list.php" -ForegroundColor Yellow
     Write-Host "6. Build Flutter app: flutter build apk --release --dart-define=ENV=production" -ForegroundColor Yellow
     exit 0
 } else {

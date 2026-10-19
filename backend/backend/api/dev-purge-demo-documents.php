@@ -3,7 +3,6 @@
 // GET /dev-purge-demo-documents.php?all=1  — remove ALL documents (movements + requests) for a clean demo DB
 // Default: only documents seeded with the demo description marker.
 
-require __DIR__ . '/config.php';
 require __DIR__ . '/dev-block.php';
 require_once __DIR__ . '/document-requests-helper.php';
 

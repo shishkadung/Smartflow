@@ -67,11 +67,12 @@ class SfHeadPageOverviewCard extends StatelessWidget {
 
     switch (screen) {
       case SfHeadScreen.home:
-        title = 'Office overview';
+        title = 'Dashboard';
         body = headDashboardSubtitleForOffice(user.officeCode);
       case SfHeadScreen.scan:
         title = 'Scan';
-        body = 'Mark IN when a folder arrives at your desk, or OUT when you send it.';
+        body =
+            'Look up a folder and review custody. Office staff record physical handoffs.';
       case SfHeadScreen.register:
         title = 'Register';
         body = registerSubtitleForOffice(user.officeCode);
@@ -96,19 +97,14 @@ class SfHeadPageOverviewCard extends StatelessWidget {
         body = 'Photo, name, email, password, or sign out.';
       case SfHeadScreen.registerSuccess:
         title = documentId ?? 'Document registered';
-        body = 'Print the QR label and attach it to the folder.';
+        body = 'Your QR is saved in SmartFlow. Download or print it if needed.';
       case SfHeadScreen.requests:
         title = 'Requests';
         body = headRequestsSubtitleForOffice(user.officeCode);
     }
 
-    return SfPageOverviewCard(
-      title: title,
-      body: body,
-      compact: useCompact,
-    );
+    return SfPageOverviewCard(title: title, body: body, compact: useCompact);
   }
-
 }
 
 /// Three stat tiles for head home dashboard (optional tap → filtered queue).
@@ -136,50 +132,29 @@ class SfHeadStatRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return SfStatStrip(
       children: [
-        Expanded(
-          child: _tappableStat(
-            onTap: onInOfficeTap,
-            child: SfStatCard(
-              value: '$inOffice',
-              label: 'In office',
-              color: SfColors.countInk(inOffice, live: SfColors.blue),
-            ),
-          ),
+        SfDashboardStatCell(
+          value: '$inOffice',
+          label: 'In office',
+          sublabel: 'Current custody',
+          color: SfColors.navy,
+          onTap: onInOfficeTap,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _tappableStat(
-            onTap: onOverdueTap,
-            child: SfStatCard(
-              value: '$overdue',
-              label: 'Overdue',
-              color: SfColors.countInk(overdue, live: SfColors.red),
-            ),
-          ),
+        SfDashboardStatCell(
+          value: '$overdue',
+          label: 'Overdue',
+          sublabel: 'Follow up',
+          color: SfColors.countInk(overdue, live: SfColors.red),
+          onTap: onOverdueTap,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: SfStatCard(
-            value: '${avgHours}h',
-            label: 'Avg time',
-            color: SfColors.navy,
-          ),
+        SfDashboardStatCell(
+          value: '${avgHours}h',
+          label: 'Avg time',
+          sublabel: 'Processing time',
+          color: SfColors.navy,
         ),
       ],
-    );
-  }
-
-  Widget _tappableStat({VoidCallback? onTap, required Widget child}) {
-    if (onTap == null) return child;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: child,
-      ),
     );
   }
 }
@@ -223,43 +198,10 @@ class SfHeadQueueFilterChips extends StatelessWidget {
   }
 
   Widget _chip(String label, SfHeadQueueFilter value, int count) {
-    final isSelected = selected == value;
-    final chipLabel = '$label${count > 0 ? ' ($count)' : ''}';
-    return Material(
-      color: isSelected ? SfColors.blue.withValues(alpha: 0.15) : Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: () => onSelected(value),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isSelected
-                  ? SfColors.blue.withValues(alpha: 0.35)
-                  : const Color(0x220F172A),
-            ),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isSelected) ...[
-                const Icon(Icons.check_rounded, size: 14, color: SfColors.blue),
-                const SizedBox(width: 6),
-              ],
-              Text(
-                chipLabel,
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-                  color: isSelected ? SfColors.blue : SfColors.ink,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return FilterChip(
+      label: Text('$label${count > 0 ? ' ($count)' : ''}'),
+      selected: selected == value,
+      onSelected: (_) => onSelected(value),
     );
   }
 }
@@ -297,9 +239,7 @@ class SfHeadStaffActivityList extends StatelessWidget {
                   children: [
                     SfStatusPill(
                       label: st == 'OUT' ? 'SENT' : 'IN',
-                      tone: st == 'IN'
-                          ? SfPillTone.success
-                          : SfPillTone.danger,
+                      tone: st == 'IN' ? SfPillTone.success : SfPillTone.danger,
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -318,14 +258,18 @@ class SfHeadStaffActivityList extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 10,
+                              fontSize: 12,
                               color: SfColors.muted,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right, size: 18, color: SfColors.muted),
+                    const Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: SfColors.muted,
+                    ),
                   ],
                 ),
               ),
@@ -365,7 +309,7 @@ class SfHeadForwardedPreview extends StatelessWidget {
         const SizedBox(height: 6),
         const Text(
           'OUT from your office with no IN scan at the next office yet.',
-          style: TextStyle(fontSize: 11.5, color: SfColors.muted, height: 1.4),
+          style: TextStyle(fontSize: 13, color: SfColors.muted, height: 1.4),
         ),
         const SizedBox(height: 8),
         ...items.take(3).map((m) {
@@ -398,14 +342,18 @@ class SfHeadForwardedPreview extends StatelessWidget {
                           Text(
                             m['meta']?.toString() ?? '',
                             style: const TextStyle(
-                              fontSize: 10,
+                              fontSize: 12,
                               color: SfColors.muted,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right, size: 18, color: SfColors.muted),
+                    const Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: SfColors.muted,
+                    ),
                   ],
                 ),
               ),
@@ -463,95 +411,84 @@ class SfHeadQueueRow extends StatelessWidget {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: Border(
-                left: BorderSide(color: accent, width: 4),
-              ),
+              border: Border(left: BorderSide(color: accent, width: 4)),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
                         documentId.isNotEmpty ? documentId : '—',
                         style: const TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
                           color: SfColors.ink,
                         ),
                       ),
-                      if (title.isNotEmpty) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11.5,
-                            color: SfColors.muted,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                      if (meta.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          meta,
-                          style: const TextStyle(
-                            fontSize: 10.5,
-                            color: SfColors.muted,
-                            height: 1.35,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
+                    ),
+                    if (onCopyId != null)
+                      IconButton(
+                        onPressed: onCopyId,
+                        icon: const Icon(Icons.copy_rounded, size: 18),
+                        color: SfColors.muted,
+                        tooltip: 'Copy ID',
+                      ),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: SfColors.muted,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                if (title.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: SfColors.ink,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+                if (meta.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    meta,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: SfColors.muted,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     SfStatusPill(
                       label: statusPill.isNotEmpty ? statusPill : '—',
                       tone: overdue
                           ? SfPillTone.danger
                           : (forwarded
-                              ? SfPillTone.warning
-                              : SfPillTone.success),
+                                ? SfPillTone.warning
+                                : SfPillTone.success),
                     ),
-                    if (hoursPending > 0) ...[
-                      const SizedBox(height: 6),
+                    if (hoursPending > 0)
                       Text(
                         '${hoursPending}h',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color: accent,
                         ),
                       ),
-                    ],
-                    if (onCopyId != null) ...[
-                      IconButton(
-                        onPressed: onCopyId,
-                        icon: const Icon(Icons.copy_rounded, size: 18),
-                        color: SfColors.muted,
-                        tooltip: 'Copy ID',
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 32,
-                          minHeight: 32,
-                        ),
-                      ),
-                    ],
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      size: 18,
-                      color: SfColors.muted,
-                    ),
                   ],
                 ),
               ],
@@ -619,14 +556,18 @@ class SfHeadOverduePreview extends StatelessWidget {
                           Text(
                             m['meta']?.toString() ?? '',
                             style: const TextStyle(
-                              fontSize: 10,
+                              fontSize: 12,
                               color: SfColors.muted,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(Icons.chevron_right, size: 18, color: SfColors.muted),
+                    const Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: SfColors.muted,
+                    ),
                   ],
                 ),
               ),

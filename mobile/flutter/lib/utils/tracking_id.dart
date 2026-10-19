@@ -26,19 +26,38 @@ bool isSignedQrPayload(String raw) {
   final trimmed = raw.trim();
   if (!trimmed.startsWith('SF1.')) return false;
   final parts = trimmed.split('.');
-  return parts.length == 3 && parts[0] == 'SF1' && parts[1].isNotEmpty && parts[2].isNotEmpty;
+  return parts.length == 3 &&
+      parts[0] == 'SF1' &&
+      parts[1].isNotEmpty &&
+      parts[2].isNotEmpty;
 }
 
 /// Clerk UI: whether IN / OUT actions are allowed (mirrors server rules).
-({bool canIn, bool canOut, String statusLine, String? blockReason}) clerkScanActions({
+({bool canIn, bool canOut, String statusLine, String? blockReason})
+clerkScanActions({
   required Map<String, dynamic>? lastMovement,
   required int myOfficeId,
   String? currentStatus,
   int? currentOfficeId,
   String? currentOfficeName,
+  int? destinationOfficeId,
+  String? destinationOfficeName,
+  String role = 'staff',
 }) {
   final lastStatus = currentStatus?.toUpperCase();
   final lastOfficeId = currentOfficeId;
+
+  if (role != 'staff') {
+    return (
+      canIn: false,
+      canOut: false,
+      statusLine: lastStatus != null && lastOfficeId != null
+          ? '$lastStatus at ${currentOfficeName ?? 'office #$lastOfficeId'}'
+          : 'No custody recorded yet',
+      blockReason:
+          'Read-only custody view. Office staff register folders and record physical handoffs.',
+    );
+  }
 
   if (lastStatus == null || lastOfficeId == null) {
     return (
@@ -66,7 +85,8 @@ bool isSignedQrPayload(String raw) {
       canIn: false,
       canOut: false,
       statusLine: statusLine,
-      blockReason: 'Already forwarded from your office. Receiving office must scan IN.',
+      blockReason:
+          'Already forwarded from your office. Receiving office must scan IN.',
     );
   }
 
@@ -75,11 +95,25 @@ bool isSignedQrPayload(String raw) {
       canIn: false,
       canOut: false,
       statusLine: statusLine,
-      blockReason: 'Still at $office. They must mark OUT before you can receive it.',
+      blockReason:
+          'Still at $office. They must mark OUT before you can receive it.',
     );
   }
 
-  // Last OUT from another office → receive here.
+  if (destinationOfficeId != null &&
+      destinationOfficeId > 0 &&
+      destinationOfficeId != myOfficeId) {
+    final destination = destinationOfficeName?.trim();
+    return (
+      canIn: false,
+      canOut: false,
+      statusLine: statusLine,
+      blockReason:
+          'Sent to ${destination == null || destination.isEmpty ? 'office #$destinationOfficeId' : destination}. Only the recorded receiving office can confirm receipt. Ask the sending office to correct an incorrect destination before receipt.',
+    );
+  }
+
+  // Effective destination matches this office, or an older OUT has no destination.
   return (
     canIn: true,
     canOut: false,

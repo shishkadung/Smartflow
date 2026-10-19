@@ -20,7 +20,7 @@ class SfLguSeal extends StatelessWidget {
   /// Drop shadow for hero / auth placements.
   final bool elevated;
 
-  /// Thin gold ceremonial ring (auth header).
+  /// White plate with a plain border (auth header).
   final bool ring;
 
   /// Soft white disc behind the seal so colors read on navy headers.
@@ -37,7 +37,7 @@ class SfLguSeal extends StatelessWidget {
           height: size,
           fit: BoxFit.contain,
           filterQuality: FilterQuality.high,
-          errorBuilder: (_, __, ___) => _SealFallback(size: size),
+          errorBuilder: (_, _, _) => _SealFallback(size: size),
         ),
       ),
     );
@@ -52,29 +52,16 @@ class SfLguSeal extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: Colors.white,
-          border: ring
-              ? Border.all(color: const Color(0xFFE2D4B0), width: 2.5)
-              : null,
+          border: ring ? Border.all(color: const Color(0xFFD5DBE3)) : null,
           boxShadow: elevated
               ? [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.32),
-                    blurRadius: 20,
-                    offset: const Offset(0, 8),
-                  ),
-                  BoxShadow(
-                    color: const Color(0xFFD4C4A0).withValues(alpha: 0.35),
-                    blurRadius: 12,
-                    spreadRadius: 1,
+                    color: Colors.black.withValues(alpha: 0.12),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
                 ]
-              : [
-                  BoxShadow(
-                    color: SfColors.ink.withValues(alpha: 0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+              : null,
         ),
         child: seal,
       );
@@ -150,8 +137,10 @@ class SfOfficeCodeBadge extends StatelessWidget {
   final double size;
   final VoidCallback? onTap;
   final String tooltip;
+
   /// Visual highlight when the profile/account area is open (still tappable).
   final bool active;
+
   /// Optional count (e.g. alerts) shown as a red pill on the badge.
   final int? notificationCount;
 
@@ -188,9 +177,7 @@ class SfOfficeCodeBadge extends StatelessWidget {
                           : SfColors.navy,
                       border: Border.all(
                         color: active
-                            ? (onNavy
-                                ? const Color(0xFFE8D9B5)
-                                : SfColors.blue)
+                            ? (onNavy ? const Color(0xFFE8D9B5) : SfColors.blue)
                             : Colors.white.withValues(
                                 alpha: onNavy ? 0.28 : 0.12,
                               ),
@@ -295,16 +282,16 @@ class SfHeaderIconButton extends StatelessWidget {
                       color: onNavy
                           ? Colors.white.withValues(alpha: active ? 0.18 : 0.10)
                           : active
-                              ? SfColors.navy.withValues(alpha: 0.08)
-                              : SfColors.paper,
+                          ? SfColors.navy.withValues(alpha: 0.08)
+                          : SfColors.paper,
                       border: Border.all(
                         color: onNavy
                             ? Colors.white.withValues(
                                 alpha: active ? 0.42 : 0.22,
                               )
                             : active
-                                ? SfColors.navy.withValues(alpha: 0.35)
-                                : SfColors.navy.withValues(alpha: 0.14),
+                            ? SfColors.navy.withValues(alpha: 0.35)
+                            : SfColors.navy.withValues(alpha: 0.14),
                       ),
                     ),
                     child: Icon(
@@ -352,7 +339,6 @@ class SfHeaderIconButton extends StatelessWidget {
   }
 }
 
-/// SMART + FLOW wordmark — institutional navy/blue (government portal).
 class SfSmartFlowWordmark extends StatelessWidget {
   const SfSmartFlowWordmark({
     super.key,
@@ -362,7 +348,6 @@ class SfSmartFlowWordmark extends StatelessWidget {
 
   final double fontSize;
 
-  /// White / soft-blue wordmark for navy chrome (web shell twin).
   final bool onDark;
 
   @override
@@ -377,10 +362,8 @@ class SfSmartFlowWordmark extends StatelessWidget {
           style: TextStyle(
             fontSize: fontSize,
             fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
             color: onDark ? Colors.white : SfColors.navy,
             height: 1.1,
-            fontFamily: 'Source Serif 4',
           ),
         ),
         Text(
@@ -388,10 +371,8 @@ class SfSmartFlowWordmark extends StatelessWidget {
           style: TextStyle(
             fontSize: fontSize,
             fontWeight: FontWeight.w700,
-            letterSpacing: -0.3,
             color: onDark ? const Color(0xFF9EC0EA) : SfColors.blue,
             height: 1.1,
-            fontFamily: 'Source Serif 4',
           ),
         ),
       ],
@@ -416,11 +397,11 @@ class SfMunicipalMasthead extends StatelessWidget {
   Widget build(BuildContext context) {
     final sealSize = compact ? 44.0 : 52.0;
     final titleStyle = Theme.of(context).textTheme.titleLarge?.copyWith(
-          fontSize: compact ? 15 : 16,
-          fontWeight: FontWeight.w700,
-          color: SfColors.navy,
-          height: 1.15,
-        );
+      fontSize: compact ? 15 : 16,
+      fontWeight: FontWeight.w700,
+      color: SfColors.navy,
+      height: 1.15,
+    );
 
     return Container(
       width: double.infinity,
@@ -434,9 +415,7 @@ class SfMunicipalMasthead extends StatelessWidget {
             ? BorderRadius.zero
             : const BorderRadius.vertical(bottom: Radius.circular(12)),
         border: embedded
-            ? const Border(
-                bottom: BorderSide(color: Color(0x1A0B1F3A)),
-              )
+            ? const Border(bottom: BorderSide(color: Color(0x1A0B1F3A)))
             : Border.all(color: const Color(0x1A0B1F3A)),
         boxShadow: embedded
             ? null
@@ -451,9 +430,7 @@ class SfMunicipalMasthead extends StatelessWidget {
       foregroundDecoration: embedded
           ? null
           : const BoxDecoration(
-              border: Border(
-                top: BorderSide(color: SfColors.navy, width: 3),
-              ),
+              border: Border(top: BorderSide(color: SfColors.navy, width: 3)),
             ),
       child: Row(
         children: [
@@ -464,19 +441,15 @@ class SfMunicipalMasthead extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'REPUBLIC OF THE PHILIPPINES',
+                  'Republic of the Philippines',
                   style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.0,
-                    color: SfColors.strapInk,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: SfColors.muted,
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  'Municipality of Urbiztondo',
-                  style: titleStyle,
-                ),
+                Text('Municipality of Urbiztondo', style: titleStyle),
                 const SizedBox(height: 2),
                 Text(
                   'Province of Pangasinan · Document flow & COA support',
@@ -495,7 +468,6 @@ class SfMunicipalMasthead extends StatelessWidget {
   }
 }
 
-/// Polished mobile auth chrome — ceremonial navy header + single overlapping panel.
 class SfAuthShell extends StatelessWidget {
   const SfAuthShell({
     super.key,
@@ -521,29 +493,13 @@ class SfAuthShell extends StatelessWidget {
     final topInset = MediaQuery.paddingOf(context).top;
     const hPad = 16.0;
 
-    Widget animatedPanel() {
-      return TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: 1),
-        duration: const Duration(milliseconds: 480),
-        curve: Curves.easeOutCubic,
-        builder: (context, t, panelChild) {
-          return Opacity(
-            opacity: t.clamp(0.0, 1.0),
-            child: Transform.translate(
-              offset: Offset(0, (1 - t) * 12),
-              child: panelChild,
-            ),
-          );
-        },
-        child: _AuthPanel(
-          strap: strap,
-          headline: headline,
-          body: body,
-          showWordmark: showWordmark,
-          child: child,
-        ),
-      );
-    }
+    final panel = _AuthPanel(
+      strap: strap,
+      headline: headline,
+      body: body,
+      showWordmark: showWordmark,
+      child: child,
+    );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
@@ -567,7 +523,7 @@ class SfAuthShell extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        animatedPanel(),
+                        panel,
                         if (footer != null) ...[
                           const SizedBox(height: 10),
                           footer!,
@@ -621,12 +577,12 @@ class _AuthCeremonialHeader extends StatelessWidget {
                   'Municipality of Urbiztondo',
                   textAlign: TextAlign.center,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        height: 1.15,
-                        letterSpacing: -0.3,
-                      ),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    height: 1.15,
+                    letterSpacing: -0.3,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -641,13 +597,12 @@ class _AuthCeremonialHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'REPUBLIC OF THE PHILIPPINES',
+                  'Republic of the Philippines',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.4,
-                    color: const Color(0xFFD4C4A0).withValues(alpha: 0.85),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withValues(alpha: 0.7),
                   ),
                 ),
               ],
@@ -658,9 +613,6 @@ class _AuthCeremonialHeader extends StatelessWidget {
     );
   }
 }
-
-
-
 
 class _AuthPanel extends StatelessWidget {
   const _AuthPanel({
@@ -684,13 +636,13 @@ class _AuthPanel extends StatelessWidget {
       width: double.infinity,
       decoration: BoxDecoration(
         color: SfColors.paper,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0x140B1F3A)),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: SfColors.ink.withValues(alpha: 0.12),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
+            color: Color(0x1F0B1F3A),
+            blurRadius: 24,
+            offset: Offset(0, 10),
           ),
         ],
       ),
@@ -698,27 +650,19 @@ class _AuthPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(height: 3, color: SfColors.rule),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  strap.toUpperCase(),
+                  strap,
                   style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
-                    color: SfColors.strapInk,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: SfColors.muted,
                     height: 1.2,
                   ),
-                ),
-                const SizedBox(height: 4),
-                Container(
-                  width: 36,
-                  height: 2,
-                  color: SfColors.rule,
                 ),
                 if (showWordmark) ...[
                   const SizedBox(height: 14),
@@ -729,11 +673,11 @@ class _AuthPanel extends StatelessWidget {
                 Text(
                   headline,
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w700,
-                        color: SfColors.navy,
-                        height: 1.25,
-                      ),
+                    fontSize: 17,
+                    fontWeight: FontWeight.w700,
+                    color: SfColors.navy,
+                    height: 1.25,
+                  ),
                 ),
                 if (hasBody) ...[
                   const SizedBox(height: 8),
@@ -756,9 +700,7 @@ class _AuthPanel extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
               decoration: const BoxDecoration(
                 color: Color(0xFFF7F9FC),
-                border: Border(
-                  top: BorderSide(color: Color(0x140B1F3A)),
-                ),
+                border: Border(top: BorderSide(color: Color(0x140B1F3A))),
               ),
               child: child,
             ),
@@ -892,7 +834,7 @@ class SfBrandHeroCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Inter-office document tracking and custody records for the Municipality of Urbiztondo. Same secured QR verification across offices.',
+              'Sign in with your office account to receive and release folders.',
               style: TextStyle(
                 fontSize: 13,
                 color: SfColors.muted.withValues(alpha: 0.95),
@@ -904,13 +846,13 @@ class SfBrandHeroCard extends StatelessWidget {
               spacing: 6,
               runSpacing: 6,
               children: const [
-                _GovChip(label: 'HMAC-signed QR', gold: true),
+                _GovChip(label: 'QR on the folder'),
                 _GovChip(label: 'ENG → BUD → ACC → TRE → MAY'),
               ],
             ),
             const SizedBox(height: 10),
             Text(
-              'Authorized personnel only. Access is logged for accountability and COA review.',
+              'Office accounts only. Sign-in is recorded.',
               style: TextStyle(
                 fontSize: 11,
                 color: SfColors.muted.withValues(alpha: 0.9),
@@ -925,35 +867,32 @@ class SfBrandHeroCard extends StatelessWidget {
 }
 
 class _GovChip extends StatelessWidget {
-  const _GovChip({required this.label, this.gold = false});
+  const _GovChip({required this.label});
 
   final String label;
-  final bool gold;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: gold ? SfColors.strapBg : const Color(0xFFE8EEF8),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: gold ? SfColors.strapBorder : const Color(0x332564EB),
-        ),
+        color: const Color(0xFFE8EDF3),
+        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: const Color(0xFFD3DBE4)),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.w700,
-          color: gold ? SfColors.strapInk : SfColors.navy,
+          color: SfColors.navy,
         ),
       ),
     );
   }
 }
 
-/// Login hero with SmartFlow gradient title and municipality strap line.
+/// Login hero: seal, municipality line, and SmartFlow name.
 class SfBrandLockup extends StatelessWidget {
   const SfBrandLockup({super.key, this.showSeal = true});
 
@@ -966,12 +905,12 @@ class SfBrandLockup extends StatelessWidget {
         if (showSeal) const SfLguSeal(size: 72, elevated: true, ring: true),
         const SizedBox(height: 18),
         Text(
-          'MUNICIPALITY OF URBIZTONDO · PANGASINAN',
+          'Municipality of Urbiztondo, Pangasinan',
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 1.2,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0,
             color: SfColors.muted.withValues(alpha: 0.9),
           ),
         ),
@@ -981,13 +920,9 @@ class SfBrandLockup extends StatelessWidget {
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 12),
           child: Text(
-            'Internal document tracking and COA compliance support for municipal offices.',
+            'Folder tracking for the municipal offices.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13,
-              color: SfColors.muted,
-              height: 1.5,
-            ),
+            style: TextStyle(fontSize: 13, color: SfColors.muted, height: 1.5),
           ),
         ),
       ],
@@ -1017,31 +952,170 @@ class SfFormCard extends StatelessWidget {
       padding: padding ?? const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: SfColors.paper,
-        borderRadius: BorderRadius.circular(flat ? 12 : 14),
-        border: Border.all(color: const Color(0x1A0B1F3A)),
-        boxShadow: flat
-            ? null
-            : [
-                BoxShadow(
-                  color: SfColors.ink.withValues(alpha: 0.05),
-                  blurRadius: 14,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: SfColors.border),
       ),
-      child: child,
+      child: Material(color: Colors.transparent, child: child),
     );
   }
 }
 
-/// Gradient primary CTA. Use [navy] on auth screens for a calmer LGU look.
+/// Screen heading, shared by operational and oversight pages.
+class SfPageTitle extends StatelessWidget {
+  const SfPageTitle({super.key, required this.title, this.subtitle});
+
+  final String title;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        title,
+        style: Theme.of(
+          context,
+        ).textTheme.headlineSmall?.copyWith(color: SfColors.navy),
+      ),
+      if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+        const SizedBox(height: 5),
+        Text(
+          subtitle!,
+          style: const TextStyle(
+            fontSize: 14,
+            color: SfColors.muted,
+            height: 1.4,
+          ),
+        ),
+      ],
+    ],
+  );
+}
+
+/// Navigation surfaces use the same leading icon, title and trailing chevron.
+class SfNavigationRow extends StatelessWidget {
+  const SfNavigationRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.subtitle,
+    this.subtitleColor = SfColors.muted,
+  });
+
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+  final String? subtitle;
+  final Color subtitleColor;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    child: Material(
+      color: SfColors.paper,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: SfColors.border),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 68),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Icon(icon, size: 22, color: SfColors.blue),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          height: 1.2,
+                          color: SfColors.navy,
+                        ),
+                      ),
+                      if (subtitle != null) ...[
+                        const SizedBox(height: 3),
+                        Text(
+                          subtitle!,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: subtitleColor,
+                            height: 1.3,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 20,
+                  color: SfColors.muted,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+/// Equal-width metric cells share one quiet surface and separators.
+/// Each child supplies its own [Expanded] to keep all role strips aligned.
+class SfStatStrip extends StatelessWidget {
+  const SfStatStrip({super.key, required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: SfColors.bg2,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+      side: const BorderSide(color: SfColors.border),
+    ),
+    clipBehavior: Clip.antiAlias,
+    child: IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var index = 0; index < children.length; index++) ...[
+            if (index > 0)
+              const VerticalDivider(
+                width: 1,
+                thickness: 1,
+                indent: 16,
+                endIndent: 16,
+                color: SfColors.border,
+              ),
+            children[index],
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+/// Filled button. Use [navy] on the sign-in screen.
 class SfPrimaryButton extends StatefulWidget {
   const SfPrimaryButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.loading = false,
-    this.navy = false,
+    this.navy = true,
   });
 
   final String label;
@@ -1059,7 +1133,7 @@ class _SfPrimaryButtonState extends State<SfPrimaryButton> {
   @override
   Widget build(BuildContext context) {
     final disabled = widget.onPressed == null && !widget.loading;
-    final radius = BorderRadius.circular(12);
+    final radius = BorderRadius.circular(10);
     return AnimatedScale(
       scale: _pressed && !disabled && !widget.loading ? 0.985 : 1,
       duration: const Duration(milliseconds: 100),
@@ -1079,14 +1153,14 @@ class _SfPrimaryButtonState extends State<SfPrimaryButton> {
               color: disabled
                   ? const Color(0xFFCBD5E1)
                   : widget.navy
-                      ? SfColors.navy
-                      : SfColors.blue,
+                  ? SfColors.navy
+                  : SfColors.blue,
               borderRadius: radius,
             ),
             child: Container(
               width: double.infinity,
               constraints: const BoxConstraints(minHeight: 48),
-              padding: const EdgeInsets.symmetric(vertical: 15),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               alignment: Alignment.center,
               child: widget.loading
                   ? const SizedBox(
@@ -1099,9 +1173,10 @@ class _SfPrimaryButtonState extends State<SfPrimaryButton> {
                     )
                   : Text(
                       widget.label,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 15.5,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.2,
                       ),
@@ -1135,10 +1210,7 @@ class SfGhostTextButton extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 13,
-        ),
+        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
       ),
     );
   }
@@ -1171,9 +1243,9 @@ class SfHeader extends StatelessWidget {
               Text(
                 eyebrow.toUpperCase(),
                 style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 2,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0,
                   color: SfColors.muted.withValues(alpha: 0.8),
                 ),
               ),
@@ -1201,10 +1273,7 @@ class SfHeader extends StatelessWidget {
             ],
           ),
         ),
-        if (trailing != null) ...[
-          const SizedBox(width: 12),
-          trailing!,
-        ],
+        if (trailing != null) ...[const SizedBox(width: 12), trailing!],
       ],
     );
   }
@@ -1225,40 +1294,38 @@ class SfStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        decoration: BoxDecoration(
-          color: SfColors.paper,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0x140F172A)),
-        ),
-        child: Column(
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                fontFamily: 'monospace',
-                color: color ?? SfColors.navy,
-              ),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      decoration: BoxDecoration(
+        color: SfColors.paper,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x140F172A)),
+      ),
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              fontFamily: 'monospace',
+              color: color ?? SfColors.navy,
             ),
-            const SizedBox(height: 4),
-            Text(
-              label.toUpperCase(),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-                color: SfColors.muted,
-                letterSpacing: 0.4,
-              ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label.toUpperCase(),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: SfColors.muted,
+              letterSpacing: 0.4,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1323,7 +1390,7 @@ class SfQuickAction extends StatelessWidget {
                     Text(
                       subtitle,
                       style: const TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 13,
                         color: SfColors.muted,
                         height: 1.4,
                       ),
@@ -1396,7 +1463,7 @@ class SfListTile extends StatelessWidget {
                   Text(
                     subtitle,
                     style: const TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 13,
                       color: SfColors.muted,
                       height: 1.4,
                     ),
@@ -1404,10 +1471,7 @@ class SfListTile extends StatelessWidget {
                 ],
               ),
             ),
-            if (trailing != null) ...[
-              const SizedBox(width: 8),
-              trailing!,
-            ],
+            if (trailing != null) ...[const SizedBox(width: 8), trailing!],
           ],
         ),
       ),
@@ -1424,20 +1488,13 @@ class SfListTile extends StatelessWidget {
       );
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: card,
-    );
+    return Padding(padding: const EdgeInsets.only(bottom: 8), child: card);
   }
 }
 
 /// Department code pill (ENG / HR / BUD / ACC) coloured per office.
 class SfDeptBadge extends StatelessWidget {
-  const SfDeptBadge({
-    super.key,
-    required this.label,
-    required this.officeCode,
-  });
+  const SfDeptBadge({super.key, required this.label, required this.officeCode});
 
   final String label;
   final String officeCode;
@@ -1501,22 +1558,22 @@ class SfUserAvatar extends StatelessWidget {
               width: size,
               height: size,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _letters(),
+              errorBuilder: (_, _, _) => _letters(),
             )
           : _letters(),
     );
   }
 
   Widget _letters() => Center(
-        child: Text(
-          initials.length > 2 ? initials.substring(0, 2) : initials,
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w800,
-            fontSize: size * 0.34,
-          ),
-        ),
-      );
+    child: Text(
+      initials.length > 2 ? initials.substring(0, 2) : initials,
+      style: TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.w800,
+        fontSize: size * 0.34,
+      ),
+    ),
+  );
 
   static String fromName(String name) {
     final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
@@ -1545,11 +1602,7 @@ class SfSessionChip extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(
-            icon ?? Icons.badge_outlined,
-            size: 16,
-            color: SfColors.blue,
-          ),
+          Icon(icon ?? Icons.badge_outlined, size: 16, color: SfColors.blue),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -1609,15 +1662,8 @@ class SfShortcutButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           child: Ink(
             decoration: BoxDecoration(
-              gradient: SfGradients.primaryBtn,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: SfColors.blue.withValues(alpha: 0.28),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
-                ),
-              ],
+              color: SfColors.blue,
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 13),
@@ -1641,9 +1687,7 @@ class SfShortcutButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         foregroundColor: SfColors.blue,
         side: const BorderSide(color: Color(0x331D4ED8)),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         padding: const EdgeInsets.symmetric(vertical: 13),
       ),
       child: Text(
@@ -1680,8 +1724,11 @@ class SfStatusPill extends StatelessWidget {
         bg = SfColors.red.withValues(alpha: 0.12);
         fg = SfColors.red;
       case SfPillTone.neutral:
-        bg = SfColors.blue.withValues(alpha: 0.1);
+        bg = SfColors.blueSoft;
         fg = SfColors.blue;
+      case SfPillTone.muted:
+        bg = SfColors.bg2;
+        fg = SfColors.muted;
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1691,17 +1738,13 @@ class SfStatusPill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: fg,
-        ),
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: fg),
       ),
     );
   }
 }
 
-enum SfPillTone { success, warning, danger, neutral }
+enum SfPillTone { success, warning, danger, neutral, muted }
 
 /// Key/value summary card (Name / Username / Office / Role table).
 class SfSummaryCard extends StatelessWidget {
@@ -1733,7 +1776,7 @@ class SfSummaryCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (trailing != null) trailing!,
+              ?trailing,
             ],
           ),
           const SizedBox(height: 12),
@@ -1780,12 +1823,23 @@ class SfComplianceRates extends StatelessWidget {
     required this.unforwarded,
     required this.delayed,
     this.monthLabel,
+    this.onTimeFolders,
+    this.unforwardedFolders,
+    this.delayedFolders,
   });
 
   final int onTime;
   final int unforwarded;
   final int delayed;
   final String? monthLabel;
+
+  /// Folder counts shown under each rate when the caller has them.
+  final int? onTimeFolders;
+  final int? unforwardedFolders;
+  final int? delayedFolders;
+
+  static String? _folders(int? count) =>
+      count == null ? null : '$count folder${count == 1 ? '' : 's'}';
 
   @override
   Widget build(BuildContext context) {
@@ -1798,37 +1852,46 @@ class SfComplianceRates extends StatelessWidget {
             const Expanded(
               child: Text(
                 'Compliance rates',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                ),
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
               ),
             ),
             if (monthLabel != null)
               Text(
                 monthLabel!,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: SfColors.muted,
-                ),
+                style: const TextStyle(fontSize: 13, color: SfColors.muted),
               ),
           ],
         ),
         const SizedBox(height: 10),
         Row(
           children: [
-            _rateBox('On time', '$onTime%', SfColors.green),
+            _rateBox(
+              'On time',
+              '$onTime%',
+              SfColors.green,
+              _folders(onTimeFolders),
+            ),
             const SizedBox(width: 8),
-            _rateBox('Unforwarded', '$unforwarded%', SfColors.gold),
+            _rateBox(
+              'Unforwarded',
+              '$unforwarded%',
+              SfColors.gold,
+              _folders(unforwardedFolders),
+            ),
             const SizedBox(width: 8),
-            _rateBox('Delayed', '$delayed%', SfColors.red),
+            _rateBox(
+              'Delayed',
+              '$delayed%',
+              SfColors.red,
+              _folders(delayedFolders),
+            ),
           ],
         ),
       ],
     );
   }
 
-  Widget _rateBox(String label, String value, Color color) {
+  Widget _rateBox(String label, String value, Color color, [String? folders]) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
@@ -1853,12 +1916,20 @@ class SfComplianceRates extends StatelessWidget {
               label,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 10,
+                fontSize: 12,
                 color: SfColors.muted,
                 fontWeight: FontWeight.w600,
                 height: 1.3,
               ),
             ),
+            if (folders != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                folders,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 11, color: SfColors.muted),
+              ),
+            ],
           ],
         ),
       ),
@@ -1899,8 +1970,8 @@ class SfSubPage extends StatelessWidget {
                   children: [
                     IconButton(
                       icon: const Icon(Icons.arrow_back_ios_new, size: 20),
-                      onPressed: onBack ??
-                          () => Navigator.of(context).maybePop(),
+                      onPressed:
+                          onBack ?? () => Navigator.of(context).maybePop(),
                     ),
                     Expanded(
                       child: SfHeader(title: title, subtitle: subtitle),
@@ -1927,6 +1998,8 @@ class SfEmptyState extends StatelessWidget {
     this.subtitle,
     this.actionLabel,
     this.onAction,
+    this.secondaryActionLabel,
+    this.onSecondaryAction,
   });
 
   final IconData icon;
@@ -1934,67 +2007,99 @@ class SfEmptyState extends StatelessWidget {
   final String? subtitle;
   final String? actionLabel;
   final VoidCallback? onAction;
+  final String? secondaryActionLabel;
+  final VoidCallback? onSecondaryAction;
 
   @override
   Widget build(BuildContext context) {
     final hasAction = actionLabel != null && onAction != null;
-    return Padding(
-      padding: const EdgeInsets.all(28),
+    final hasSecondary =
+        secondaryActionLabel != null && onSecondaryAction != null;
+    return SfFormCard(
+      flat: true,
+      padding: const EdgeInsets.all(16),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: SfColors.blue.withValues(alpha: 0.08),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: SfColors.blue, size: 28),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 14,
-            ),
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              subtitle!,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12,
-                color: SfColors.muted,
-                height: 1.4,
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: SfColors.bg2,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: SfColors.muted, size: 22),
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        height: 1.3,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 5),
+                      Text(
+                        subtitle!,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: SfColors.muted,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
           if (hasAction) ...[
             const SizedBox(height: 16),
-            ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 160, maxWidth: 280),
-              child: OutlinedButton(
-                onPressed: onAction,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: SfColors.blue,
-                  minimumSize: const Size(48, 44),
-                  side: BorderSide(color: SfColors.blue.withValues(alpha: 0.35)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+            Wrap(
+              alignment: WrapAlignment.start,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _EmptyStateButton(label: actionLabel!, onPressed: onAction!),
+                if (hasSecondary)
+                  _EmptyStateButton(
+                    label: secondaryActionLabel!,
+                    onPressed: onSecondaryAction!,
                   ),
-                ),
-                child: Text(
-                  actionLabel!,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-              ),
+              ],
             ),
           ],
         ],
       ),
+    );
+  }
+}
+
+class _EmptyStateButton extends StatelessWidget {
+  const _EmptyStateButton({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        foregroundColor: SfColors.blue,
+        minimumSize: const Size(48, 44),
+        side: BorderSide(color: SfColors.blue.withValues(alpha: 0.35)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
     );
   }
 }

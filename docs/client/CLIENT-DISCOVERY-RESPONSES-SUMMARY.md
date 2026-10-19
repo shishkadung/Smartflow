@@ -23,8 +23,12 @@
 
 ## Still clarify with client
 
-- Budget QR: holder office (Budget) vs Engineering answer — follow **holder rule** until confirmed.
+- Historical Budget QR answers conflict. On 16 October 2026 the project user confirmed the **holder-office rule** as the working requirement; original questionnaire evidence is unchanged.
 - Section 12 confirmation table — blank in response.
+
+## Subsequent project-user confirmations — 16 October 2026
+
+The project user confirmed holder-office registration; staff primarily own-office monitoring, requester related-folder status/location and Accounting Head municipal oversight; Treasury as normal payment-release recorder **with admin override**; and occasional DV-route exceptions. These are user-confirmed requirements, not additional direct client interview answers or UAT sign-off. Current holder/admin/routing behavior aligns. Direct unrelated-folder lookup, detailed field/history visibility and exact exceptional-route conditions remain separate details. See the [policy record](../product/POLICY-CONFIRMATIONS-2026-10-16.md).
 
 ## Defense limitation (one line)
 

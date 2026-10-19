@@ -14,9 +14,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 $adminId = require_user_id();
 smartflow_require_admin($pdo, $adminId);
 smartflow_ensure_users_active_column($pdo);
+smartflow_ensure_users_email_column($pdo);
 
 $stmt = $pdo->query('
-    SELECT u.id, u.name, u.username, u.role, u.is_active,
+    SELECT u.id, u.name, u.username, u.email, u.role, u.is_active,
            o.name AS office_name, o.code AS office_code
     FROM users u
     JOIN offices o ON o.id = u.office_id
@@ -31,6 +32,8 @@ json_response([
             'id'          => (int)$r['id'],
             'name'        => $r['name'],
             'username'    => $r['username'],
+            // Shown to administrators only so wrong reset-email addresses can be corrected.
+            'email'       => trim((string)($r['email'] ?? '')) !== '' ? trim((string)$r['email']) : null,
             'role'        => $r['role'],
             'office_name' => $r['office_name'],
             'office_code' => $r['office_code'],

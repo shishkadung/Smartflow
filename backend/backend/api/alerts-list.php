@@ -9,6 +9,7 @@
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/thresholds-helper.php';
 require_once __DIR__ . '/routing-helper.php';
+smartflow_ensure_documents_filed_columns($pdo);
 
 smartflow_ensure_documents_due_column($pdo);
 

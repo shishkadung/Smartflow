@@ -25,9 +25,16 @@ abstract final class SfIcons {
   static const clerkAlerts = Icons.notifications_outlined;
   static const clerkAlertsActive = Icons.notifications_rounded;
 
-  /// Overflow / secondary tools
-  static const more = Icons.more_horiz_rounded;
-  static const moreActive = Icons.more_horiz_rounded;
+  /// Working document list (bottom nav)
+  static const documents = Icons.folder_outlined;
+  static const documentsActive = Icons.folder_rounded;
+
+  /// Account tab
+  static const profile = Icons.person_outline_rounded;
+  static const profileActive = Icons.person_rounded;
+
+  /// Header tools button (grid). Bottom-nav overflow used the older dots.
+  static const menu = Icons.apps_rounded;
 
   // ─── Clerk module grid (2×2 + profile) ─────────────────────────────────
   static const moduleScan = Icons.qr_code_2_rounded;

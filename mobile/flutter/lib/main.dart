@@ -6,12 +6,11 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'router.dart';
 import 'theme/smartflow_theme.dart';
+import 'widgets/api_connection_banner.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-  ]);
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   runApp(const SmartflowApp());
 }
 
@@ -22,14 +21,29 @@ class SmartflowApp extends StatefulWidget {
   State<SmartflowApp> createState() => _SmartflowAppState();
 }
 
-class _SmartflowAppState extends State<SmartflowApp> {
+class _SmartflowAppState extends State<SmartflowApp>
+    with WidgetsBindingObserver {
   late final AuthProvider _auth = AuthProvider();
   late final GoRouter _router = createRouter(_auth);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _auth.bootstrap();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _auth.checkSession();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _router.dispose();
+    _auth.dispose();
+    super.dispose();
   }
 
   @override
@@ -55,7 +69,15 @@ class _SmartflowAppState extends State<SmartflowApp> {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    if (child != null) Positioned.fill(child: child),
+                    if (child != null)
+                      Positioned.fill(
+                        child: Column(
+                          children: [
+                            const ApiConnectionBanner(),
+                            Expanded(child: child),
+                          ],
+                        ),
+                      ),
                     if (_auth.loading)
                       const Positioned.fill(child: _BootstrapSplash()),
                   ],

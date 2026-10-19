@@ -11,6 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $userId = require_user_id();
+smartflow_ensure_users_password_reset_columns($pdo);
 
 $body = get_json_body();
 $current = (string)($body['current_password'] ?? '');
@@ -26,24 +27,35 @@ if ($current === $new) {
     json_response(['success' => false, 'message' => 'New password must be different from current password'], 400);
 }
 
-$stmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = :id LIMIT 1');
+$pdo->beginTransaction();
+$stmt = $pdo->prepare('SELECT password_hash, is_active FROM users WHERE id = :id LIMIT 1 FOR UPDATE');
 $stmt->execute([':id' => $userId]);
 $row = $stmt->fetch();
 if (!$row) {
+    $pdo->rollBack();
     json_response(['success' => false, 'message' => 'User not found'], 404);
 }
 
+if (!(int)$row['is_active'] || user_id_from_token(get_bearer_token()) !== $userId) {
+    $pdo->rollBack();
+    json_response(['success' => false, 'message' => 'Your session has ended. Please sign in again.'], 401);
+}
 if (!password_verify($current, (string)$row['password_hash'])) {
-    json_response(['success' => false, 'message' => 'Current password is incorrect'], 401);
+    $pdo->rollBack();
+    json_response(['success' => false, 'message' => 'Current password is incorrect'], 400);
 }
 
 $hash = password_hash($new, PASSWORD_DEFAULT);
-$pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id')
+// Choosing a password also ends any administrator-issued temporary password.
+$pdo->prepare('UPDATE users SET password_hash = :hash, must_change_password = 0, temp_password_expires_at = NULL WHERE id = :id')
     ->execute([':hash' => $hash, ':id' => $userId]);
+revoke_user_tokens($userId);
+$pdo->commit();
 
 smartflow_audit_action($pdo, 'user.password_change', $userId, 'Changed own password');
 
 json_response([
     'success' => true,
-    'message' => 'Password changed successfully',
+    'message' => 'Password changed. Sign in again with your new password.',
+    'reauthenticate' => true,
 ]);

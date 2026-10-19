@@ -14,6 +14,7 @@
 
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/thresholds-helper.php';
+require_once __DIR__ . '/report-export-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -171,15 +172,17 @@ foreach ($stmtSuspicious->fetchAll() as $s) {
 }
 
 if ($format === 'csv') {
+    header('Cache-Control: no-store');
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="smartflow-scan-audit.csv"');
     $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF");
     fputcsv($out, [
         'created_at', 'outcome', 'event_type', 'document_id', 'status',
         'office_code', 'user_name', 'username', 'message', 'scan_error',
     ]);
     foreach ($events as $ev) {
-        fputcsv($out, [
+        fputcsv($out, array_map('smartflow_csv_cell', [
             $ev['created_at'],
             $ev['outcome'],
             $ev['event_type'],
@@ -190,7 +193,7 @@ if ($format === 'csv') {
             $ev['username'] ?? '',
             $ev['message'],
             $ev['scan_error'] ?? '',
-        ]);
+        ]), ',', '"', '');
     }
     fclose($out);
     exit;

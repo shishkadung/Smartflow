@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -124,7 +125,8 @@ class _SignupScreenState extends State<SignupScreen> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _officesError = 'Could not load offices. Check that the server is running.';
+        _officesError =
+            'Could not load offices. Check that the server is running.';
         _loadingOffices = false;
       });
     }
@@ -158,14 +160,18 @@ class _SignupScreenState extends State<SignupScreen> {
         (o) => o['id'] == _officeId,
         orElse: () => {'name': '', 'code': ''},
       );
-      context.go('/signup/pending', extra: {
-        'code': req['request_code'],
-        'username': req['username'],
-        'full_name': _name.text.trim(),
-        'office_name': office['name'],
-        'office_code': office['code'],
-        'requested_role': _role,
-      });
+      context.go(
+        '/signup/pending',
+        extra: {
+          'code': req['request_code'],
+          'status_key': data['status_key'],
+          'username': req['username'],
+          'full_name': _name.text.trim(),
+          'office_name': office['name'],
+          'office_code': office['code'],
+          'requested_role': _role,
+        },
+      );
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } finally {
@@ -179,8 +185,9 @@ class _SignupScreenState extends State<SignupScreen> {
     final strap = _step == 0
         ? 'Step 1 of 2 · Account'
         : 'Step 2 of 2 · Workplace';
-    final heroTitle =
-        _step == 0 ? 'Create your account' : 'Select office & role';
+    final heroTitle = _step == 0
+        ? 'Create your account'
+        : 'Select office & role';
     final heroBody = _step == 0
         ? 'Admin approval required. Tell us who you are — your account stays pending until approved.'
         : "Choose where you work and what you'll do. Admin will verify this during approval.";
@@ -204,7 +211,10 @@ class _SignupScreenState extends State<SignupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (_step == 0) ..._buildAccountStep() else ..._buildWorkplaceStep(),
+                if (_step == 0)
+                  ..._buildAccountStep()
+                else
+                  ..._buildWorkplaceStep(),
                 if (_error != null) ...[
                   const SizedBox(height: 12),
                   SfErrorBanner(message: _error!),
@@ -245,15 +255,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
   List<Widget> _buildAccountStep() {
     return [
-      const Text(
-        'Admin approval required',
-        style: TextStyle(
-          fontSize: 12.5,
-          color: SfColors.muted,
-          height: 1.35,
-        ),
-      ),
-      const SizedBox(height: 12),
       TextField(
         controller: _name,
         decoration: const InputDecoration(
@@ -306,8 +307,7 @@ class _SignupScreenState extends State<SignupScreen> {
           labelText: 'Confirm password',
           errorText: _confirmError,
           suffixIcon: IconButton(
-            onPressed: () =>
-                setState(() => _obscureConfirm = !_obscureConfirm),
+            onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
             icon: Icon(
               _obscureConfirm
                   ? Icons.visibility_outlined
@@ -349,10 +349,7 @@ class _SignupScreenState extends State<SignupScreen> {
       return [
         SfErrorBanner(message: _officesError!),
         const SizedBox(height: 12),
-        SfSecondaryOutlineButton(
-          label: 'Retry',
-          onPressed: _loadOffices,
-        ),
+        SfSecondaryOutlineButton(label: 'Retry', onPressed: _loadOffices),
       ];
     }
     if (_offices.isEmpty) {
@@ -421,6 +418,12 @@ class SignupPendingScreen extends StatefulWidget {
 }
 
 class _SignupPendingScreenState extends State<SignupPendingScreen> {
+  late final _code = TextEditingController(text: widget.requestCode);
+  late final _username = TextEditingController(text: widget.username);
+  late final _statusKey = TextEditingController(
+    text: widget.summary?['status_key']?.toString() ?? '',
+  );
+  final _password = TextEditingController();
   Map<String, dynamic>? _req;
   String? _error;
   bool _polling = false;
@@ -428,28 +431,53 @@ class _SignupPendingScreenState extends State<SignupPendingScreen> {
   @override
   void initState() {
     super.initState();
-    _poll();
+    if (_statusKey.text.isNotEmpty) _poll();
+  }
+
+  @override
+  void dispose() {
+    _code.dispose();
+    _username.dispose();
+    _statusKey.dispose();
+    _password.dispose();
+    super.dispose();
   }
 
   Future<void> _poll() async {
     if (_polling) return;
-    setState(() => _polling = true);
+    if ((_code.text.trim().isEmpty || _statusKey.text.isEmpty) &&
+        (_username.text.trim().isEmpty || _password.text.isEmpty)) {
+      setState(
+        () => _error =
+            'Enter your request code and private status key. Older requests can use username and password.',
+      );
+      return;
+    }
+    setState(() {
+      _polling = true;
+      _req = null;
+      _error = null;
+    });
     try {
       final data = await context.read<AuthProvider>().api.signupStatus(
-            code: widget.requestCode,
-            username: widget.username,
-          );
+        code: _code.text.trim(),
+        username: _username.text.trim(),
+        statusKey: _statusKey.text,
+        password: _password.text,
+      );
       final req = data['request'] as Map<String, dynamic>;
       if (!mounted) return;
       setState(() => _req = req);
+      setState(() => _error = null);
       if (req['status'] == 'approved') {
         context.go('/signup/approved', extra: req);
       }
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
+      if (mounted) _password.clear();
       if (mounted) setState(() => _polling = false);
     }
   }
@@ -461,16 +489,22 @@ class _SignupPendingScreenState extends State<SignupPendingScreen> {
     final name = (r?['full_name'] ?? s['full_name'] ?? '—').toString();
     final officeName = r?['office_name'] ?? s['office_name'] ?? '';
     final officeCode = r?['office_code'] ?? s['office_code'] ?? '';
-    final office = (officeName.toString().isNotEmpty ||
-            officeCode.toString().isNotEmpty)
+    final office =
+        (officeName.toString().isNotEmpty || officeCode.toString().isNotEmpty)
         ? '$officeName ($officeCode)'
         : '—';
-    final role = roleLabel(
-      r?['requested_role']?.toString() ??
-          s['requested_role']?.toString() ??
-          'staff',
-    );
-    final status = r?['status']?.toString() ?? 'Pending';
+    // Opened from "Check access request" with nothing looked up yet: say nothing about a request.
+    final unchecked = r == null && s.isEmpty;
+    final role = unchecked
+        ? '—'
+        : roleLabel(
+            r?['requested_role']?.toString() ??
+                s['requested_role']?.toString() ??
+                'staff',
+          );
+    final status =
+        r?['status']?.toString() ?? (unchecked ? '—' : 'Pending');
+    final rejected = status == 'rejected';
 
     return SfPage(
       child: Column(
@@ -502,18 +536,26 @@ class _SignupPendingScreenState extends State<SignupPendingScreen> {
                   ],
                 ),
               ),
-              SfUserAvatar(
-                initials: SfUserAvatar.fromName(name),
-                size: 40,
-              ),
+              SfUserAvatar(initials: SfUserAvatar.fromName(name), size: 40),
             ],
           ),
           const SizedBox(height: 14),
           SfPdfHeroCard(
-            strap: 'After submission · Awaiting approval',
-            title: 'Pending admin approval',
-            body:
-                'Your sign-up request was received. A municipal admin must approve your account before you can sign in.',
+            strap: unchecked
+                ? 'Check status'
+                : rejected
+                ? 'After review · Request declined'
+                : 'After submission · Awaiting approval',
+            title: unchecked
+                ? 'Check your access request'
+                : rejected
+                ? 'Request declined'
+                : 'Pending admin approval',
+            body: unchecked
+                ? 'Enter your request code and private status key to see where your request stands.'
+                : rejected
+                ? 'Review your details with the Municipal Accountant, then reapply. You can use the same username.'
+                : 'Your sign-up request was received. A municipal admin must approve your account before you can sign in.',
             centerBody: true,
             leading: Container(
               width: 56,
@@ -522,18 +564,85 @@ class _SignupPendingScreenState extends State<SignupPendingScreen> {
                 shape: BoxShape.circle,
                 color: SfColors.gold.withValues(alpha: 0.15),
               ),
-              child: const Icon(
-                Icons.hourglass_top_rounded,
+              child: Icon(
+                unchecked
+                    ? Icons.manage_search_rounded
+                    : rejected
+                    ? Icons.block_outlined
+                    : Icons.hourglass_top_rounded,
                 size: 28,
-                color: Color(0xFFB45309),
+                color: const Color(0xFFB45309),
               ),
             ),
+          ),
+          const SizedBox(height: 14),
+          const SfInfoBanner(
+            text:
+                'Keep your request code and private status key. The code alone does not grant access.',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _code,
+            decoration: const InputDecoration(labelText: 'Request code'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _statusKey,
+            obscureText: true,
+            autocorrect: false,
+            enableSuggestions: false,
+            decoration: const InputDecoration(labelText: 'Private status key'),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (_statusKey.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('There is no status key to copy yet.'),
+                  ),
+                );
+                return;
+              }
+              await Clipboard.setData(ClipboardData(text: _statusKey.text));
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Status key copied. Keep it private.'),
+                ),
+              );
+            },
+            child: const Text('Copy private status key'),
+          ),
+          ExpansionTile(
+            title: const Text('Check an older request without a status key'),
+            children: [
+              TextField(
+                controller: _username,
+                decoration: const InputDecoration(labelText: 'Username'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _password,
+                obscureText: true,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: const InputDecoration(
+                  labelText: 'Account password',
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'Use your submitted password before approval, or your current password after approval. It is cleared after each check.',
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 14),
           SfSummaryCard(
             title: 'Request summary',
             trailing: Text(
-              '#${widget.requestCode}',
+              '#${_code.text}',
               style: const TextStyle(
                 fontWeight: FontWeight.w800,
                 color: SfColors.muted,
@@ -542,7 +651,7 @@ class _SignupPendingScreenState extends State<SignupPendingScreen> {
             ),
             rows: [
               MapEntry('Name', name),
-              MapEntry('Username', widget.username),
+              MapEntry('Username', _username.text),
               MapEntry('Office', office),
               MapEntry('Role', role),
               MapEntry('Status', status),
@@ -551,16 +660,40 @@ class _SignupPendingScreenState extends State<SignupPendingScreen> {
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
-            children: const [
-              SfStatusPill(label: 'Awaiting admin', tone: SfPillTone.warning),
-              SfStatusPill(label: 'Email sent', tone: SfPillTone.success),
-            ],
+            children: unchecked
+                ? const [
+                    SfStatusPill(
+                      label: 'Not checked yet',
+                      tone: SfPillTone.neutral,
+                    ),
+                  ]
+                : [
+                    SfStatusPill(
+                      label: rejected ? 'Declined' : 'Awaiting admin',
+                      tone: SfPillTone.warning,
+                    ),
+                    const SfStatusPill(
+                      label: 'Request recorded',
+                      tone: SfPillTone.neutral,
+                    ),
+                  ],
           ),
           const SizedBox(height: 14),
-          const SfInfoBanner(
-            text:
-                "You'll receive a notification once an admin approves your account. After approval, sign in normally.",
+          SfInfoBanner(
+            text: unchecked
+                ? 'Enter your request code and private status key, then choose Refresh status.'
+                : rejected
+                ? 'Correct your account details before submitting another request.'
+                : 'Use Refresh status to check the decision. After approval, sign in normally.',
           ),
+          if (rejected)
+            Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: SfPrimaryButton(
+                label: 'Review details and reapply',
+                onPressed: () => context.go('/signup'),
+              ),
+            ),
           if (_error != null) ...[
             const SizedBox(height: 10),
             SfErrorBanner(message: _error!),

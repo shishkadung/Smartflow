@@ -5,21 +5,25 @@
 
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/thresholds-helper.php';
+require_once __DIR__ . '/office-access-helper.php';
+require_once __DIR__ . '/report-period-helper.php';
+require_once __DIR__ . '/routing-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
 }
 
-require_user_id();
+$userId = require_user_id();
 
 $officeId = (int)($_GET['office_id'] ?? 0);
 $month = trim((string)($_GET['month'] ?? date('Y-m')));
 if ($officeId <= 0) {
     json_response(['success' => false, 'message' => 'office_id is required'], 400);
 }
-if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
-    json_response(['success' => false, 'message' => 'month must be YYYY-MM'], 400);
-}
+smartflow_require_office_scope($pdo, $userId, $officeId);
+$range = smartflow_report_period(['month' => $month]);
+smartflow_ensure_documents_due_column($pdo);
+smartflow_ensure_documents_filed_columns($pdo);
 
 $stmtOffice = $pdo->prepare('SELECT id, name, code FROM offices WHERE id = :id LIMIT 1');
 $stmtOffice->execute([':id' => $officeId]);
@@ -28,8 +32,9 @@ if (!$office) {
     json_response(['success' => false, 'message' => 'Office not found'], 404);
 }
 
-$monthStart = $month . '-01 00:00:00';
-$monthEnd   = date('Y-m-t 23:59:59', strtotime($monthStart));
+$monthStart = $range['start'];
+$monthEnd = min($range['end'], date('Y-m-d H:i:s'));
+$trailCompleteSql = smartflow_sql_trail_complete('d.id');
 
 $sql = "
     SELECT
@@ -37,6 +42,7 @@ $sql = "
         d.title,
         d.type,
         d.due_at AS document_due_at,
+        {$trailCompleteSql} AS trail_complete,
         COUNT(m.id) AS movement_count,
         MIN(m.scanned_at) AS first_at_office,
         MAX(m.scanned_at) AS last_at_office,
@@ -56,20 +62,20 @@ $sql = "
         JOIN offices o ON o.id = m.office_id
         WHERE m.id = (
             SELECT m2.id FROM movements m2
-            WHERE m2.document_id = m.document_id
+            WHERE m2.document_id = m.document_id AND m2.scanned_at <= :now
             ORDER BY m2.scanned_at DESC, m2.id DESC
             LIMIT 1
         )
     ) latest ON latest.document_id = d.id
     GROUP BY d.id, d.title, d.type, d.due_at, latest.status, latest.office_id, latest.scanned_at, latest.office_name, latest.office_code
     ORDER BY last_at_office DESC
-    LIMIT 100
 ";
 $stmt = $pdo->prepare($sql);
 $stmt->execute([
     ':oid'   => $officeId,
     ':start' => $monthStart,
     ':end'   => $monthEnd,
+    ':now'   => date('Y-m-d H:i:s'),
 ]);
 $rows = $stmt->fetchAll();
 
@@ -78,7 +84,14 @@ $documents = array_map(function ($r) use ($pdo, $office) {
     $lastAt = $r['last_at_office'];
     $status = $r['current_status'];
     $atOffice = $r['current_office_code'];
-    $due = smartflow_document_due(
+    $trailComplete = (bool)$r['trail_complete'];
+    $due = $trailComplete ? [
+        'due_at' => '',
+        'due_at_display' => '—',
+        'hours_until_due' => 0,
+        'is_overdue' => false,
+        'threshold_rule' => 'Trail complete — no further processing due',
+    ] : smartflow_document_due(
         $pdo,
         (string)$r['type'],
         $status,
@@ -97,6 +110,7 @@ $documents = array_map(function ($r) use ($pdo, $office) {
         'movement_count'  => $count,
         'last_at_office'  => $lastAt,
         'current_status'  => $status,
+        'trail_complete'  => $trailComplete,
         'current_office'  => $r['current_office_name'],
         'current_office_code' => $atOffice,
         'meta'            => $meta,

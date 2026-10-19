@@ -2,7 +2,6 @@
 // GET /dev-update-user-emails.php
 // Bulk update Capstone team user emails
 
-require __DIR__ . '/config.php';
 require __DIR__ . '/dev-block.php';
 
 smartflow_dev_localhost_or_admin($pdo);
