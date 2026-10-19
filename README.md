@@ -36,17 +36,17 @@ Tracks **physical** inter-office folders with secured QR labels (Register → Sc
 
 ## Quick start for teammates (work in progress)
 
-> **Status:** work in progress. Layout and flows were reviewed on sample data and an emulator; they are **not** yet tested with real folders on a real phone, and there is no production hosting. Keep this repository **private**: demo scripts and docs mention the shared demo password.
+> **Status:** work in progress. Layout and flows were reviewed on sample data and an emulator; they are **not** yet tested with real folders on a real phone, and there is no production hosting. Use demo accounts only in isolated local testing; never reuse demo passwords for real accounts.
 
-**You need:** XAMPP (Apache + MySQL/MariaDB + PHP 8), Node.js (current LTS), Flutter, and Android Studio with an emulator (for mobile).
+**You need:** XAMPP (Apache + MySQL/MariaDB + PHP 8.1 or newer), Node.js (current LTS), Flutter 3.44 or newer with Dart 3.12 or newer, and Android Studio with an emulator (for mobile).
 
 ### 1. Backend (PHP API + database)
 
 1. Put this project's `backend/` folder where Apache serves it, so the API answers at
    `http://localhost/Smartflow/backend/backend/api/` (for example copy or link the project to `C:\xampp\htdocs\Smartflow`).
 2. In phpMyAdmin, create an empty database named `smartflow` (utf8mb4), then import `backend/backend/api-schema.sql`.
-3. In `backend/backend/api/`, copy `.env.example` to `.env` and set `DB_*` (XAMPP defaults are `root` with an empty password) and `ALLOW_DEV_TOOLS=true` for step 4. Leave `QR_SIGNING_SECRET` empty locally: the API creates its own private `.qr-secret` file on first use (it is git-ignored). **Never commit `.env` or `.qr-secret`.** Leave `SMTP_*` empty unless you are testing password-reset emails.
-4. Create demo accounts once, from a terminal (needs `ALLOW_DEV_TOOLS=true` in `.env`; refuses to run over the web):
+3. In the `backend/backend/api/` directory Apache serves, copy `.env.example` to `.env` and set `DB_*` (XAMPP defaults are `root` with an empty password) and `ALLOW_DEV_TOOLS=true` for step 4. If XAMPP serves a separate copy, configure its `.env` there; the sync script does not copy private configuration. Leave `QR_SIGNING_SECRET` empty locally: the API creates its own private `.qr-secret` file on first use (it is git-ignored). **Never commit `.env` or `.qr-secret`.** Leave `SMTP_*` empty unless you are testing password-reset emails.
+4. Create demo accounts once, from a terminal in the served project's root (needs `ALLOW_DEV_TOOLS=true` in `.env`; refuses to run over the web):
    `C:\xampp\php\php.exe backend/backend/api/dev-seed-demo-users.php --allow-maintenance`
    It is safe to repeat (existing usernames are skipped). Do not run any `dev-reset-*` or purge script against data you want to keep.
 5. After editing PHP in your working folder, copy it to XAMPP with `scripts/sync-backend-to-xampp.ps1` (add `-WhatIf` first to see what would change). It never copies `.env`.
@@ -75,7 +75,7 @@ flutter run --dart-define=API_BASE=http://10.0.2.2/Smartflow/backend/backend/api
 
 ```bash
 cd web && node --test --test-concurrency=1 test/*.test.mjs && npm run build
-cd mobile/flutter && flutter analyze && flutter test
+cd ../mobile/flutter && flutter analyze && flutter test
 ```
 
 API checks use a disposable database and are described in [`docs/TESTING.md`](docs/TESTING.md). Do **not** run `scripts/smoke-test.ps1` against a database you care about.

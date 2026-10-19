@@ -920,9 +920,6 @@ class _HeadAlertsScreenState extends State<HeadAlertsScreen>
     final pendingLabel = days > 0
         ? '$days day${days == 1 ? '' : 's'}'
         : '${hours}h';
-    final accent = delayed
-        ? SfColors.red
-        : (dueSoon ? SfColors.gold : SfColors.blue);
     final pill1 = delayed
         ? 'Overdue'
         : (dueSoon ? 'Due soon' : 'Receipt not recorded');
@@ -947,7 +944,6 @@ class _HeadAlertsScreenState extends State<HeadAlertsScreen>
     return SfAlertCardWithActions(
       title: title,
       subtitle: subtitle,
-      accent: accent,
       pill1: pill1,
       pill2: isOut && (delayed || dueSoon)
           ? 'Receipt not recorded'

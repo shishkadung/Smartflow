@@ -243,8 +243,8 @@
 
 /* Admin alert tile */
 .sf-life a.admin-tile--alert {
-  background: linear-gradient(135deg, #fff7ed 0%, #fff 60%);
-  border: 1px solid rgba(217, 119, 6, 0.28);
+  background: #fff;
+  border: 1px solid var(--sf-border);
   border-radius: 12px;
   padding: 14px 16px;
 }
@@ -337,10 +337,10 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Register QR reward */
+/* Registered folder label */
 .sf-life .register-qr--ready {
-  border-color: rgba(22, 163, 74, 0.28);
-  background: linear-gradient(180deg, #f0fdf4 0%, #fff 45%);
+  border-color: var(--sf-border);
+  background: #fff;
 }
 .sf-life .register-qr__id {
   margin: 0 0 4px;
@@ -351,8 +351,8 @@
 }
 .sf-life .qr-box--ready {
   border-style: solid;
-  border-color: rgba(22, 163, 74, 0.35);
-  box-shadow: 0 8px 24px rgba(22, 163, 74, 0.08);
+  border-color: var(--sf-border);
+  box-shadow: none;
 }
 .sf-life .register-qr__actions {
   display: flex;

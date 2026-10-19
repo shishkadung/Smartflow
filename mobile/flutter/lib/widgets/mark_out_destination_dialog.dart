@@ -332,49 +332,26 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
                       suggestOffice != null &&
                       _suggestReason != null) ...[
                     const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: SfColors.gold.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: SfColors.gold.withValues(alpha: 0.45),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Suggested: ${suggestOffice['code']} — ${suggestOffice['name']}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12.5,
+                          ),
                         ),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Icon(
-                            Icons.lightbulb_outline_rounded,
-                            size: 20,
-                            color: SfColors.gold,
+                        const SizedBox(height: 4),
+                        Text(
+                          _suggestReason!,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: SfColors.muted,
+                            height: 1.35,
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Suggested: ${suggestOffice['code']} — ${suggestOffice['name']}',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
-                                    fontSize: 12.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _suggestReason!,
-                                  style: const TextStyle(
-                                    fontSize: 11.5,
-                                    color: SfColors.muted,
-                                    height: 1.35,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ],
                   const SizedBox(height: 14),
@@ -405,8 +382,6 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
                               border: Border.all(
                                 color: selected
                                     ? SfColors.blue
-                                    : isSuggested
-                                    ? SfColors.gold.withValues(alpha: 0.6)
                                     : const Color(0x140F172A),
                                 width: selected ? 2 : 1,
                               ),
@@ -440,26 +415,12 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
                                           ),
                                           if (isSuggested) ...[
                                             const SizedBox(width: 8),
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 6,
-                                                    vertical: 2,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: SfColors.gold.withValues(
-                                                  alpha: 0.2,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(6),
-                                              ),
-                                              child: const Text(
-                                                'Suggested',
-                                                style: TextStyle(
-                                                  fontSize: 9,
-                                                  fontWeight: FontWeight.w800,
-                                                  color: SfColors.gold,
-                                                ),
+                                            const Text(
+                                              'Suggested',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                fontWeight: FontWeight.w800,
+                                                color: SfColors.muted,
                                               ),
                                             ),
                                           ],

@@ -2476,7 +2476,6 @@ class SfAlertCardWithActions extends StatelessWidget {
     super.key,
     required this.title,
     required this.subtitle,
-    required this.accent,
     required this.pill1,
     required this.pill2,
     this.rule,
@@ -2489,7 +2488,6 @@ class SfAlertCardWithActions extends StatelessWidget {
 
   final String title;
   final String subtitle;
-  final Color accent;
   final String pill1;
   final String pill2;
   final String? rule;
@@ -2520,15 +2518,6 @@ class SfAlertCardWithActions extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 4,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: accent,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-                const SizedBox(width: 10),
                 Expanded(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

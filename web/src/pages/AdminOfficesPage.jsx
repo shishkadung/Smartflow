@@ -39,25 +39,47 @@ export default function AdminOfficesPage() {
       {offices.length ? (
         <div className="card sf-life__panel admin-office-table-wrap">
           <table className="admin-office-table">
-            <thead><tr><th scope="col"><span className="sr-only">Office</span></th><th scope="col">Time limits (processing hours · hours to record receipt)</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
-            <tbody>
-              {offices.map((o) => {
-                const code = String(o.office_code || '').toUpperCase()
-                const thresholds = o.thresholds || []
-                return (
-                  <tr key={o.office_id || code}>
-                    <th scope="row">
-                      <span className={`admin-office-row__badge office-accent--${code.toLowerCase() || 'eng'}`}>{code || '?'}</span>
-                      <span className="admin-office-table__name">{o.office_name || code}</span>
-                    </th>
-                    <td>
-                      {thresholds.length ? <ul className="office-rule-list">{thresholds.map(t => <li key={t.document_type}><strong>{t.document_type}</strong><span>{t.max_hours} processing hours · {t.out_unconfirmed_hours ?? 24} hours to record receipt</span></li>)}</ul> : <span className="muted">No custom alert rules configured.</span>}
-                    </td>
-                    <td className="admin-office-table__action"><Link to={`/admin/thresholds?office=${encodeURIComponent(o.office_id)}`} aria-label={`${thresholds.length ? 'Edit' : 'Add'} limits for ${o.office_name || code}`}>{thresholds.length ? 'Edit limits' : 'Add limits'} ›</Link></td>
-                  </tr>
-                )
-              })}
-            </tbody>
+            <colgroup><col /><col /><col /><col /><col /></colgroup>
+            <thead>
+              <tr>
+                <th id="office-limits-office" scope="col">Office</th>
+                <th id="office-limits-type" scope="col">Document type</th>
+                <th id="office-limits-processing" scope="col" className="admin-office-table__number-heading">Processing<span>hours</span></th>
+                <th id="office-limits-receipt" scope="col" className="admin-office-table__number-heading">Record receipt<span>hours</span></th>
+                <th id="office-limits-actions" scope="col"><span className="sr-only">Actions</span></th>
+              </tr>
+            </thead>
+            {offices.map((o, officeIndex) => {
+              const code = String(o.office_code || '').toUpperCase()
+              const thresholds = o.thresholds || []
+              const rows = thresholds.length ? thresholds : [null]
+              const officeHeader = `office-limits-${officeIndex}`
+              return (
+                <tbody key={o.office_id || code}>
+                  {rows.map((rule, ruleIndex) => {
+                    const ruleHeader = `${officeHeader}-rule-${ruleIndex}`
+                    return (
+                      <tr key={rule?.document_type || 'no-rules'}>
+                        {ruleIndex === 0 ? (
+                          <th id={officeHeader} scope="rowgroup" rowSpan={rows.length} headers="office-limits-office" className="admin-office-table__office">
+                            <span className="admin-office-table__name">{o.office_name || code}</span>
+                            <span className="admin-office-table__code">{code || '?'}</span>
+                          </th>
+                        ) : null}
+                        {rule ? <>
+                          <th id={ruleHeader} scope="row" headers={`${officeHeader} office-limits-type`} className="admin-office-table__type">{rule.document_type}</th>
+                          <td headers={`${officeHeader} ${ruleHeader} office-limits-processing`} className="admin-office-table__number"><span className="admin-office-table__mobile-label" aria-hidden="true">Processing hours</span>{rule.max_hours}</td>
+                          <td headers={`${officeHeader} ${ruleHeader} office-limits-receipt`} className="admin-office-table__number"><span className="admin-office-table__mobile-label" aria-hidden="true">Record receipt hours</span>{rule.out_unconfirmed_hours ?? 24}</td>
+                        </> : <td colSpan={3} headers={officeHeader} className="admin-office-table__empty muted">No custom alert rules configured.</td>}
+                        {ruleIndex === 0 ? (
+                          <td rowSpan={rows.length} headers={`${officeHeader} office-limits-actions`} className="admin-office-table__action"><Link to={`/admin/thresholds?office=${encodeURIComponent(o.office_id)}`} aria-label={`${thresholds.length ? 'Edit' : 'Add'} limits for ${o.office_name || code}`}>{thresholds.length ? 'Edit limits' : 'Add limits'} ›</Link></td>
+                        ) : null}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              )
+            })}
           </table>
         </div>
       ) : null}

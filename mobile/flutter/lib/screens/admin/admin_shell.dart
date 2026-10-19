@@ -1981,9 +1981,6 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                 child: SfListTile(
                   title: ex['document_id']?.toString() ?? '',
                   subtitle: ex['detail']?.toString() ?? '',
-                  accent: ex['exception_type'] == 'unforwarded'
-                      ? SfColors.gold
-                      : SfColors.red,
                 ),
               ),
             ),
@@ -2023,7 +2020,6 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
                   title: m['office_name']?.toString() ?? code,
                   subtitle:
                       '$count document${count == 1 ? '' : 's'} with movement this ${_pickerLabel.toLowerCase()}',
-                  accent: SfColors.dept(code),
                 );
               }),
           ],
