@@ -9,7 +9,9 @@
 - Fallarcuna, Rainier B.
 - Fernandez, Kristofer Cyle
 
-**Source of truth:** [`docs/thesis/proposal.md`](docs/thesis/proposal.md)  
+**Current product context:** [`docs/PRD.md`](docs/PRD.md) — implemented behavior, requirements and open gaps.  
+**Eight-document context bundle:** [`docs/README.md`](docs/README.md#smartflow-context-bundle) · **AI project guide:** [`AGENTS.md`](AGENTS.md).  
+**Approved academic proposal:** [`docs/thesis/proposal.md`](docs/thesis/proposal.md).  
 **Docs map:** [`docs/README.md`](docs/README.md) — pick one folder for the job; do not browse everything.
 
 ---
@@ -34,6 +36,8 @@ Tracks **physical** inter-office folders with secured QR labels (Register → Sc
 
 ## Run the app (defense / demo)
 
+For the existing local data, start the protected development API from this workspace with `./scripts/start-api-dev.ps1`. It serves `http://127.0.0.1:8000/backend/backend/api` through the restricted router, without syncing or reseeding records. The Android emulator uses `http://10.0.2.2:8000/backend/backend/api`. Use the current [Architecture](docs/ARCHITECTURE.md#local-runtime-and-addresses) and [Testing](docs/TESTING.md) instructions; older defense/setup commands below can copy code or change data and must be inspected before use. Do not serve this repository with an unguarded PHP document root.
+
 `flutter run` **does not work** in the project root — use `mobile/flutter/`.
 
 **Defense (one command):**
@@ -52,12 +56,12 @@ Read first: **[`docs/defense/START-HERE.md`](docs/defense/START-HERE.md)**
 Or manually:
 
 ```powershell
-cd "C:\Users\nljhn\Downloads\Capstone -Neil\mobile\flutter"
+cd mobile/flutter
 flutter pub get
 flutter run
 ```
 
-**Demo logins** (password `smartflow123`): `kristofer.eng`, `angel.bud`, `neil.acc.staff`, `krizandra.tre`, `neil.may.staff`, `neil.admin` (admin / COA — does not scan).
+Use your existing approved account. Password recovery uses the registered email; launch scripts do not create demo logins or reset passwords.
 
 If the app shows **API not found**:
 
@@ -67,12 +71,13 @@ If the app shows **API not found**:
 
 Then in XAMPP: **Stop → Start** Apache, hot restart Flutter (`R`).
 
-Before a full demo:
+For local use, start the existing services and the protected API without seeding or replacing data:
 
 ```powershell
-.\scripts\sync-backend-to-xampp.ps1
-.\scripts\setup-smartflow.ps1
+.\scripts\start-api-dev.ps1
 ```
+
+The legacy automatic setup and HTTP purge helpers are retired. Keep working accounts, sessions, folders and QR material. Use the disposable API harness in [Testing](docs/TESTING.md) for sample workflows; reviewed code deployment is a separate explicit step.
 
 ---
 
@@ -88,7 +93,8 @@ Before a full demo:
 | `backend/backend/api/` | PHP API (source) → sync to XAMPP |
 | `docs/` | Thesis, defense, client interview, product |
 | `docs/thesis/files/` | Paper PDF/Word files, template, highlighted revision PDFs |
-| `scripts/` | `run-flutter.ps1`, `sync-backend-to-xampp.ps1`, `smoke-test.ps1`, setup |
+| `scripts/` | `run-flutter.ps1`, `sync-backend-to-xampp.ps1`, `smoke-test.ps1`, setup; `scripts/figures/` generates thesis figures |
+| **`thesis-work/`** | Dated folders (`YYYY-MM-DD_Topic`) for figures, DFDs, and paper revision outputs |
 | `_archive/` | Unused files — ignore |
 
 Do not reshuffle folders right before defense — paths break easily.

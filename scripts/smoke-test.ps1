@@ -7,8 +7,8 @@
 #   - Monthly / quarterly / annual COA summaries and period-filtered exceptions
 #   - Admin/account audit trail (request decision, threshold change, admin-only read)
 #
-# Needs XAMPP running, the backend synced, and the seeded pilot accounts
-# (dev-seed-demo-users.php, password smartflow123). Test documents are titled
+# Requires an explicitly isolated API/database with sample accounts already installed.
+# Never seed or purge the working database. Test documents are titled
 # "SMOKE TEST" and are deleted at the end unless -KeepData is passed.
 #
 # Usage:
@@ -62,7 +62,7 @@ function Assert-True([string]$Label, [bool]$Condition, [string]$Detail = '') {
     }
 }
 
-$health = Invoke-Api GET 'dev-api-health.php' $null $null
+$health = Invoke-Api GET 'offices-list.php' $null $null
 if ($health.code -ne 200) {
     throw "API not reachable at $ApiBase (HTTP $($health.code)). Start XAMPP and run .\scripts\sync-backend-to-xampp.ps1"
 }
@@ -70,7 +70,7 @@ if ($health.code -ne 200) {
 $users = @{}
 foreach ($name in 'kristofer.eng', 'angel.bud', 'neil.acc.staff', 'krizandra.tre', 'neil.may.staff', 'neil.admin') {
     $login = (Invoke-Api POST 'auth-login.php' $null @{ username = $name; password = $Password }).json
-    if (-not $login.token) { throw "Login failed for $name - seed pilot users first (dev-seed-demo-users.php)." }
+    if (-not $login.token) { throw "Fixture login failed for $name. Use only an isolated test database with sample accounts; do not replace working accounts." }
     $users[$name] = @{ token = $login.token; office = [int]$login.user.office_id }
 }
 $admin = $users['neil.admin'].token
@@ -89,6 +89,8 @@ function New-Dv([string]$Who, [string]$Ref) {
 
 function Invoke-Move([string]$Doc, [string]$Who, [string]$Status, [string]$Dest, [hashtable]$Extra) {
     $body = @{ document_id = $Doc; office_id = $users[$Who].office; status = $Status }
+    # Capture the reviewed fixture movement once; explicit stale guards in Extra remain testable.
+    $body['expected_movement_id'] = if ($Extra -and $Extra.ContainsKey('expected_movement_id')) { $Extra['expected_movement_id'] } else { [int](Get-Doc $Doc).last_movement_id }
     if ($Dest) { $body['destination_office_id'] = $offices[$Dest] }
     if ($Extra) { foreach ($k in $Extra.Keys) { $body[$k] = $Extra[$k] } }
     return Invoke-Api POST 'movements-create.php' $users[$Who].token $body

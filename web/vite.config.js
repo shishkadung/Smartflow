@@ -2,7 +2,9 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
+  cacheDir: '.vite-cache',
   plugins: [react()],
+  build: { manifest: true },
   server: {
     host: true,
     port: 5173,

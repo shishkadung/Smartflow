@@ -24,7 +24,7 @@ function smartflow_report_period(array $query): array
     }
 
     if ($period === 'quarter') {
-        if (!preg_match('/^\d{4}$/', $year) || $quarter < 1 || $quarter > 4) {
+        if (!preg_match('/^[1-9]\d{3}$/', $year) || !preg_match('/^[1-4]$/', (string)($query['quarter'] ?? $quarter))) {
             json_response([
                 'success' => false,
                 'message' => 'year must be YYYY and quarter must be 1–4',
@@ -43,7 +43,7 @@ function smartflow_report_period(array $query): array
     }
 
     if ($period === 'year') {
-        if (!preg_match('/^\d{4}$/', $year)) {
+        if (!preg_match('/^[1-9]\d{3}$/', $year)) {
             json_response([
                 'success' => false,
                 'message' => 'year must be YYYY',
@@ -60,7 +60,7 @@ function smartflow_report_period(array $query): array
         ];
     }
 
-    if (!preg_match('/^\d{4}-\d{2}$/', $month)) {
+    if (!preg_match('/^[1-9]\d{3}-(0[1-9]|1[0-2])$/', $month)) {
         json_response([
             'success' => false,
             'message' => 'month must be YYYY-MM',

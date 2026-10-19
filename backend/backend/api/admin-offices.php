@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
 
 
 
-require_user_id();
+smartflow_require_admin($pdo, require_user_id());
 
 
 

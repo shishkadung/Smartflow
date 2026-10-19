@@ -111,6 +111,6 @@ Flutter: pindot **`R`**.
 |------|-----------|
 | [PRE-DEFENSE-BUKAS.md](PRE-DEFENSE-BUKAS.md) | Full checklist tonight |
 | [DEMO-SCRIPT.md](DEMO-SCRIPT.md) | Detalyadong steps |
-| [../design/use-cases/SMARTFLOW-USE-CASE-DIAGRAM.html](../design/use-cases/SMARTFLOW-USE-CASE-DIAGRAM.html) | Backup slide |
+| [../../thesis-work/2026-09-29_SmartFlow-Figures/Figure_1.2_Use_Case_Diagram_Updated.png](../../thesis-work/2026-09-29_SmartFlow-Figures/Figure_1.2_Use_Case_Diagram_Updated.png) | Backup slide |
 
 **Enough na ito para bukas.**

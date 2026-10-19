@@ -19,11 +19,9 @@
 1. Cursor will suggest **vscode-pdf** (see `.vscode/extensions.json`) → **Install**.
 2. Reopen `docs/design/Capstone SmartFlow.pdf` → you see all 32 Figma screens.
 
-### Option B — Markdown screen index (best for AI)
+### Option B — Text extract
 
-[`SmartFlow-Figma-Screens.md`](SmartFlow-Figma-Screens.md) — screen list, flows, and UI tokens.
-
-> Note: The PDF is **image-based**; automatic text extract returns almost nothing. Use the markdown file + PDF viewer together.
+> Note: The PDF is **image-based**; automatic text extract returns almost nothing. `SmartFlow-Figma-Screens.md` is only created if the script below finds a text layer. For screen-by-screen HTML, use `mobile-mock/` and `web-mock/` instead.
 
 ```powershell
 .\scripts\open-design-pdf.ps1          # open PDF in Edge/viewer
@@ -36,9 +34,8 @@
 docs/design/
   Capstone SmartFlow.pdf         ← visual source (Figma export)
   PDF-README.md                  ← this file
-  SmartFlow-Figma-Screens.md     ← extracted text (after running script)
   diagrams/                      ← ERD + IPO PNG
-  use-cases/                     ← HTML use-case slides
+  use-cases/                     ← use case notes (as implemented)
 scripts/
   pdf-reader/
   open-design-pdf.ps1

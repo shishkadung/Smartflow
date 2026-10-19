@@ -6,6 +6,7 @@
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/users-helper.php';
 require_once __DIR__ . '/audit-helper.php';
+require_once __DIR__ . '/signup-status-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -28,22 +29,37 @@ if ($requestId <= 0 || !in_array($action, ['approve', 'reject'], true)) {
     json_response(['success' => false, 'message' => 'request_id and action (approve|reject) are required'], 400);
 }
 
+// Runtime DDL must finish before the approval/user creation transaction.
+smartflow_ensure_signup_status_key($pdo);
+smartflow_ensure_users_email_column($pdo);
+$pdo->beginTransaction();
+try {
 $stmt = $pdo->prepare('
-    SELECT * FROM signup_requests WHERE id = :id LIMIT 1
+    SELECT * FROM signup_requests WHERE id = :id LIMIT 1 FOR UPDATE
 ');
 $stmt->execute([':id' => $requestId]);
 $req = $stmt->fetch();
+$admin = smartflow_require_locked_admin($pdo, $adminId);
+} catch (PDOException $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    $conflict = in_array((int)($e->errorInfo[1] ?? 0), [1205, 1213], true);
+    json_response(['success' => false, 'message' => $conflict
+        ? 'Account or request changed while waiting. Refresh and review it again.'
+        : 'Could not review request'], $conflict ? 409 : 500);
+}
 
 if (!$req || $req['status'] !== 'pending') {
+    $pdo->rollBack();
     json_response(['success' => false, 'message' => 'Pending request not found'], 404);
 }
 
 if ($action === 'reject') {
     $pdo->prepare("
         UPDATE signup_requests
-        SET status = 'rejected', approved_by = :admin, approved_at = NOW()
+        SET status = 'rejected', approved_by = :admin, approved_at = NOW(), approved_user_id = NULL
         WHERE id = :id
     ")->execute([':admin' => $adminId, ':id' => $requestId]);
+    $pdo->commit();
 
     smartflow_audit_action($pdo, 'signup.reject', $adminId, 'Rejected sign-up for ' . $req['username'], [
         'request_code'   => $req['request_code'],
@@ -58,12 +74,11 @@ if ($action === 'reject') {
 $stmtUser = $pdo->prepare('SELECT id FROM users WHERE username = :u LIMIT 1');
 $stmtUser->execute([':u' => $req['username']]);
 if ($stmtUser->fetch()) {
+    $pdo->rollBack();
     json_response(['success' => false, 'message' => 'Username already exists in users table'], 409);
 }
 
-$pdo->beginTransaction();
 try {
-    smartflow_ensure_users_email_column($pdo);
     $insert = $pdo->prepare('
         INSERT INTO users (name, username, email, password_hash, office_id, role)
         VALUES (:name, :username, :email, :hash, :office_id, :role)
@@ -76,16 +91,20 @@ try {
         ':office_id' => (int)$req['office_id'],
         ':role'      => $req['requested_role'],
     ]);
+    $approvedUserId = (int)$pdo->lastInsertId();
 
     $pdo->prepare("
         UPDATE signup_requests
-        SET status = 'approved', approved_by = :admin, approved_at = NOW()
+        SET status = 'approved', approved_by = :admin, approved_at = NOW(), approved_user_id = :user_id
         WHERE id = :id
-    ")->execute([':admin' => $adminId, ':id' => $requestId]);
+    ")->execute([':admin' => $adminId, ':id' => $requestId, ':user_id' => $approvedUserId]);
 
     $pdo->commit();
 } catch (Throwable $e) {
     $pdo->rollBack();
+    if ($e instanceof PDOException && (int)($e->errorInfo[1] ?? 0) === 1062) {
+        json_response(['success' => false, 'message' => 'Username or email already belongs to an account. Ask the applicant to use different account details.'], 409);
+    }
     json_response(['success' => false, 'message' => 'Could not approve request'], 500);
 }
 

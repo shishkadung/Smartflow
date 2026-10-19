@@ -8,7 +8,7 @@ export default function ResetPasswordPage() {
   const navigate = useNavigate()
   const { state } = useLocation()
   const [username, setUsername] = useState(state?.username || '')
-  const [code, setCode] = useState(state?.code || '')
+  const [code, setCode] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -26,8 +26,9 @@ export default function ResetPasswordPage() {
         code: code.trim(),
         new_password: password,
       })
+      // Carry the confirmation to the sign-in page so it stays visible after the redirect.
       setOk(data.message || 'Password updated. You can sign in.')
-      setTimeout(() => navigate('/', { replace: true }), 1200)
+      navigate('/', { replace: true, state: { notice: 'Password updated. Sign in with your new password.' } })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not reset password')
     } finally {

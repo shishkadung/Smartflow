@@ -81,10 +81,9 @@ function smartflow_check_movement(
     int $officeId,
     string $status
 ): ?array {
-    $allowedRoles = ['staff', 'head', 'admin'];
-    if (!in_array($user['role'], $allowedRoles, true)) {
+    if ($user['role'] !== 'staff') {
         return [
-            'message' => 'Your role cannot scan documents',
+            'message' => 'Only office staff can record physical handoffs. Heads and administrators can look up and monitor folders.',
             'scan_error' => 'role_forbidden',
             'http' => 403,
         ];
@@ -114,7 +113,7 @@ function smartflow_check_movement(
         }
         if ($last['status'] === 'OUT' && $last['office_id'] === $officeId) {
             return [
-                'message' => 'Already marked OUT from your office. The receiving office must scan IN next.',
+                'message' => 'Already marked OUT from your office. The receiving office confirms actual receipt. If the recorded destination is wrong, use Correct recorded destination before receipt.',
                 'scan_error' => 'already_out_here',
                 'http' => 409,
             ];
@@ -136,7 +135,7 @@ function smartflow_check_movement(
                 );
                 return [
                     'message' => 'This folder was sent to ' . $destLabel
-                        . '. Only that office can mark IN. Ask them to forward if it was misrouted.',
+                        . '. Only that office can mark IN. If this destination was recorded incorrectly, ask the sending office to correct it before actual receipt.',
                     'scan_error' => 'wrong_receiver',
                     'http' => 409,
                 ];
@@ -187,6 +186,7 @@ function smartflow_validate_movement(
     if ($reject === null) {
         return;
     }
+    if ($pdo->inTransaction()) $pdo->rollBack();
 
     if ($auditContext !== null) {
         smartflow_write_audit_log(
@@ -224,6 +224,7 @@ function smartflow_reject_scan(
     int $httpCode = 409,
     array $meta = []
 ): void {
+    if ($pdo->inTransaction()) $pdo->rollBack();
     $meta['scan_error'] = $scanError;
     smartflow_write_audit_log(
         $pdo,

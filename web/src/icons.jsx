@@ -26,6 +26,8 @@ export function SfIcon({ name, size = 20, stroke = 2, className }) {
 
 /** Stroke-path icons (Material-aligned). */
 export const SF_ICON_PATHS = {
+  search: ['M21 21l-5-5', 'M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0'],
+  refresh: ['M20 7v5h-5', 'M4 17v-5h5', 'M6 7a7 7 0 0 1 11.5-1L20 9', 'M4 15l2.5 3A7 7 0 0 0 18 17'],
   // Nav — same for all roles
   home: [
     'M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z',
@@ -46,6 +48,10 @@ export const SF_ICON_PATHS = {
     'M12 20h9',
     'M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z',
   ],
+  folderAdd: ['M3 7V5h6l2 2h10v13H3z', 'M15 10v6', 'M12 13h6'],
+  inbox: ['M4 3h16v18H4z', 'M4 15h5l2 3h2l2-3h5'],
+  archive: ['M3 3h18v5H3z', 'M5 8v13h14V8', 'M10 12h4'],
+  incoming: ['M4 3h16v18H4z', 'M4 15h5l2 3h2l2-3h5', 'M12 6v7', 'M9 10l3 3 3-3'],
   /** document requests — swap_horiz (mobile header) */
   requests: [
     'M8 7h12',
@@ -149,11 +155,12 @@ export const SF_ICON_PATHS = {
     'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
     'M9 12l2 2 4-4',
   ],
-  /** menu — phone "Menu" tab */
+  /** apps grid — header Menu */
   menu: [
-    'M4 6h16',
-    'M4 12h16',
-    'M4 18h16',
+    'M5 5h5v5H5z',
+    'M14 5h5v5h-5z',
+    'M5 14h5v5H5z',
+    'M14 14h5v5h-5z',
   ],
   back: ['M15 18l-6-6 6-6'],
   logout: [

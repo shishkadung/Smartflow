@@ -5,8 +5,39 @@
 declare(strict_types=1);
 
 const SMARTFLOW_QR_PREFIX = 'SF1';
-/** Physical folder labels — reprint issues a fresh token. */
+/** Downloaded and optional printed labels remain valid for 180 days. */
 const SMARTFLOW_QR_TTL_SECONDS = 15552000; // 180 days
+
+/** Run before a registration transaction: ALTER TABLE would implicitly commit it. */
+function smartflow_ensure_documents_qr_column(PDO $pdo): void
+{
+    static $columnReady = false;
+    if (!$columnReady) {
+        $column = $pdo->query("SHOW COLUMNS FROM documents LIKE 'qr_issued_at_unix'")->fetch();
+        if (!$column) {
+            try {
+                $pdo->exec('ALTER TABLE documents ADD COLUMN qr_issued_at_unix BIGINT NULL');
+            } catch (PDOException $e) {
+                if ((int)($e->errorInfo[1] ?? 0) !== 1060) throw $e;
+            }
+        }
+        $columnReady = true;
+    }
+}
+
+/** One stable signed QR per document until expiry; reopening or moving does not replace it. */
+function smartflow_document_qr(PDO $pdo, string $documentId): array
+{
+    smartflow_ensure_documents_qr_column($pdo);
+    $now = time();
+    $update = $pdo->prepare('UPDATE documents SET qr_issued_at_unix = :now WHERE id = :id AND (qr_issued_at_unix IS NULL OR qr_issued_at_unix < :expired_before)');
+    $update->execute([':now' => $now, ':id' => $documentId, ':expired_before' => $now - SMARTFLOW_QR_TTL_SECONDS]);
+    $read = $pdo->prepare('SELECT qr_issued_at_unix FROM documents WHERE id = ?');
+    $read->execute([$documentId]);
+    $issuedAt = $read->fetchColumn();
+    if ($issuedAt === false) throw new InvalidArgumentException('Document not found');
+    return smartflow_qr_issue($documentId, null, (int)$issuedAt);
+}
 
 function smartflow_qr_secret(): string
 {
@@ -15,21 +46,38 @@ function smartflow_qr_secret(): string
         return $cached;
     }
 
-    $path = __DIR__ . '/.qr-secret';
-    if (is_readable($path)) {
-        $fromFile = trim((string)file_get_contents($path));
-        if ($fromFile !== '') {
-            $cached = $fromFile;
-            return $cached;
+    return $cached = smartflow_load_qr_secret(__DIR__ . '/.qr-secret', trim((string)($_ENV['QR_SIGNING_SECRET'] ?? '')));
+}
+
+/** Persist one random key under a lock; upgrade the obsolete predictable key. */
+function smartflow_load_qr_secret(string $path, string $configured = ''): string
+{
+    $legacy = hash('sha256', 'smartflow-qr-v1-urbiztondo');
+    if ($configured !== '') {
+        if (strlen($configured) < 32 || hash_equals($legacy, $configured)) {
+            throw new RuntimeException('Configure a random QR signing secret of at least 32 bytes');
         }
+        return $configured;
     }
-
-    $cached = hash('sha256', 'smartflow-qr-v1-urbiztondo');
-    if (!is_file($path)) {
-        @file_put_contents($path, $cached);
+    $handle = @fopen($path, 'c+');
+    if (!$handle) throw new RuntimeException('QR signing key storage is unavailable');
+    if (!flock($handle, LOCK_EX)) { fclose($handle); throw new RuntimeException('QR signing key storage is unavailable'); }
+    try {
+        $secret = trim((string)stream_get_contents($handle));
+        if (strlen($secret) < 32 || hash_equals($legacy, $secret)) {
+            $secret = bin2hex(random_bytes(32));
+            rewind($handle);
+            ftruncate($handle, 0);
+            if (fwrite($handle, $secret) !== strlen($secret) || !fflush($handle)) {
+                throw new RuntimeException('Could not persist the QR signing key');
+            }
+            @chmod($path, 0600);
+        }
+        return $secret;
+    } finally {
+        flock($handle, LOCK_UN);
+        fclose($handle);
     }
-
-    return $cached;
 }
 
 function smartflow_qr_b64url_encode(string $raw): string
@@ -58,14 +106,14 @@ function smartflow_qr_b64url_decode(string $encoded): ?string
  *   expires_at_unix: int
  * }
  */
-function smartflow_qr_issue(string $documentId, ?int $ttlSeconds = null): array
+function smartflow_qr_issue(string $documentId, ?int $ttlSeconds = null, ?int $issuedAtUnix = null): array
 {
     $documentId = strtoupper(trim($documentId));
     if (!preg_match('/^DOC-\d{4}-\d{6}$/', $documentId)) {
         throw new InvalidArgumentException('Invalid document id for QR issue');
     }
 
-    $issuedAt = time();
+    $issuedAt = $issuedAtUnix ?? time();
     $ttl = $ttlSeconds ?? SMARTFLOW_QR_TTL_SECONDS;
     if ($ttl < 60) {
         $ttl = 60;
@@ -129,7 +177,7 @@ function smartflow_qr_verify(string $rawPayload): array
     if (!hash_equals($expectedSig, $sigPart)) {
         return smartflow_qr_verify_fail(
             'tampered',
-            'Invalid QR — label may be damaged or forged. Reprint from SmartFlow.'
+            'Invalid QR — image may be damaged or forged. Open the document in SmartFlow to download its QR.'
         );
     }
 
@@ -166,7 +214,7 @@ function smartflow_qr_verify(string $rawPayload): array
             'valid'        => false,
             'document_id'  => $documentId,
             'reason'       => 'expired',
-            'message'      => 'This QR label has expired. Ask Accounting to reprint the label.',
+            'message'      => 'This QR has expired. Open the document in SmartFlow to download its renewed QR.',
             'issued_at'    => gmdate('c', $issuedAt),
             'expires_at'   => gmdate('c', $expiresAt),
         ];

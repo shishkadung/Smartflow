@@ -1,4 +1,5 @@
 # SmartFlow Database Backup Script
+# Database-only legacy tool. Use backup-system.ps1 to also save QR keys and uploads.
 # Usage: .\scripts\backup-database.ps1
 
 $ErrorActionPreference = "Stop"

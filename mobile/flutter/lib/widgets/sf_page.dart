@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../theme/smartflow_theme.dart';
 import 'sf_shell_chrome.dart';
+import 'movement_recovery_banner.dart';
 
 /// Auth-style page chrome: gradient sky + Material/Scaffold (so TextField works)
 /// + scrollable content. Real device status bar is preserved by SafeArea.
@@ -42,7 +43,8 @@ class SfPage extends StatelessWidget {
                   padding: padding,
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight -
+                      minHeight:
+                          constraints.maxHeight -
                           MediaQuery.paddingOf(context).top -
                           MediaQuery.paddingOf(context).bottom -
                           padding.vertical,
@@ -75,6 +77,10 @@ class SfAppScaffold extends StatelessWidget {
     required this.currentIndex,
     required this.onTab,
     required this.tabs,
+    required this.onMenu,
+    required this.onProfile,
+    this.menuActive = false,
+    this.profileActive = false,
   });
 
   final Widget body;
@@ -82,10 +88,22 @@ class SfAppScaffold extends StatelessWidget {
   final ValueChanged<int> onTab;
   final List<SfNavTab> tabs;
 
+  /// Final bottom-navigation action. Opens the role tools sheet.
+  final VoidCallback onMenu;
+
+  /// Header action. Opens the signed-in role's Profile.
+  final VoidCallback onProfile;
+
+  /// True while a tools-sheet destination is on screen.
+  final bool menuActive;
+
+  final bool profileActive;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: SfColors.bg,
+      extendBody: true,
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -93,25 +111,40 @@ class SfAppScaffold extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SfShellTopBar(),
+            SfShellTopBar(onProfile: onProfile, profileActive: profileActive),
+            const MovementRecoveryBanner(),
             Expanded(
-              child: SafeArea(
-                top: false,
-                bottom: false,
-                child: body,
+              child: Builder(
+                builder: (context) {
+                  final media = MediaQuery.of(context);
+                  final keyboardOpen = media.viewInsets.bottom > 0;
+                  final inset = keyboardOpen ? 0.0 : media.padding.bottom;
+                  final clearance = keyboardOpen
+                      ? 0.0
+                      : SfBottomNav._raisedClearance;
+                  final reserved = (inset - clearance).clamp(0.0, inset);
+                  // Page paint continues behind Scan; the solid row stays clear.
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: reserved),
+                    child: MediaQuery(
+                      data: media.copyWith(
+                        padding: media.padding.copyWith(
+                          bottom: inset - reserved,
+                        ),
+                      ),
+                      child: SafeArea(top: false, bottom: false, child: body),
+                    ),
+                  );
+                },
               ),
             ),
           ],
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        minimum: EdgeInsets.zero,
-        child: SfBottomNav(
-          currentIndex: currentIndex,
-          onTap: onTab,
-          tabs: tabs,
-        ),
+      bottomNavigationBar: SfBottomNav(
+        currentIndex: menuActive ? tabs.length - 1 : currentIndex,
+        onTap: (index) => index == tabs.length - 1 ? onMenu() : onTab(index),
+        tabs: tabs,
       ),
     );
   }
@@ -152,42 +185,74 @@ class SfBottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
   final List<SfNavTab> tabs;
+  static const _raisedClearance = 26.0;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-      padding: const EdgeInsets.fromLTRB(6, 8, 6, 8),
-      clipBehavior: Clip.none,
-      decoration: BoxDecoration(
-        color: SfColors.paper,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: SfColors.navy.withValues(alpha: 0.08)),
-        boxShadow: [
-          BoxShadow(
-            color: SfColors.ink.withValues(alpha: 0.07),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+    final bottom = MediaQuery.paddingOf(context).bottom;
+    final labelSize = MediaQuery.textScalerOf(
+      context,
+    ).clamp(maxScaleFactor: 1.3).scale(11);
+    final contentHeight = 62 + labelSize * 1.1;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        systemNavigationBarColor: SfColors.paper,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: contentHeight > 78 ? contentHeight : 78,
+            child: ColoredBox(
+              color: Colors.transparent,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: _raisedClearance,
+                    bottom: 0,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: SfColors.paper,
+                        border: Border(
+                          top: BorderSide(
+                            color: SfColors.navy.withValues(alpha: 0.08),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(2, 0, 2, 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: List.generate(tabs.length, (i) {
+                        final t = tabs[i];
+                        return Expanded(
+                          child: _SfNavTabButton(
+                            tab: t,
+                            active: i == currentIndex,
+                            badge: t.badge,
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              onTap(i);
+                            },
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          ColoredBox(
+            color: SfColors.paper,
+            child: SizedBox(height: bottom),
           ),
         ],
-      ),
-      child: Row(
-        children: List.generate(tabs.length, (i) {
-          final active = i == currentIndex;
-          final t = tabs[i];
-          final badge = t.badge;
-          return Expanded(
-            child: _SfNavTabButton(
-              tab: t,
-              active: active,
-              badge: badge,
-              onTap: () {
-                HapticFeedback.selectionClick();
-                onTap(i);
-              },
-            ),
-          );
-        }),
       ),
     );
   }
@@ -209,127 +274,120 @@ class _SfNavTabButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final elevated = tab.elevated;
-    final iconSize = elevated ? 22.0 : 20.0;
+    final textScaler = MediaQuery.textScalerOf(context);
+    final largeText = textScaler.scale(11) > 12;
+    final label = Text(
+      largeText && tab.label == 'Documents' ? 'Docs' : tab.label,
+      semanticsLabel: tab.label,
+      // As with native navigation bars, bounded labels retain readable words.
+      // Full names remain available to screen readers and in scaled tooltips.
+      textScaler: textScaler.clamp(maxScaleFactor: 1.3),
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+        color: active ? SfColors.blue : SfColors.muted,
+        height: 1.1,
+        letterSpacing: -0.15,
+      ),
+      textAlign: TextAlign.center,
+      maxLines: 1,
+      softWrap: false,
+      overflow: TextOverflow.ellipsis,
+    );
 
-    Widget iconCore;
-    if (elevated) {
-      iconCore = Transform.translate(
-        offset: const Offset(0, -6),
-        child: Container(
-          width: 46,
-          height: 46,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: active ? SfColors.navy : SfColors.paper,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: active
-                  ? SfColors.navy
-                  : SfColors.navy.withValues(alpha: 0.18),
-              width: 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: SfColors.navy.withValues(alpha: active ? 0.28 : 0.1),
-                blurRadius: active ? 12 : 8,
-                offset: const Offset(0, 4),
+    final Widget iconCore = elevated
+        ? SizedBox(
+            width: 56,
+            height: 56,
+            child: Center(
+              child: Container(
+                width: 50,
+                height: 50,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: SfColors.navy,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: active ? const Color(0xFFE8D9B5) : Colors.white,
+                    width: 2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: SfColors.navy.withValues(alpha: 0.14),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Icon(tab.iconFor(true), size: 24, color: Colors.white),
               ),
-            ],
-          ),
-          child: Icon(
-            tab.iconFor(active),
-            size: iconSize,
-            color: active ? Colors.white : SfColors.navy,
-          ),
-        ),
-      );
-    } else if (active) {
-      iconCore = Container(
-        width: 40,
-        height: 32,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: SfColors.navy,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Icon(
-          tab.iconFor(true),
-          size: iconSize,
-          color: Colors.white,
-        ),
-      );
-    } else {
-      iconCore = SizedBox(
-        width: 40,
-        height: 32,
-        child: Icon(
-          tab.iconFor(false),
-          size: iconSize,
-          color: SfColors.muted,
-        ),
-      );
-    }
+            ),
+          )
+        : SizedBox(
+            width: 40,
+            height: 28,
+            child: Icon(
+              tab.iconFor(active),
+              size: 20,
+              color: active ? SfColors.blue : SfColors.muted,
+            ),
+          );
 
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          vertical: elevated ? 2 : 4,
-          horizontal: 2,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
+    return Tooltip(
+      message: tab.label,
+      excludeFromSemantics: true,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: 48),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                iconCore,
-                if (badge != null && badge! > 0)
-                  Positioned(
-                    right: elevated ? 0 : 2,
-                    top: elevated ? -2 : -2,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 2,
-                      ),
-                      decoration: const BoxDecoration(
-                        color: SfColors.red,
-                        borderRadius: BorderRadius.all(Radius.circular(8)),
-                      ),
-                      constraints: const BoxConstraints(
-                        minWidth: 16,
-                        minHeight: 14,
-                      ),
-                      child: Text(
-                        badge! > 9 ? '9+' : '$badge',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w800,
-                          height: 1.1,
+                Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    iconCore,
+                    if (badge != null && badge! > 0)
+                      Positioned(
+                        right: elevated ? -2 : 0,
+                        top: elevated ? -2 : -4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 2,
+                          ),
+                          decoration: const BoxDecoration(
+                            color: SfColors.red,
+                            borderRadius: BorderRadius.all(Radius.circular(8)),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 14,
+                          ),
+                          child: Text(
+                            badge! > 9 ? '9+' : '$badge',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                              height: 1.1,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
+                  ],
+                ),
+                SizedBox(height: elevated ? 2 : 4),
+                label,
               ],
             ),
-            SizedBox(height: elevated ? 0 : 4),
-            Text(
-              tab.label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                color: active ? SfColors.navy : SfColors.muted,
-                height: 1.1,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -345,6 +403,7 @@ class SfMoreDestination {
     this.subtitle,
     this.extra,
     this.onTap,
+    this.badge,
   }) : assert(route != null || onTap != null);
 
   final IconData icon;
@@ -353,6 +412,9 @@ class SfMoreDestination {
   final String? route;
   final Object? extra;
   final VoidCallback? onTap;
+
+  /// Optional count, shown beside the row (pending sign-ups).
+  final int? badge;
 }
 
 /// Secondary destinations sheet — same pattern for clerk / head / admin.
@@ -370,6 +432,7 @@ Future<void> showSfMoreSheet(
       final media = MediaQuery.of(sheetContext);
       final bottom = media.padding.bottom;
       final maxH = media.size.height * 0.85;
+      final largeMenuText = media.textScaler.scale(14) > 20;
       return Padding(
         padding: EdgeInsets.fromLTRB(12, 0, 12, 12 + bottom),
         child: Material(
@@ -395,7 +458,7 @@ Future<void> showSfMoreSheet(
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+                    padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
                     child: Text(
                       title,
                       style: const TextStyle(
@@ -405,69 +468,85 @@ Future<void> showSfMoreSheet(
                       ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: SfColors.muted,
-                        height: 1.35,
+                  if (subtitle.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+                      child: Text(
+                        subtitle,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: SfColors.muted,
+                          height: 1.35,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  ...destinations.map((d) {
-                    return ListTile(
-                      leading: Container(
-                        width: 40,
-                        height: 40,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: SfColors.navy.withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(d.icon, color: SfColors.navy, size: 22),
-                      ),
-                      title: Text(
-                        d.title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                          color: SfColors.ink,
-                        ),
-                      ),
-                      subtitle: d.subtitle == null
-                          ? null
-                          : Text(
-                              d.subtitle!,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: SfColors.muted,
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                    child: Column(
+                      children: [
+                        for (final destination in destinations)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: ListTile(
+                              contentPadding: largeMenuText
+                                  ? const EdgeInsets.symmetric(horizontal: 8)
+                                  : null,
+                              minLeadingWidth: largeMenuText ? 24 : null,
+                              horizontalTitleGap: largeMenuText ? 8 : null,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
                               ),
+                              leading: Icon(
+                                destination.icon,
+                                color: SfColors.navy,
+                              ),
+                              title: Text(
+                                destination.title,
+                                style: TextStyle(
+                                  fontSize: largeMenuText ? 14 : null,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: destination.subtitle == null
+                                  ? null
+                                  : Text(destination.subtitle!),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if ((destination.badge ?? 0) > 0)
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                        right: largeMenuText ? 0 : 8,
+                                      ),
+                                      child: Text(
+                                        '${destination.badge}',
+                                        style: const TextStyle(
+                                          color: SfColors.red,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ),
+                                  if (!largeMenuText)
+                                    const Icon(Icons.chevron_right),
+                                ],
+                              ),
+                              onTap: () {
+                                Navigator.pop(sheetContext);
+                                HapticFeedback.selectionClick();
+                                if (destination.onTap != null) {
+                                  destination.onTap!();
+                                } else if (destination.route != null) {
+                                  context.go(
+                                    destination.route!,
+                                    extra: destination.extra,
+                                  );
+                                }
+                              },
                             ),
-                      trailing: Icon(
-                        Icons.chevron_right_rounded,
-                        color: SfColors.muted.withValues(alpha: 0.6),
-                      ),
-                      onTap: () {
-                        Navigator.pop(sheetContext);
-                        HapticFeedback.selectionClick();
-                        if (d.onTap != null) {
-                          d.onTap!();
-                          return;
-                        }
-                        final route = d.route;
-                        if (route == null) return;
-                        if (d.extra != null) {
-                          context.go(route, extra: d.extra);
-                        } else {
-                          context.go(route);
-                        }
-                      },
-                    );
-                  }),
-                  const SizedBox(height: 8),
+                          ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),

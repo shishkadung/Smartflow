@@ -1,123 +1,71 @@
 <?php
-// Simple rate limiting middleware using file-based storage
-// Include this in endpoints that need rate limiting
+declare(strict_types=1);
 
+// Locked sliding windows. Identities must come from the IP or a validated session.
 class RateLimiter {
-    private string $storageDir;
-    private int $requestsPerMinute;
-    private string $identifier;
-
-    public function __construct(int $requestsPerMinute = 60) {
-        $this->storageDir = __DIR__ . '/cache/rate_limit';
-        $this->requestsPerMinute = $requestsPerMinute;
-        $this->identifier = $this->getIdentifier();
-        
-        // Ensure storage directory exists
-        if (!is_dir($this->storageDir)) {
-            mkdir($this->storageDir, 0755, true);
+    private string $file;
+    private int $remaining;
+    private int $resetAt;
+    public function __construct(
+        private int $requestsPerMinute = 60,
+        string $identifier = '',
+        private int $windowSeconds = 60,
+        ?string $storageDir = null
+    ) {
+        $this->requestsPerMinute = max(1, $this->requestsPerMinute);
+        $this->windowSeconds = max(1, $this->windowSeconds);
+        $storageDir ??= __DIR__ . '/cache/rate_limit';
+        if (!is_dir($storageDir) && !@mkdir($storageDir, 0700, true) && !is_dir($storageDir)) {
+            throw new RuntimeException('Rate-limit storage is unavailable');
+        }
+        $identifier = $identifier ?: 'ip:' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+        $this->file = $storageDir . '/' . hash('sha256', $identifier) . '.json';
+        $this->remaining = $this->requestsPerMinute;
+        $this->resetAt = time() + $this->windowSeconds;
+    }
+    public function check(?int $now = null): bool {
+        $now ??= time();
+        $handle = fopen($this->file, 'c+');
+        if (!$handle) throw new RuntimeException('Rate-limit storage is unavailable');
+        if (!flock($handle, LOCK_EX)) { fclose($handle); throw new RuntimeException('Rate-limit storage is unavailable'); }
+        try {
+            $data = json_decode(stream_get_contents($handle), true) ?: [];
+            $requests = array_values(array_filter($data['requests'] ?? [], fn($t) => is_int($t) && $t > $now - $this->windowSeconds));
+            $allowed = count($requests) < $this->requestsPerMinute;
+            if ($allowed) $requests[] = $now;
+            $this->remaining = max(0, $this->requestsPerMinute - count($requests));
+            $this->resetAt = ($requests[0] ?? $now) + $this->windowSeconds;
+            rewind($handle);
+            ftruncate($handle, 0);
+            $encoded = json_encode(['requests' => $requests]);
+            if (fwrite($handle, $encoded) !== strlen($encoded) || !fflush($handle)) throw new RuntimeException('Could not persist the rate limit');
+            return $allowed;
+        } finally {
+            flock($handle, LOCK_UN);
+            fclose($handle);
         }
     }
-
-    private function getIdentifier(): string {
-        // Use IP address as identifier
-        $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-        // For authenticated requests, use user ID instead
-        $token = $this->getBearerToken();
-        if ($token) {
-            $userId = $this->userIdFromToken($token);
-            if ($userId) {
-                return 'user_' . $userId;
-            }
-        }
-        return 'ip_' . md5($ip);
-    }
-
-    private function getBearerToken(): ?string {
-        $candidates = [];
-        $candidates[] = $_SERVER['HTTP_AUTHORIZATION'] ?? null;
-        $candidates[] = $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? null;
-        $candidates[] = $_SERVER['Authorization'] ?? null;
-
-        if (function_exists('getallheaders')) {
-            $headers = getallheaders();
-            if (is_array($headers)) {
-                $candidates[] = $headers['Authorization'] ?? $headers['authorization'] ?? null;
-            }
-        }
-
-        foreach ($candidates as $auth) {
-            if (!$auth) continue;
-            if (preg_match('/Bearer\s+(.+)/i', $auth, $m)) {
-                return trim($m[1]);
-            }
-        }
-        return null;
-    }
-
-    private function userIdFromToken(?string $token): ?int {
-        if (!$token) return null;
-        $decoded = base64_decode($token, true);
-        if ($decoded === false || !str_contains($decoded, '|')) return null;
-        [$userIdRaw] = explode('|', $decoded, 2);
-        $userId = (int)$userIdRaw;
-        return $userId > 0 ? $userId : null;
-    }
-
-    public function check(): bool {
-        $file = $this->storageDir . '/' . $this->identifier . '.json';
-        $now = time();
-        $windowStart = $now - 60; // 1 minute window
-
-        $data = ['requests' => []];
-        if (file_exists($file)) {
-            $json = file_get_contents($file);
-            $data = json_decode($json, true) ?: ['requests' => []];
-        }
-
-        // Clean old requests outside the window
-        $data['requests'] = array_filter($data['requests'], fn($t) => $t > $windowStart);
-
-        // Check if limit exceeded
-        if (count($data['requests']) >= $this->requestsPerMinute) {
-            return false;
-        }
-
-        // Add current request
-        $data['requests'][] = $now;
-        file_put_contents($file, json_encode($data));
-
-        return true;
-    }
-
     public function getHeaders(): array {
-        $file = $this->storageDir . '/' . $this->identifier . '.json';
-        $remaining = $this->requestsPerMinute;
-        
-        if (file_exists($file)) {
-            $json = file_get_contents($file);
-            $data = json_decode($json, true) ?: ['requests' => []];
-            $windowStart = time() - 60;
-            $data['requests'] = array_filter($data['requests'], fn($t) => $t > $windowStart);
-            $remaining = max(0, $this->requestsPerMinute - count($data['requests']));
-        }
+        return ['X-RateLimit-Limit' => $this->requestsPerMinute, 'X-RateLimit-Remaining' => $this->remaining, 'X-RateLimit-Reset' => $this->resetAt];
+    }
+    public function retryAfter(): int { return max(1, $this->resetAt - time()); }
+}
 
-        return [
-            'X-RateLimit-Limit' => $this->requestsPerMinute,
-            'X-RateLimit-Remaining' => $remaining,
-            'X-RateLimit-Reset' => time() + 60
-        ];
+function smartflow_rate_limit(string $identity, int $limit, int $windowSeconds = 60): void {
+    $limiter = new RateLimiter(max(1, $limit), $identity, $windowSeconds);
+    $allowed = $limiter->check();
+    foreach ($limiter->getHeaders() as $name => $value) header("$name: $value");
+    if (!$allowed) {
+        $retry = $limiter->retryAfter();
+        header('Retry-After: ' . $retry);
+        json_response(['success' => false, 'message' => 'Too many requests. Please wait before trying again.', 'retry_after' => $retry], 429);
     }
 }
 
-// Usage in endpoints:
-// require_once __DIR__ . '/rate-limit.php';
-// $limiter = new RateLimiter((int)($_ENV['RATE_LIMIT_PER_MINUTE'] ?? 60));
-// if (!$limiter->check()) {
-//     http_response_code(429);
-//     header('Content-Type: application/json');
-//     echo json_encode(['success' => false, 'message' => 'Too many requests']);
-//     exit;
-// }
-// foreach ($limiter->getHeaders() as $name => $value) {
-//     header("$name: $value");
-// }
+function smartflow_public_auth_limit(string $action, int $ipLimit, ?string $username = null, int $accountLimit = 10): void {
+    // Never decode the caller's bearer token to choose a public-auth bucket.
+    smartflow_rate_limit('auth:' . $action . ':ip:' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'), $ipLimit);
+    if ($username !== null && trim($username) !== '') {
+        smartflow_rate_limit('auth:' . $action . ':account:' . strtolower(trim($username)), $accountLimit, 900);
+    }
+}

@@ -1,7 +1,6 @@
 <?php
 // GET /dev-api-health.php — quick smoke test (local demo only).
 
-require __DIR__ . '/config.php';
 require __DIR__ . '/dev-block.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {

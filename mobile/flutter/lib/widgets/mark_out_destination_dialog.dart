@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../theme/smartflow_theme.dart';
 import '../utils/api_error.dart';
 import '../utils/suggest_forward_office.dart';
+import '../utils/document_types.dart';
 
 /// Pilot office picked when forwarding (Mark OUT).
 class MarkOutDestination {
@@ -36,6 +37,7 @@ Future<MarkOutDestination?> showMarkOutDestinationDialog(
   int? suggestedOfficeId,
   String? suggestedOfficeCode,
   String? suggestedReason,
+  String? onlyDestinationCode,
 }) async {
   return showDialog<MarkOutDestination>(
     context: context,
@@ -49,6 +51,7 @@ Future<MarkOutDestination?> showMarkOutDestinationDialog(
       suggestedOfficeId: suggestedOfficeId,
       suggestedOfficeCode: suggestedOfficeCode,
       suggestedReason: suggestedReason,
+      onlyDestinationCode: onlyDestinationCode,
     ),
   );
 }
@@ -63,6 +66,7 @@ class _MarkOutDestinationDialog extends StatefulWidget {
     this.suggestedOfficeId,
     this.suggestedOfficeCode,
     this.suggestedReason,
+    this.onlyDestinationCode,
   });
 
   final String documentId;
@@ -73,6 +77,7 @@ class _MarkOutDestinationDialog extends StatefulWidget {
   final int? suggestedOfficeId;
   final String? suggestedOfficeCode;
   final String? suggestedReason;
+  final String? onlyDestinationCode;
 
   @override
   State<_MarkOutDestinationDialog> createState() =>
@@ -132,7 +137,12 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
       if (!mounted) return;
 
       final filtered = list
-          .where((o) => (o['id'] as int) != widget.myOfficeId)
+          .where(
+            (o) =>
+                (o['id'] as int) != widget.myOfficeId &&
+                (widget.onlyDestinationCode == null ||
+                    o['code'] == widget.onlyDestinationCode),
+          )
           .toList();
 
       var sid = suggestId;
@@ -184,8 +194,8 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
 
   List<Map<String, dynamic>> get _visibleOffices => _isReturn
       ? _offices
-          .where((o) => _previousHolderCodes.contains(o['code'] as String))
-          .toList()
+            .where((o) => _previousHolderCodes.contains(o['code'] as String))
+            .toList()
       : _offices;
 
   bool get _canConfirm =>
@@ -238,7 +248,9 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
 
     return AlertDialog(
       scrollable: true,
-      title: Text(_isReturn ? 'Return to which office?' : 'Forward to which office?'),
+      title: Text(
+        _isReturn ? 'Return to which office?' : 'Forward to which office?',
+      ),
       content: SizedBox(
         width: double.maxFinite,
         child: _loading
@@ -247,235 +259,231 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
                 child: Center(child: CircularProgressIndicator()),
               )
             : _error != null
-                ? Text(_error!, style: const TextStyle(color: SfColors.red))
-                : Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Text(
-                        'Mark ${widget.documentId} as OUT from ${widget.myOfficeName}.',
-                        style: const TextStyle(fontSize: 13, height: 1.45),
+            ? Text(_error!, style: const TextStyle(color: SfColors.red))
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'Mark ${widget.documentId} as OUT from ${widget.myOfficeName}.',
+                    style: const TextStyle(fontSize: 13, height: 1.45),
+                  ),
+                  if (_previousHolderCodes.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      value: _isReturn,
+                      onChanged: _setReturn,
+                      title: const Text(
+                        'Return to a previous office',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                      if (_previousHolderCodes.isNotEmpty) ...[
-                        const SizedBox(height: 6),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                          value: _isReturn,
-                          onChanged: _setReturn,
-                          title: const Text(
-                            'Return to a previous office',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          subtitle: const Text(
-                            'Incomplete or needs correction — a reason is required.',
-                            style: TextStyle(fontSize: 11),
-                          ),
+                      subtitle: const Text(
+                        'Incomplete or needs correction — a reason is required.',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ],
+                  if (_isReturn) ...[
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: _reasonCtrl,
+                      maxLines: 2,
+                      maxLength: 200,
+                      decoration: const InputDecoration(
+                        labelText: 'Reason for return',
+                        hintText: 'e.g. Missing obligation request (ObR)',
+                        helperText: 'At least 5 characters',
+                      ),
+                    ),
+                  ],
+                  if (!_isReturn &&
+                      widget.myOfficeCode.toUpperCase() == 'ACC' &&
+                      isDisbursementDocumentType(
+                        widget.documentType ?? '',
+                      )) ...[
+                    const SizedBox(height: 10),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: SfColors.blue.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: SfColors.blue.withValues(alpha: 0.25),
                         ),
-                      ],
-                      if (_isReturn) ...[
-                        const SizedBox(height: 4),
-                        TextField(
-                          controller: _reasonCtrl,
-                          maxLines: 2,
-                          maxLength: 200,
-                          decoration: const InputDecoration(
-                            labelText: 'Reason for return',
-                            hintText: 'e.g. Missing obligation request (ObR)',
-                            helperText: 'At least 5 characters',
-                          ),
+                      ),
+                      child: const Text(
+                        'Usual next stop is Treasury (TRE), then Mayor (MAY), '
+                        'then Treasury again for check release. SmartFlow tracks '
+                        'the folder — it does not approve payment.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: SfColors.muted,
+                          height: 1.35,
                         ),
-                      ],
-                      if (!_isReturn &&
-                          widget.myOfficeCode.toUpperCase() == 'ACC' &&
-                          (widget.documentType ?? '')
-                              .toLowerCase()
-                              .contains('disbursement')) ...[
-                        const SizedBox(height: 10),
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: SfColors.blue.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: SfColors.blue.withValues(alpha: 0.25),
-                            ),
-                          ),
-                          child: const Text(
-                            'Usual next stop is Treasury (TRE), then Mayor (MAY), '
-                            'then Treasury again for check release. SmartFlow tracks '
-                            'the folder — it does not approve payment.',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: SfColors.muted,
-                              height: 1.35,
-                            ),
-                          ),
+                      ),
+                    ),
+                  ],
+                  if (!_isReturn &&
+                      suggestOffice != null &&
+                      _suggestReason != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: SfColors.gold.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: SfColors.gold.withValues(alpha: 0.45),
                         ),
-                      ],
-                      if (!_isReturn &&
-                          suggestOffice != null &&
-                          _suggestReason != null) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: SfColors.gold.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: SfColors.gold.withValues(alpha: 0.45),
-                            ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.lightbulb_outline_rounded,
+                            size: 20,
+                            color: SfColors.gold,
                           ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Icon(
-                                Icons.lightbulb_outline_rounded,
-                                size: 20,
-                                color: SfColors.gold,
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Suggested: ${suggestOffice['code']} — ${suggestOffice['name']}',
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w800,
-                                        fontSize: 12.5,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      _suggestReason!,
-                                      style: const TextStyle(
-                                        fontSize: 11.5,
-                                        color: SfColors.muted,
-                                        height: 1.35,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 14),
-                      ..._visibleOffices.map((o) {
-                        final id = o['id'] as int;
-                        final code = o['code'] as String;
-                        final name = o['name'] as String;
-                        final selected = _selectedId == id;
-                        final isSuggested = !_isReturn && id == _suggestId;
-                        final dept = _deptColor(code);
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Material(
-                            color: selected
-                                ? SfColors.blue.withValues(alpha: 0.12)
-                                : SfColors.paper,
-                            borderRadius: BorderRadius.circular(12),
-                            child: InkWell(
-                              onTap: () => setState(() => _selectedId = id),
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 12,
-                                ),
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: selected
-                                        ? SfColors.blue
-                                        : isSuggested
-                                            ? SfColors.gold
-                                                .withValues(alpha: 0.6)
-                                            : const Color(0x140F172A),
-                                    width: selected ? 2 : 1,
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Suggested: ${suggestOffice['code']} — ${suggestOffice['name']}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 12.5,
                                   ),
                                 ),
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      selected
-                                          ? Icons.radio_button_checked
-                                          : Icons.radio_button_off,
-                                      color: selected
-                                          ? SfColors.blue
-                                          : SfColors.muted,
-                                      size: 22,
-                                    ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
+                                const SizedBox(height: 4),
+                                Text(
+                                  _suggestReason!,
+                                  style: const TextStyle(
+                                    fontSize: 11.5,
+                                    color: SfColors.muted,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  ..._visibleOffices.map((o) {
+                    final id = o['id'] as int;
+                    final code = o['code'] as String;
+                    final name = o['name'] as String;
+                    final selected = _selectedId == id;
+                    final isSuggested = !_isReturn && id == _suggestId;
+                    final dept = _deptColor(code);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Material(
+                        color: selected
+                            ? SfColors.blue.withValues(alpha: 0.12)
+                            : SfColors.paper,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InkWell(
+                          onTap: () => setState(() => _selectedId = id),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: selected
+                                    ? SfColors.blue
+                                    : isSuggested
+                                    ? SfColors.gold.withValues(alpha: 0.6)
+                                    : const Color(0x140F172A),
+                                width: selected ? 2 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  selected
+                                      ? Icons.radio_button_checked
+                                      : Icons.radio_button_off,
+                                  color: selected
+                                      ? SfColors.blue
+                                      : SfColors.muted,
+                                  size: 22,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
                                         children: [
-                                          Row(
-                                            children: [
-                                              Text(
-                                                code,
-                                                style: TextStyle(
-                                                  fontWeight: FontWeight.w800,
-                                                  fontSize: 14,
-                                                  color: dept,
-                                                ),
-                                              ),
-                                              if (isSuggested) ...[
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
+                                          Text(
+                                            code,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.w800,
+                                              fontSize: 14,
+                                              color: dept,
+                                            ),
+                                          ),
+                                          if (isSuggested) ...[
+                                            const SizedBox(width: 8),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
                                                     horizontal: 6,
                                                     vertical: 2,
                                                   ),
-                                                  decoration: BoxDecoration(
-                                                    color: SfColors.gold
-                                                        .withValues(
-                                                            alpha: 0.2),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            6),
-                                                  ),
-                                                  child: const Text(
-                                                    'Suggested',
-                                                    style: TextStyle(
-                                                      fontSize: 9,
-                                                      fontWeight:
-                                                          FontWeight.w800,
-                                                      color: SfColors.gold,
-                                                    ),
-                                                  ),
+                                              decoration: BoxDecoration(
+                                                color: SfColors.gold.withValues(
+                                                  alpha: 0.2,
                                                 ),
-                                              ],
-                                            ],
-                                          ),
-                                          Text(
-                                            name,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              color: SfColors.muted,
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                              ),
+                                              child: const Text(
+                                                'Suggested',
+                                                style: TextStyle(
+                                                  fontSize: 9,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: SfColors.gold,
+                                                ),
+                                              ),
                                             ),
-                                          ),
+                                          ],
                                         ],
                                       ),
-                                    ),
-                                  ],
+                                      Text(
+                                        name,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: SfColors.muted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
+                              ],
                             ),
                           ),
-                        );
-                      }),
-                    ],
-                  ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              ),
       ),
       actions: [
         TextButton(
@@ -484,7 +492,7 @@ class _MarkOutDestinationDialogState extends State<_MarkOutDestinationDialog> {
         ),
         FilledButton(
           onPressed: _canConfirm ? _confirm : null,
-          child: Text(_isReturn ? 'Return (OUT)' : 'Mark OUT'),
+          child: Text(_isReturn ? 'Return (OUT)' : 'Send (OUT)'),
         ),
       ],
     );

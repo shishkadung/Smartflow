@@ -1,0 +1,19 @@
+.app-shell .requests-page.requests-page--clear .request-toolbar { align-items: center; }
+.app-shell .requests-page.requests-page--clear .request-status-filter { display: flex; align-items: center; gap: 10px; color: var(--sf-muted); font-size: 14px; }
+.app-shell .requests-page.requests-page--clear .request-status-filter select { width: auto; min-width: 190px; margin: 0; color: var(--sf-ink); }
+.app-shell .requests-page.requests-page--clear .request-view-explanation { margin: -5px 0 0; color: var(--sf-muted); font-size: 14px; line-height: 1.45; }
+.app-shell .requests-page.requests-page--clear .request-purpose { margin: 18px 0 0; overflow-wrap: anywhere; }
+.app-shell .requests-page.requests-page--clear .request-purpose h4 { margin: 0 0 6px; color: var(--sf-muted); font-size: 13px; font-weight: 600; }
+.app-shell .requests-page.requests-page--clear .request-purpose p { margin: 0; font-size: 16px; line-height: 1.5; font-weight: 600; white-space: pre-wrap; }
+.app-shell .requests-page.requests-page--clear .request-next-step { margin: 18px 0; padding: 14px 0; background: transparent; border: 0; border-top: 1px solid var(--sf-border); border-bottom: 1px solid var(--sf-border); border-radius: 0; }
+.app-shell .requests-page.requests-page--clear .request-next-step h4 { margin: 0 0 6px; }
+.app-shell .requests-page.requests-page--clear .request-details { margin-top: 0; }
+@media (max-width: 767px) {
+  .app-shell .requests-page.requests-page--clear .request-status-filter { width: 100%; }
+  .app-shell .requests-page.requests-page--clear .request-status-filter select { width: 100%; min-width: 0; }
+  .app-shell .requests-page.requests-page--clear .request-view-explanation { margin-top: 0; }
+  .app-shell .requests-page.requests-page--clear .request-purpose p { font-size: 15px; }
+  .app-shell .requests-page.requests-page--clear .request-search { display: flex; flex-wrap: wrap; align-items: end; }
+  .app-shell .requests-page.requests-page--clear .request-search > .field { flex: 1 1 100%; min-width: 0; }
+  .app-shell .requests-page.requests-page--clear .request-search > button { width: auto; flex: 0 0 auto; }
+}

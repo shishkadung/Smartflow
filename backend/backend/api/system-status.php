@@ -7,6 +7,8 @@ require __DIR__ . '/config.php';
 require_once __DIR__ . '/users-helper.php';
 require_once __DIR__ . '/thresholds-helper.php';
 require_once __DIR__ . '/routing-helper.php';
+require_once __DIR__ . '/mailtrap-api-config.php';
+smartflow_ensure_documents_filed_columns($pdo);
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -20,8 +22,6 @@ $checkedAt = date('Y-m-d H:i:s');
 $monthStart = date('Y-m-01 00:00:00');
 $monthEnd   = date('Y-m-t 23:59:59', strtotime($monthStart));
 $todayStart = date('Y-m-d 00:00:00');
-$maxInHours = 48;
-$maxOutHours = 24;
 $trailCompleteSql = smartflow_sql_trail_complete('t.document_id');
 $latestTrailCompleteSql = smartflow_sql_trail_complete('latest.document_id');
 
@@ -78,45 +78,22 @@ $stmtActive = $pdo->query("
 ");
 $activeDocuments = (int)($stmtActive->fetch()['c'] ?? 0);
 
-$stmtOverdue = $pdo->prepare("
-    SELECT COUNT(DISTINCT t.document_id) AS c
-    FROM (
-        SELECT m.document_id,
-               (SELECT m2.status FROM movements m2
-                WHERE m2.document_id = m.document_id
-                ORDER BY m2.scanned_at DESC, m2.id DESC LIMIT 1) AS last_status,
-               (SELECT m2.scanned_at FROM movements m2
-                WHERE m2.document_id = m.document_id
-                ORDER BY m2.scanned_at DESC, m2.id DESC LIMIT 1) AS last_scanned
-        FROM movements m
-        GROUP BY m.document_id
-    ) t
-    WHERE t.last_status = 'IN'
-      AND NOT {$trailCompleteSql}
-      AND TIMESTAMPDIFF(HOUR, t.last_scanned, NOW()) >= :maxh
-");
-$stmtOverdue->execute([':maxh' => $maxInHours]);
-$overdueIn = (int)($stmtOverdue->fetch()['c'] ?? 0);
-
-$stmtOut = $pdo->prepare("
-    SELECT COUNT(DISTINCT t.document_id) AS c
-    FROM (
-        SELECT m.document_id,
-               (SELECT m2.status FROM movements m2
-                WHERE m2.document_id = m.document_id
-                ORDER BY m2.scanned_at DESC, m2.id DESC LIMIT 1) AS last_status,
-               (SELECT m2.scanned_at FROM movements m2
-                WHERE m2.document_id = m.document_id
-                ORDER BY m2.scanned_at DESC, m2.id DESC LIMIT 1) AS last_scanned
-        FROM movements m
-        GROUP BY m.document_id
-    ) t
-    WHERE t.last_status = 'OUT'
-      AND TIMESTAMPDIFF(HOUR, t.last_scanned, NOW()) >= :maxh
-");
-$stmtOut->execute([':maxh' => $maxOutHours]);
-$unconfirmedOut = (int)($stmtOut->fetch()['c'] ?? 0);
-
+smartflow_ensure_processing_thresholds($pdo);
+smartflow_ensure_documents_due_column($pdo);
+$overdueIn = 0;
+$unconfirmedOut = 0;
+$stmtPending = $pdo->query("SELECT d.type, d.due_at, m.status, m.office_id, m.scanned_at
+    FROM documents d JOIN movements m ON m.id = (
+        SELECT latest.id FROM movements latest WHERE latest.document_id = d.id
+        ORDER BY latest.scanned_at DESC, latest.id DESC LIMIT 1
+    ) WHERE NOT " . smartflow_sql_trail_complete('d.id'));
+foreach ($stmtPending->fetchAll() as $pending) {
+    $due = smartflow_document_due($pdo, (string)$pending['type'], (string)$pending['status'],
+        (int)$pending['office_id'], (string)$pending['scanned_at'], $pending['due_at']);
+    if (!$due['is_overdue']) continue;
+    if ($pending['status'] === 'IN' || $due['is_manual_due']) $overdueIn++;
+    else $unconfirmedOut++;
+}
 $stmtMovToday = $pdo->prepare('SELECT COUNT(*) FROM movements WHERE scanned_at >= :start');
 $stmtMovToday->execute([':start' => $todayStart]);
 $movementsToday = (int)$stmtMovToday->fetchColumn();
@@ -201,4 +178,6 @@ json_response([
         'month'               => date('Y-m'),
     ],
     'office_snapshot' => $officeSnapshot,
+    // Secret-free mail channel health so the administrator learns about a broken reset email before a user is locked out.
+    'email' => smartflow_email_settings() + ['last_attempt' => smartflow_email_last_result()],
 ]);

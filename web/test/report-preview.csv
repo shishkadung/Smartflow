@@ -1,0 +1,23 @@
+﻿"SmartFlow custody support summary"
+Period,"October 2026"
+From,"2026-10-01 00:00:00"
+Through,"2026-10-31 23:59:59"
+Scope,"Municipal system (all offices)"
+"Prepared by","Sample Accountant · Accounting Office"
+"Generated at","2026-10-03 14:00:00"
+Timezone,Asia/Manila
+Source,"SmartFlow custody scan logs"
+"Documents in period",40
+
+"Custody classification",Documents,Percent
+"On time",30,75
+Unforwarded,6,15
+Delayed,4,10
+
+Office,Code,"Distinct documents processed"
+"Engineering Office",ENG,40
+"Budget Office",BUD,30
+"Accounting Office",ACC,24
+
+"Office counts can overlap when a document passes through several offices."
+"Custody support only. Pair with the required financial reports."

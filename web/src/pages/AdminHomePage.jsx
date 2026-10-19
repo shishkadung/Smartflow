@@ -1,24 +1,38 @@
+import { useAuth } from '../auth.jsx'
+import { useLiveRefresh } from '../live-refresh.js'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { smartflow, ApiError } from '../api.js'
-import { LifeEmpty, Overview, StatusPill, statTone } from '../components/ui.jsx'
+import { ApiError } from '../api.js'
+import { LifeEmpty, LifeSkeleton, Overview, StatusPill } from '../components/ui.jsx'
+import { HomeMetrics, HomeTaskLinks } from '../components/HomeWorkspace.jsx'
 
 export default function AdminHomePage() {
+  const { smartflow } = useAuth()
+  const revision = useLiveRefresh()
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [retry, setRetry] = useState(0)
 
   useEffect(() => {
     let cancelled = false
+    // oxlint-disable-next-line react/set-state-in-effect -- Track refreshes while keeping the last successful dashboard visible.
+    setLoading(true)
     smartflow.accountantDashboard()
       .then((dash) => {
-        if (!cancelled) setData(dash)
+        if (!cancelled) { setData(dash); setError('') }
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof ApiError ? e.message : 'Could not load municipal dashboard')
       })
+      .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [])
+  }, [revision, retry, smartflow])
 
+  return <AdminDashboardContent data={data} error={error} loading={loading} onRetry={() => setRetry((value) => value + 1)} />
+}
+
+export function AdminDashboardContent({ data, error, loading, onRetry }) {
   const stats = data?.stats || {}
   const offices = data?.office_totals || []
   const pending = stats.pending_signups ?? 0
@@ -30,10 +44,9 @@ export default function AdminHomePage() {
     : month
 
   return (
-    <div className="sf-life">
+    <div className="sf-life home-dashboard">
       <Overview
-        title="Municipal dashboard"
-        body="Active custody across municipal offices."
+        title="Dashboard"
       />
       {pending > 0 ? (
         <Link className="stat admin-tile admin-tile--alert" to="/admin/users" style={{ display: 'block', textDecoration: 'none' }}>
@@ -41,7 +54,12 @@ export default function AdminHomePage() {
           <span>{pending} pending approval</span>
         </Link>
       ) : null}
-      {error ? <div className="error">{error}</div> : null}
+      {error ? <div className="error" role="alert">
+        <strong>{data ? 'Refresh failed' : 'Dashboard unavailable'}</strong>
+        <p>{error}</p>
+        {data ? <p>Showing previously loaded data; counts may be out of date.</p> : <p>Municipal counts and office activity could not be checked.</p>}
+        <button type="button" className="btn-secondary" disabled={loading} onClick={onRetry}>{loading ? 'Retrying…' : 'Try again'}</button>
+      </div> : null}
 
       {month ? (
         <p className="muted admin-home__meta">
@@ -49,27 +67,21 @@ export default function AdminHomePage() {
         </p>
       ) : null}
 
-      <div className="stats sf-life__stats">
-        <Link className={statTone(stats.active_documents, 'stat--desk')} to="/admin/offices" style={{ textDecoration: 'none' }}>
-          <b>{stats.active_documents ?? '—'}</b>
-          <span>Active</span>
-        </Link>
-        <Link className={statTone(stats.overdue, 'stat--overdue')} to="/admin/offices" style={{ textDecoration: 'none' }}>
-          <b>{stats.overdue ?? '—'}</b>
-          <span>Overdue</span>
-        </Link>
-        <Link className={statTone(pending, 'stat--pending')} to="/admin/users" style={{ textDecoration: 'none' }}>
-          <b>{data ? pending : '—'}</b>
-          <span>Sign-ups</span>
-        </Link>
-      </div>
+      {data ? <HomeMetrics items={[
+        { label: 'Active', value: stats.active_documents, detail: 'Across offices', to: '/documents?tray=in_office' },
+        { label: 'Overdue', value: stats.overdue, detail: 'Needs follow-up', to: '/documents?overdue=1', alert: true },
+        { label: 'Sign-ups', value: data ? pending : null, detail: 'Awaiting review', to: '/admin/users' },
+      ]} /> : null}
+      <HomeTaskLinks />
 
+      {loading && !data ? <LifeSkeleton rows={3} label="Loading municipal dashboard" /> : null}
+      {data ?
       <div className="card sf-life__panel">
         <div className="admin-home__section-head">
           <h3 className="section-title">By office</h3>
           <Link className="linkish" to="/admin/offices">All offices</Link>
         </div>
-        {offices.length === 0 ? (
+        {offices.length === 0 && !error ? (
           <LifeEmpty icon="users" tone="ok">Counts appear after an IN or OUT scan.</LifeEmpty>
         ) : (
           <div className="admin-office-health">
@@ -84,7 +96,7 @@ export default function AdminHomePage() {
               return (
                 <Link
                   key={o.office_id || code}
-                  to="/admin/offices"
+                  to={`/documents?office_id=${o.office_id}&${overdue > 0 ? 'overdue=1' : 'tray=in_office'}`}
                   className={`admin-office-tile office-accent--${code.toLowerCase() || 'eng'}`}
                 >
                   <div className="admin-office-tile__main">
@@ -99,6 +111,7 @@ export default function AdminHomePage() {
           </div>
         )}
       </div>
+      : null}
     </div>
   )
 }

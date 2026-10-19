@@ -129,11 +129,14 @@ function smartflow_parse_due_at_input(?string $raw): ?string
     if ($raw === '' || strtolower($raw) === 'null') {
         return null;
     }
-    $ts = strtotime($raw);
-    if ($ts === false) {
+    // Web/mobile send a calendar date; API edits may include a local time.
+    // strtotime accepts relative text and silently rolls February 30 into March.
+    if (!preg_match('/^([1-9]\d{3})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])(?:[ T]([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?)?$/D', $raw, $parts)
+        || !checkdate((int)$parts[2], (int)$parts[3], (int)$parts[1])) {
         return null;
     }
-    return date('Y-m-d H:i:s', $ts);
+    return sprintf('%s-%s-%s %s:%s:%s', $parts[1], $parts[2], $parts[3],
+        $parts[4] ?? '23', $parts[5] ?? '59', $parts[6] ?? (isset($parts[4]) ? '00' : '59'));
 }
 
 /**
@@ -169,6 +172,15 @@ function smartflow_document_due(
 ): array {
     smartflow_ensure_documents_due_column($pdo);
 
+    $threshold = $lastOfficeId === null || !empty($manualDueAt)
+        ? smartflow_threshold_defaults()
+        : smartflow_get_threshold($pdo, $lastOfficeId, $documentType);
+    return smartflow_calculate_document_due($lastStatus, $lastOfficeId, $lastScannedAt, $manualDueAt, $threshold);
+}
+
+/** Calculate queue deadlines from one request's threshold snapshot, without per-row queries. */
+function smartflow_calculate_document_due(?string $lastStatus, ?int $lastOfficeId, ?string $lastScannedAt, ?string $manualDueAt, array $th): array {
+
     $manualDueAt = $manualDueAt !== null ? trim($manualDueAt) : '';
     if ($manualDueAt !== '') {
         return smartflow_manual_due_result($manualDueAt);
@@ -186,7 +198,6 @@ function smartflow_document_due(
         ];
     }
 
-    $th = smartflow_get_threshold($pdo, $lastOfficeId, $documentType);
     if ($lastStatus === 'OUT') {
         $limit = $th['out_unconfirmed_hours'];
         $rule = "Due after OUT · {$limit}h to receive scan";
@@ -313,10 +324,10 @@ function smartflow_build_alert_from_row(PDO $pdo, array $r, ?int $viewingOfficeI
     if ($isOutgoing) {
         $th = smartflow_get_threshold($pdo, $viewingOfficeId, $docType);
         $limit = $th['out_unconfirmed_hours'];
-        if ($hours < $limit) {
+        $dueAt = smartflow_due_at($lastScanned, $limit);
+        if (smartflow_hours_until_due($dueAt) >= 0) {
             return null;
         }
-        $dueAt = smartflow_due_at($lastScanned, $limit);
         return [
             'document_id'      => $r['document_id'],
             'title'            => $r['document_id'] . ' – Awaiting confirmation',
@@ -339,10 +350,10 @@ function smartflow_build_alert_from_row(PDO $pdo, array $r, ?int $viewingOfficeI
     if ($isStuckElsewhere || $isStuckAtViewer || $isMunicipalIn) {
         $th = smartflow_get_threshold($pdo, $checkOfficeId, $docType);
         $limit = $th['max_hours'];
-        if ($hours < $limit) {
+        $dueAt = smartflow_due_at($lastScanned, $limit);
+        if (smartflow_hours_until_due($dueAt) >= 0) {
             return null;
         }
-        $dueAt = smartflow_due_at($lastScanned, $limit);
         $where = $r['last_office_name'];
         return [
             'document_id'      => $r['document_id'],
@@ -365,10 +376,10 @@ function smartflow_build_alert_from_row(PDO $pdo, array $r, ?int $viewingOfficeI
     if ($isMunicipalOut) {
         $th = smartflow_get_threshold($pdo, $lastOfficeId, $docType);
         $limit = $th['out_unconfirmed_hours'];
-        if ($hours < $limit) {
+        $dueAt = smartflow_due_at($lastScanned, $limit);
+        if (smartflow_hours_until_due($dueAt) >= 0) {
             return null;
         }
-        $dueAt = smartflow_due_at($lastScanned, $limit);
         return [
             'document_id'      => $r['document_id'],
             'title'            => $r['document_id'] . ' · Unconfirmed OUT',

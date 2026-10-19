@@ -1,4 +1,4 @@
-# One command before defense: sync API, health check, remind Flutter path.
+# One command before defense: check API reachability and remind Flutter path.
 # Usage:  .\scripts\run-defense-demo.ps1
 #         .\scripts\run-defense-demo.ps1 -Launch   # also starts flutter run
 
@@ -10,11 +10,10 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path $PSScriptRoot -Parent
 
 Write-Host ""
-Write-Host "  SmartFlow — defense prep (Neil: huwag mag-isip, sundin lang)" -ForegroundColor Cyan
+Write-Host "  SmartFlow - defense prep (Neil: huwag mag-isip, sundin lang)" -ForegroundColor Cyan
 Write-Host ""
 
 & (Join-Path $PSScriptRoot "fix-api.ps1")
-if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 Write-Host ""
 Write-Host "  XAMPP: Apache + MySQL dapat RUNNING (green)" -ForegroundColor Yellow

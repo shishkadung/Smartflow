@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { smartflow, ApiError } from '../api.js'
+import { Link, useSearchParams } from 'react-router-dom'
+import { ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import { Modal, Overview, roleLabel, statTone } from '../components/ui.jsx'
 import { RoleTipButton } from '../components/Help.jsx'
@@ -8,8 +8,7 @@ import { UserAvatar } from '../components/UserAvatar.jsx'
 import { SfIcon } from '../icons.jsx'
 
 export default function ProfilePage() {
-  const { user, logout, updateUser } = useAuth()
-  const navigate = useNavigate()
+  const { user, token, logout, endSession, updateUser, smartflow } = useAuth()
   const [params] = useSearchParams()
   const isSecurity = params.get('view') === 'security'
   const fileRef = useRef(null)
@@ -31,6 +30,8 @@ export default function ProfilePage() {
   const [pwSaving, setPwSaving] = useState(false)
   const [pwOpen, setPwOpen] = useState(false)
   const [logoutOpen, setLogoutOpen] = useState(false)
+  const [logoutBusy, setLogoutBusy] = useState(false)
+  const [logoutError, setLogoutError] = useState('')
 
   const [stats, setStats] = useState(null)
   const [statsLoading, setStatsLoading] = useState(true)
@@ -84,7 +85,7 @@ export default function ProfilePage() {
       })
 
     return () => { cancelled = true }
-  }, [user.office_id, user.role])
+  }, [user.office_id, user.role, smartflow])
 
   async function saveProfile(e) {
     e.preventDefault()
@@ -140,15 +141,12 @@ export default function ProfilePage() {
     setPwError('')
     setPwOk('')
     setPwSaving(true)
+    const changingToken = token
     try {
       const data = await smartflow.changePassword(currentPassword, newPassword)
-      setPwOk(data.message || 'Password changed')
       setCurrent('')
       setNew('')
-      setTimeout(() => {
-        setPwOpen(false)
-        setPwOk('')
-      }, 700)
+      endSession(changingToken, data.message || 'Password changed. Sign in again with your new password.')
     } catch (err) {
       setPwError(err instanceof ApiError ? err.message : 'Could not change password')
     } finally {
@@ -173,10 +171,9 @@ export default function ProfilePage() {
 
   if (!isSecurity) {
     return (
-      <div className="sf-life">
+      <div className="sf-life profile-page">
         <Overview
           title="Profile"
-          body={isAdmin ? 'Your municipal account.' : 'Your office account and desk stats.'}
         />
 
         {isAdmin && status ? (
@@ -225,7 +222,7 @@ export default function ProfilePage() {
           <Link className="profile-goto-security" to="/profile?view=security">
             <span className="profile-goto-security__lead">
               <SfIcon name="lock" size={18} />
-              Account &amp; security
+              <span className="profile-goto-security__copy"><strong>Account &amp; security</strong><span>Update your profile, photo and sign-in password.</span></span>
             </span>
             <SfIcon name="back" size={16} className="profile-goto-security__chev" />
           </Link>
@@ -235,10 +232,9 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="sf-life">
+    <div className="sf-life profile-page">
       <Overview
         title="Account & security"
-        body="Photo, name, email, password, or sign out."
         actions={
           <Link className="btn-secondary as-link sf-life__cta" to="/profile">Back to profile</Link>
         }
@@ -253,6 +249,7 @@ export default function ProfilePage() {
             </p>
             <input
               ref={fileRef}
+              aria-label="Choose a profile photo"
               type="file"
               accept="image/jpeg,image/png,image/webp"
               className="sr-only"
@@ -282,8 +279,8 @@ export default function ProfilePage() {
                 ) : null}
               </div>
             </div>
-            {avatarNote ? <p className="ok profile-avatar-note">{avatarNote}</p> : null}
-            {avatarError ? <div className="error">{avatarError}</div> : null}
+            {avatarNote ? <p className="ok profile-avatar-note" role="status">{avatarNote}</p> : null}
+            {avatarError ? <div className="error" role="alert">{avatarError}</div> : null}
           </div>
 
           <div className="profile-session-col">
@@ -301,7 +298,7 @@ export default function ProfilePage() {
                   </span>
                   <span className="profile-action__copy">
                     <strong>Change password</strong>
-                    <span>Update your sign-in password.</span>
+                    <span>Change your password, then sign in again.</span>
                   </span>
                 </button>
                 <RoleTipButton className="profile-action" />
@@ -316,22 +313,23 @@ export default function ProfilePage() {
         </div>
 
         <form className="form-card profile-edit-card sf-life__panel" onSubmit={saveProfile}>
-          <h3 className="section-title">Edit profile</h3>
+          <h3 className="section-title">Account details</h3>
           <p className="muted profile-card-lead">
             Name, username, and email appear on custody records. Email is used for password reset.
           </p>
-          {profileOk ? <div className="ok">{profileOk}</div> : null}
+          {profileOk ? <div className="ok" role="status">{profileOk}</div> : null}
           <div className="field">
-            <label>Full name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
+            <label htmlFor="profile-name">Full name</label>
+            <input id="profile-name" value={name} onChange={(e) => setName(e.target.value)} required autoComplete="name" />
           </div>
           <div className="field">
-            <label>Username</label>
-            <input value={username} onChange={(e) => setUsername(e.target.value)} required minLength={3} autoComplete="username" />
+            <label htmlFor="profile-username">Username</label>
+            <input id="profile-username" value={username} onChange={(e) => setUsername(e.target.value)} required minLength={3} autoComplete="username" />
           </div>
           <div className="field">
-            <label>Email</label>
+            <label htmlFor="profile-email">Email</label>
             <input
+              id="profile-email"
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -340,7 +338,8 @@ export default function ProfilePage() {
               placeholder="you@urbiztondo.gov.ph"
             />
           </div>
-          <div className="profile-readonly">
+          <div className="profile-readonly" role="group" aria-label="Assigned role and office">
+            <h4 className="finishing-assignment-title">Office assignment</h4>
             <div className="profile-readonly__row">
               <span>Role</span>
               <strong>{roleLabel(user.role)}</strong>
@@ -351,7 +350,7 @@ export default function ProfilePage() {
             </div>
             <p className="muted profile-readonly__hint">{roleOfficeHint}</p>
           </div>
-          {profileError ? <div className="error">{profileError}</div> : null}
+          {profileError ? <div className="error" role="alert">{profileError}</div> : null}
           <button className="btn" type="submit" disabled={profileSaving}>
             {profileSaving ? 'Saving…' : 'Save profile'}
           </button>
@@ -372,15 +371,16 @@ export default function ProfilePage() {
         }
       >
         <form id="profile-pw-form" onSubmit={savePassword}>
-          {pwError ? <div className="error">{pwError}</div> : null}
-          {pwOk ? <div className="ok">{pwOk}</div> : null}
+          <p className="muted finishing-section-lead">Changing your password ends existing sessions. Sign in again with the new password.</p>
+          {pwError ? <div className="error" role="alert">{pwError}</div> : null}
+          {pwOk ? <div className="ok" role="status">{pwOk}</div> : null}
           <div className="field">
-            <label>Current password</label>
-            <input type="password" value={currentPassword} onChange={(e) => setCurrent(e.target.value)} required autoComplete="current-password" />
+            <label htmlFor="profile-current-password">Current password</label>
+            <input id="profile-current-password" type="password" value={currentPassword} onChange={(e) => setCurrent(e.target.value)} required autoComplete="current-password" />
           </div>
           <div className="field">
-            <label>New password (8+)</label>
-            <input type="password" value={newPassword} onChange={(e) => setNew(e.target.value)} required minLength={8} autoComplete="new-password" />
+            <label htmlFor="profile-new-password">New password (8+ characters)</label>
+            <input id="profile-new-password" type="password" value={newPassword} onChange={(e) => setNew(e.target.value)} required minLength={8} autoComplete="new-password" />
           </div>
         </form>
       </Modal>
@@ -388,23 +388,27 @@ export default function ProfilePage() {
       <Modal
         open={logoutOpen}
         title="Log out?"
-        onClose={() => setLogoutOpen(false)}
+        onClose={() => { if (!logoutBusy) setLogoutOpen(false) }}
         footer={
           <div className="row-btns">
-            <button type="button" className="btn-secondary" onClick={() => setLogoutOpen(false)}>Cancel</button>
+            <button type="button" className="btn-secondary" disabled={logoutBusy} onClick={() => setLogoutOpen(false)}>Cancel</button>
             <button
               type="button"
               className="btn-danger"
-              onClick={() => {
-                logout()
-                navigate('/')
+              disabled={logoutBusy}
+              onClick={async () => {
+                setLogoutBusy(true)
+                setLogoutError('')
+                try { await logout() } catch (err) { setLogoutError(err.message || 'Could not sign out. Try again.') }
+                finally { setLogoutBusy(false) }
               }}
             >
-              Log out
+              {logoutBusy ? 'Signing out…' : 'Log out'}
             </button>
           </div>
         }
       >
+        {logoutError ? <p className="error" role="alert">{logoutError}</p> : null}
         <p className="muted" style={{ margin: 0 }}>
           You will need to sign in again to use SmartFlow in this browser.
         </p>

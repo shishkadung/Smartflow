@@ -103,10 +103,7 @@ class SfPdfHeroCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          if (leading != null) ...[
-            leading!,
-            const SizedBox(height: 12),
-          ],
+          if (leading != null) ...[leading!, const SizedBox(height: 12)],
           Align(
             alignment: Alignment.centerLeft,
             child: Container(
@@ -462,14 +459,8 @@ class SfPdfAlertCard extends StatelessWidget {
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    SfStatusPill(
-                      label: pill1,
-                      tone: SfPillTone.danger,
-                    ),
-                    SfStatusPill(
-                      label: pill2,
-                      tone: SfPillTone.warning,
-                    ),
+                    SfStatusPill(label: pill1, tone: SfPillTone.danger),
+                    SfStatusPill(label: pill2, tone: SfPillTone.warning),
                   ],
                 ),
                 if (rule != null && rule!.isNotEmpty) ...[
@@ -513,20 +504,18 @@ class SfSecondaryOutlineButton extends StatelessWidget {
         foregroundColor: SfColors.ink,
         padding: const EdgeInsets.symmetric(vertical: 14),
         side: const BorderSide(color: Color(0x330B1F3A)),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 18),
-            const SizedBox(width: 6),
-          ],
-          Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+          if (icon != null) ...[Icon(icon, size: 18), const SizedBox(width: 6)],
+          Flexible(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+            ),
           ),
         ],
       ),
@@ -647,26 +636,34 @@ class SfSquareGradientAvatar extends StatelessWidget {
         color: SfColors.navy,
       ),
       clipBehavior: Clip.antiAlias,
+      // The initials always sit underneath, so a missing, slow or failed photo never leaves a blank square.
       child: url != null && url.isNotEmpty
-          ? Image.network(
-              url,
-              width: size,
-              height: size,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => _initials(),
+          ? Stack(
+              alignment: Alignment.center,
+              fit: StackFit.expand,
+              children: [
+                Center(child: _initials()),
+                Image.network(
+                  url,
+                  width: size,
+                  height: size,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
+              ],
             )
           : _initials(),
     );
   }
 
   Widget _initials() => Text(
-        initials,
-        style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.w800,
-          fontSize: size * 0.32,
-        ),
-      );
+    initials,
+    style: TextStyle(
+      color: Colors.white,
+      fontWeight: FontWeight.w800,
+      fontSize: size * 0.32,
+    ),
+  );
 }
 
 /// Light info banner (pending signup).

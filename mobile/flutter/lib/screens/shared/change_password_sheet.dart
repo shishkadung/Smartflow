@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../services/api_client.dart';
+import '../../services/smartflow_api.dart';
 import '../../theme/smartflow_theme.dart';
 import '../../widgets/sf_widgets.dart';
 import '../staff/clerk_widgets.dart';
@@ -28,6 +29,20 @@ class ChangePasswordSheet extends StatefulWidget {
 }
 
 class _ChangePasswordSheetState extends State<ChangePasswordSheet> {
+  late final AuthProvider _auth;
+  late final Object _identity;
+  late final SmartflowApi _api;
+  late final String? _token;
+  bool get _current => mounted && _auth.sessionIdentity == _identity;
+  @override
+  void initState() {
+    super.initState();
+    _auth = context.read<AuthProvider>();
+    _identity = _auth.sessionIdentity;
+    _api = _auth.api;
+    _token = _auth.token;
+  }
+
   final _currentCtrl = TextEditingController();
   final _newCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
@@ -59,6 +74,7 @@ class _ChangePasswordSheetState extends State<ChangePasswordSheet> {
   }
 
   Future<void> _submit() async {
+    if (!_current || _auth.loggingOut || _loading) return;
     final problem = _validate();
     if (problem != null) {
       setState(() => _error = problem);
@@ -71,20 +87,22 @@ class _ChangePasswordSheetState extends State<ChangePasswordSheet> {
     });
 
     try {
-      await context.read<AuthProvider>().api.changePassword(
-            currentPassword: _currentCtrl.text,
-            newPassword: _newCtrl.text,
-          );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password changed successfully'),
-          backgroundColor: SfColors.green,
-        ),
+      // Close the sheet before clearing identity so a router redirect cannot
+      // leave this overlay on the sign-in screen.
+      await _api.changePassword(
+        currentPassword: _currentCtrl.text,
+        newPassword: _newCtrl.text,
       );
-      Navigator.of(context).pop(true);
+      if (mounted && _current) Navigator.of(context).pop(true);
+      if (_token != null) {
+        await _auth.endSession(
+          _token,
+          message: 'Password changed. Sign in again with your new password.',
+          notice: true,
+        );
+      }
     } on ApiException catch (e) {
-      if (mounted) {
+      if (_current) {
         setState(() {
           _error = e.message;
           _loading = false;
@@ -131,92 +149,89 @@ class _ChangePasswordSheetState extends State<ChangePasswordSheet> {
                   const SizedBox(height: 14),
                   const Text(
                     'Change password',
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
                   ),
                   const SizedBox(height: 6),
                   const Text(
-                    'You will stay signed in. Use a passphrase you can remember.',
+                    'Changing your password signs out all devices. Sign in again with your new password.',
                     style: TextStyle(
                       fontSize: 12,
-                    color: SfColors.muted,
-                    height: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _label('Current password'),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _currentCtrl,
-                  obscureText: !_showCurrent,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _showCurrent
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        size: 18,
-                      ),
-                      onPressed: () =>
-                          setState(() => _showCurrent = !_showCurrent),
+                      color: SfColors.muted,
+                      height: 1.4,
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                _label('New password'),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _newCtrl,
-                  obscureText: !_showNew,
-                  decoration: InputDecoration(
-                    border: const OutlineInputBorder(),
-                    helperText: 'At least 8 characters.',
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _showNew
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                        size: 18,
+                  const SizedBox(height: 16),
+                  _label('Current password'),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _currentCtrl,
+                    obscureText: !_showCurrent,
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _showCurrent
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          size: 18,
+                        ),
+                        onPressed: () =>
+                            setState(() => _showCurrent = !_showCurrent),
                       ),
-                      onPressed: () => setState(() => _showNew = !_showNew),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                _label('Confirm new password'),
-                const SizedBox(height: 6),
-                TextField(
-                  controller: _confirmCtrl,
-                  obscureText: !_showNew,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: _loading ? null : (_) => _submit(),
-                ),
-                if (_error != null) ...[
                   const SizedBox(height: 12),
-                  SfErrorBanner(message: _error!),
+                  _label('New password'),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _newCtrl,
+                    obscureText: !_showNew,
+                    decoration: InputDecoration(
+                      border: const OutlineInputBorder(),
+                      helperText: 'At least 8 characters.',
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _showNew
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          size: 18,
+                        ),
+                        onPressed: () => setState(() => _showNew = !_showNew),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _label('Confirm new password'),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _confirmCtrl,
+                    obscureText: !_showNew,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                    ),
+                    onSubmitted: _loading ? null : (_) => _submit(),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    SfErrorBanner(message: _error!),
+                  ],
+                  const SizedBox(height: 16),
+                  SfPrimaryButton(
+                    label: _loading ? 'Saving…' : 'Save new password',
+                    loading: _loading,
+                    onPressed: _loading ? null : _submit,
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _loading
+                        ? null
+                        : () => Navigator.of(context).pop(false),
+                    child: const Text('Cancel'),
+                  ),
                 ],
-                const SizedBox(height: 16),
-                SfPrimaryButton(
-                  label: _loading ? 'Saving…' : 'Save new password',
-                  loading: _loading,
-                  onPressed: _loading ? null : _submit,
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: _loading
-                      ? null
-                      : () => Navigator.of(context).pop(false),
-                  child: const Text('Cancel'),
-                ),
-              ],
+              ),
             ),
-          ),
           ),
         ),
       ),
@@ -224,11 +239,11 @@ class _ChangePasswordSheetState extends State<ChangePasswordSheet> {
   }
 
   Widget _label(String text) => Text(
-        text,
-        style: const TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: SfColors.muted,
-        ),
-      );
+    text,
+    style: const TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      color: SfColors.muted,
+    ),
+  );
 }

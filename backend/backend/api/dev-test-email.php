@@ -2,7 +2,6 @@
 // GET /dev-test-email.php
 // Test email sending and show detailed errors
 
-require __DIR__ . '/config.php';
 require __DIR__ . '/dev-block.php';
 require_once __DIR__ . '/mailtrap-api-config.php';
 

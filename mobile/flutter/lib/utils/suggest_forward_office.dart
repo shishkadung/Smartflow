@@ -1,9 +1,8 @@
+import 'document_types.dart';
+
 /// LGU routing hints for Mark OUT (physical folder handoff).
 class ForwardSuggestion {
-  const ForwardSuggestion({
-    required this.officeCode,
-    required this.reason,
-  });
+  const ForwardSuggestion({required this.officeCode, required this.reason});
 
   final String officeCode;
   final String reason;
@@ -17,11 +16,12 @@ ForwardSuggestion? suggestForwardOffice({
   required String fromOfficeCode,
   List<String> visitedOfficeCodes = const [],
 }) {
-  final type = documentType.trim().toLowerCase();
   final from = fromOfficeCode.trim().toUpperCase();
-  final visited = visitedOfficeCodes.map((c) => c.trim().toUpperCase()).toList();
+  final visited = visitedOfficeCodes
+      .map((c) => c.trim().toUpperCase())
+      .toList();
 
-  if (type.contains('approved budget') || type == 'budget') {
+  if (isApprovedBudgetDocumentType(documentType)) {
     if (from == 'ACC' && visited.contains('BUD')) {
       return null;
     }
@@ -43,7 +43,7 @@ ForwardSuggestion? suggestForwardOffice({
     );
   }
 
-  if (type.contains('disbursement') || type.contains('voucher')) {
+  if (isDisbursementDocumentType(documentType)) {
     if (from == 'ENG') {
       return const ForwardSuggestion(
         officeCode: 'BUD',
@@ -53,7 +53,8 @@ ForwardSuggestion? suggestForwardOffice({
     if (from == 'BUD') {
       return const ForwardSuggestion(
         officeCode: 'ACC',
-        reason: 'After Budget review, DVs go to Accounting for supporting-doc check.',
+        reason:
+            'After Budget review, DVs go to Accounting for supporting-doc check.',
       );
     }
     if (from == 'ACC') {
@@ -62,19 +63,22 @@ ForwardSuggestion? suggestForwardOffice({
       }
       return const ForwardSuggestion(
         officeCode: 'TRE',
-        reason: 'After Accounting, the folder goes to Treasury for payment processing.',
+        reason:
+            'After Accounting, the folder goes to Treasury for payment processing.',
       );
     }
     if (from == 'TRE') {
       if (visited.contains('MAY')) {
         return const ForwardSuggestion(
           officeCode: 'ACC',
-          reason: 'After Mayor and check release, return the folder to Accounting if needed.',
+          reason:
+              'After Mayor and check release, return the folder to Accounting if needed.',
         );
       }
       return const ForwardSuggestion(
         officeCode: 'MAY',
-        reason: 'Treasury forwards the DV to the Office of the Mayor for signature.',
+        reason:
+            'Treasury forwards the DV to the Office of the Mayor for signature.',
       );
     }
     if (from == 'MAY') {
@@ -91,7 +95,8 @@ ForwardSuggestion? suggestForwardOffice({
     }
     return const ForwardSuggestion(
       officeCode: 'ACC',
-      reason: 'Disbursement documents typically go to Accounting, then Treasury and Mayor.',
+      reason:
+          'Disbursement documents typically go to Accounting, then Treasury and Mayor.',
     );
   }
 

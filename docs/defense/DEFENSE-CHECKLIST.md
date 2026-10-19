@@ -34,7 +34,7 @@ Password: `smartflow123` (say: pilot only, not production).
 
 ## Day 4 — Panel materials
 
-- [ ] Open `docs/design/use-cases/SMARTFLOW-USE-CASE-DIAGRAM.html` in browser (backup slide)
+- [ ] Open `thesis-work/2026-09-29_SmartFlow-Figures/Figure_1.2_Use_Case_Diagram_Updated.png` (backup slide)
 - [ ] `docs/defense/DEMO-SCRIPT.md` printed or on second screen
 - [ ] One-liner limitations (see prior Q&A): movement support, not financial audit; pilot not full deploy
 

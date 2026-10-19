@@ -14,6 +14,8 @@ export function ProfileMenu() {
   const navigate = useNavigate()
   const { pathname, search } = useLocation()
   const [open, setOpen] = useState(false)
+  const [logoutBusy, setLogoutBusy] = useState(false)
+  const [logoutError, setLogoutError] = useState('')
   const rootRef = useRef(null)
 
   useEffect(() => {
@@ -101,16 +103,19 @@ export function ProfileMenu() {
               type="button"
               className="profile-menu__item profile-menu__item--logout"
               role="menuitem"
-              onClick={() => {
-                setOpen(false)
-                logout()
-                navigate('/')
+              disabled={logoutBusy}
+              onClick={async () => {
+                setLogoutBusy(true)
+                setLogoutError('')
+                try { await logout() } catch (err) { setLogoutError(err.message || 'Could not sign out. Try again.') }
+                finally { setLogoutBusy(false) }
               }}
             >
               <span className="profile-menu__glyph"><SfIcon name="logout" size={18} /></span>
-              <span className="profile-menu__label">Log out</span>
+              <span className="profile-menu__label">{logoutBusy ? 'Signing out…' : 'Log out'}</span>
             </button>
           </div>
+          {logoutError ? <p className="error" role="alert">{logoutError}</p> : null}
 
           <p className="profile-menu__foot">
             Municipality of Urbiztondo · SmartFlow

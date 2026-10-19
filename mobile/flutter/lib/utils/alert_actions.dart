@@ -84,8 +84,9 @@ class AlertActionsStore {
     final now = DateTime.now();
     return AlertActionState(
       acknowledgedAt: acknowledgedAt,
-      snoozeUntil:
-          snoozeUntil != null && snoozeUntil.isAfter(now) ? snoozeUntil : null,
+      snoozeUntil: snoozeUntil != null && snoozeUntil.isAfter(now)
+          ? snoozeUntil
+          : null,
     );
   }
 
@@ -102,8 +103,9 @@ class AlertActionsStore {
       final snoozeUntil = snoozeMap[k];
       result[k] = AlertActionState(
         acknowledgedAt: ackMap[k],
-        snoozeUntil:
-            snoozeUntil != null && snoozeUntil.isAfter(now) ? snoozeUntil : null,
+        snoozeUntil: snoozeUntil != null && snoozeUntil.isAfter(now)
+            ? snoozeUntil
+            : null,
       );
     }
     return result;
@@ -114,10 +116,12 @@ class AlertActionsStore {
     if (alerts.isEmpty) return 0;
     final keys = alerts
         .map((a) => Map<String, dynamic>.from(a as Map))
-        .map((m) => (
-              documentId: m['document_id']?.toString() ?? '',
-              kind: m['kind']?.toString() ?? '',
-            ))
+        .map(
+          (m) => (
+            documentId: m['document_id']?.toString() ?? '',
+            kind: m['kind']?.toString() ?? '',
+          ),
+        )
         .toList();
     final actions = await stateForMany(keys);
     var visible = 0;
@@ -136,7 +140,8 @@ class AlertActionState {
   final DateTime? acknowledgedAt;
   final DateTime? snoozeUntil;
 
-  bool get isHidden => snoozeUntil != null; // “Later” only — no permanent acknowledge
+  bool get isHidden =>
+      snoozeUntil != null; // “Later” only — no permanent acknowledge
   bool get isAcknowledged => acknowledgedAt != null;
   bool get isSnoozed => snoozeUntil != null;
 }

@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { smartflow, ApiError } from '../api.js'
+import { useAuth } from '../auth.jsx'
+import { beginScopedRead, failScopedRead, scopedReadView } from '../scoped-read.js'
+import { ApiError } from '../api.js'
 import { formatWhen } from '../tracking.js'
 import { DocTable, ExceptionCard, LifeEmpty, LifeSkeleton, Overview, Segmented, StatusPill } from '../components/ui.jsx'
 
@@ -10,6 +12,7 @@ const ACTIVITY_LABELS = {
   'user.deactivate': 'User deactivated',
   'user.reactivate': 'User reactivated',
   'user.profile_update': 'Profile updated',
+  'user.email_update': 'Reset email changed by administrator',
   'user.password_change': 'Password changed',
   'user.password_reset': 'Password reset',
   'threshold.update': 'Threshold changed',
@@ -31,45 +34,67 @@ function who(r) {
 
 export default function AdminQrMonitorPage() {
   const navigate = useNavigate()
-  const [rows, setRows] = useState([])
-  const [exceptions, setExceptions] = useState([])
-  const [activity, setActivity] = useState([])
+  const { user, smartflow, apiText } = useAuth()
+  const [state, setState] = useState(null)
+  const [retry, setRetry] = useState(0)
   const [outcome, setOutcome] = useState('all')
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [exportError, setExportError] = useState('')
+  const [exporting, setExporting] = useState(false)
+  const key = JSON.stringify([user.id, outcome])
+  const { data, error, loading } = scopedReadView(state, key)
 
-  async function load() {
-    setLoading(true)
-    setError('')
+  async function downloadCsv() {
+    if (exporting || loading || !data || error) return
+    setExporting(true)
+    setExportError('')
     try {
-      const [scans, ex, act] = await Promise.all([
-        smartflow.auditScans({ hours: 48, outcome, limit: 200 }),
-        smartflow.auditExceptions(48),
-        smartflow.auditActivity({ hours: 168, limit: 100 }),
-      ])
-      setRows(scans.events || scans.scans || scans.logs || [])
-      setExceptions(ex.exceptions || ex.items || [])
-      setActivity(act.events || [])
-    } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'Could not load QR monitor')
-    } finally {
-      setLoading(false)
-    }
+      const csv = await apiText('audit-scans.php', { hours:48, outcome, format:'csv', limit:500 })
+      const url = URL.createObjectURL(new Blob([csv.startsWith('\uFEFF') ? csv : `\uFEFF${csv}`], {type:'text/csv;charset=utf-8'}))
+      const link = document.createElement('a')
+      link.href = url; link.download = `SmartFlow-scan-audit-${new Date().toISOString().slice(0,10)}.csv`
+      link.click(); setTimeout(() => URL.revokeObjectURL(url), 60000)
+    } catch (e) { setExportError(e.message) }
+    finally { setExporting(false) }
   }
 
-  useEffect(() => { load() }, [outcome])
+  useEffect(() => {
+    let cancelled = false
+    // oxlint-disable-next-line react/set-state-in-effect -- Outcome changes invalidate old-filter rows; a same-query refresh can retain marked stale evidence.
+    setState(previous => beginScopedRead(previous, key))
+    Promise.all([
+        smartflow.auditScans({ hours: 48, outcome, limit: 200 }),
+        // Same 24h receipt window as Custody reports and the default office receipt limit, so one exception reads the same on both pages.
+        smartflow.auditExceptions(24),
+        smartflow.auditActivity({ hours: 168, limit: 100 }),
+      ]).then(([scans, ex, act]) => {
+        if (!cancelled) setState({ key, data: { rows: scans.events || scans.scans || scans.logs || [], exceptions: ex.exceptions || ex.items || [], activity: act.events || [] }, error: '', loading: false, updated: new Date() })
+      }).catch(e => {
+        if (!cancelled) setState(previous => failScopedRead(previous, key, e instanceof ApiError ? e.message : 'Could not load QR monitor'))
+      })
+    return () => { cancelled = true }
+  }, [outcome, key, retry, smartflow])
 
+  return <QrMonitorContent data={data} error={error} loading={loading} exportError={exportError} exporting={exporting} outcome={outcome} onOutcome={setOutcome} onRetry={() => setRetry(value => value + 1)} onExport={downloadCsv} onOpen={id => navigate(`/history?id=${encodeURIComponent(id)}`)} />
+}
+
+export function QrMonitorContent({ data, error, loading, exportError, exporting, outcome, onOutcome, onRetry, onExport, onOpen }) {
+  const rows = data?.rows || []
+  const exceptions = data?.exceptions || []
+  const activity = data?.activity || []
+  const verified = Boolean(data) && !error && !loading
   return (
     <div className="sf-life">
       <Overview
         title="QR scan monitor"
-        body="Accepted and rejected scan events from the last 48 hours."
+        actions={!error ? <button type="button" className="btn-secondary" disabled={loading} onClick={onRetry}>Refresh monitor</button> : null}
       />
-      {error ? <div className="error">{error}</div> : null}
+      {error ? <div className="error" role="alert"><strong>{data ? 'Monitor refresh failed' : 'QR monitor unavailable'}</strong><p>{error}</p>{data ? <p>Showing previously loaded records; they may be out of date.</p> : null}<button type="button" className="btn-secondary" disabled={loading} onClick={onRetry}>Retry monitor</button></div> : null}
+      {exportError ? <div className="error" role="alert">{exportError}</div> : null}
       <div className="toolbar">
+        <button type="button" className="btn-ghost" disabled={exporting || !verified} onClick={onExport}>{exporting ? 'Preparing…' : 'Download scan CSV'}</button>
         <Segmented
           value={outcome}
-          onChange={setOutcome}
+          onChange={onOutcome}
           options={[
             { value: 'all', label: 'All' },
             { value: 'success', label: 'Accepted' },
@@ -81,9 +106,10 @@ export default function AdminQrMonitorPage() {
         <div className="card sf-life__panel">
           <h3 className="section-title">Custody exceptions</h3>
           {loading && exceptions.length === 0 ? <LifeSkeleton rows={2} label="Loading exceptions" /> : null}
-          {!loading && exceptions.length === 0 ? (
+          {verified && exceptions.length === 0 ? (
             <LifeEmpty icon="coaSupport" tone="ok">No exceptions in the last 48h.</LifeEmpty>
           ) : null}
+          {!loading && !verified && exceptions.length === 0 ? <p className="muted">Custody exceptions have not been verified.</p> : null}
           {exceptions.length > 0 ? (
             <div className="exception-grid">
               {exceptions.map((ex, i) => (
@@ -93,15 +119,15 @@ export default function AdminQrMonitorPage() {
           ) : null}
         </div>
         <div className="card sf-life__panel">
-          <h3 className="section-title">Scan events</h3>
+          <h3 className="section-title">Scan events · last 48 hours</h3>
           {loading && rows.length === 0 ? (
             <LifeSkeleton rows={4} label="Loading scan events" />
-          ) : rows.length === 0 ? (
+          ) : rows.length === 0 && !verified ? <p className="muted">Scan events have not been verified.</p> : rows.length === 0 ? (
             <LifeEmpty icon="qrMonitor">No scan events.</LifeEmpty>
           ) : (
             <DocTable
               scroll
-              onRowClick={(r) => r.document_id && navigate(`/history?id=${encodeURIComponent(r.document_id)}`)}
+              onRowClick={(r) => r.document_id && onOpen(r.document_id)}
               columns={[
                 { key: 'created_at', label: 'When', width: '19%', render: (r) => formatWhen(r.created_at || r.scanned_at) || '—' },
                 { key: 'document_id', label: 'Doc', width: '17%', render: (r) => <span className="nowrap">{r.document_id || '—'}</span> },
@@ -125,7 +151,7 @@ export default function AdminQrMonitorPage() {
           <h3 className="section-title">Admin &amp; account activity · last 7 days</h3>
           {loading && activity.length === 0 ? (
             <LifeSkeleton rows={3} label="Loading activity" />
-          ) : activity.length === 0 ? (
+          ) : activity.length === 0 && !verified ? <p className="muted">Admin and account activity has not been verified.</p> : activity.length === 0 ? (
             <LifeEmpty icon="coaSupport" tone="ok">No admin or account actions in the last 7 days.</LifeEmpty>
           ) : (
             <DocTable

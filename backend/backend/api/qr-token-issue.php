@@ -1,6 +1,6 @@
 <?php
 // GET /qr-token-issue.php?id=DOC-2026-000001
-// Issues a fresh signed QR payload for printing (auth required).
+// Returns the document's signed QR, renewing only after expiry (auth required).
 
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/qr-token-helper.php';
@@ -23,7 +23,7 @@ if (!$stmtDoc->fetch()) {
 }
 
 try {
-    $issued = smartflow_qr_issue($id);
+    $issued = smartflow_document_qr($pdo, $id);
 } catch (InvalidArgumentException $e) {
     json_response(['success' => false, 'message' => 'Invalid document id'], 400);
 }

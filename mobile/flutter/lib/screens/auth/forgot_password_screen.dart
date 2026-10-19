@@ -9,7 +9,8 @@ import '../../widgets/sf_widgets.dart';
 
 /// Twin of web ForgotPasswordPage.
 class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({super.key});
+  const ForgotPasswordScreen({super.key, this.api});
+  final SmartflowApi? api;
 
   @override
   State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
@@ -21,7 +22,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   bool _loading = false;
   String? _error;
   String? _successMessage;
-  String? _devResetCode;
   String? _username;
 
   @override
@@ -36,24 +36,22 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       _loading = true;
       _error = null;
       _successMessage = null;
-      _devResetCode = null;
     });
 
     try {
-      final api = SmartflowApi(ApiClient());
-      final result = await api.forgotPassword(_usernameCtrl.text.trim());
+      final api = widget.api ?? SmartflowApi(ApiClient());
+      await api.forgotPassword(_usernameCtrl.text.trim());
 
       if (!mounted) return;
 
       setState(() {
-        _successMessage = result['message']?.toString();
-        _devResetCode = result['dev_reset_code']?.toString();
+        _successMessage = 'Check your registered email for a reset code.';
         _username = _usernameCtrl.text.trim();
       });
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } catch (e) {
-      setState(() => _error = apiErrorMessage(e));
+      if (mounted) setState(() => _error = apiErrorMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -64,7 +62,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return SfAuthShell(
       strap: 'Password reset',
       headline: 'Reset password',
-      body: 'Enter your username. A one-time code is sent if the account exists.',
+      body:
+          'Enter your username. A one-time code is emailed to the address on your account, if the account exists.',
       showWordmark: false,
       leading: Align(
         alignment: Alignment.centerLeft,
@@ -101,14 +100,16 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               decoration: BoxDecoration(
                 color: SfColors.red.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: SfColors.red.withValues(alpha: 0.25),
-                ),
+                border: Border.all(color: SfColors.red.withValues(alpha: 0.25)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.error_outline, size: 16, color: SfColors.red),
+                  const Icon(
+                    Icons.error_outline,
+                    size: 16,
+                    color: SfColors.red,
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -147,7 +148,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'We sent a reset code to your registered email address.',
+                    'If an active account exists, check its registered email for a reset code. You can also check your spam folder.',
                     textAlign: TextAlign.center,
                     style: TextStyle(color: SfColors.muted, fontSize: 12),
                   ),
@@ -155,7 +156,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               ),
             ),
           ],
-          if (_devResetCode != null) ...[
+          if (_successMessage != null) ...[
             const SizedBox(height: 16),
             TextField(
               controller: _resetCodeCtrl,
@@ -174,10 +175,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               navy: true,
               onPressed: () {
                 if (_resetCodeCtrl.text.length == 6) {
-                  context.push('/reset-password', extra: {
-                    'username': _username,
-                    'code': _resetCodeCtrl.text,
-                  });
+                  context.push(
+                    '/reset-password',
+                    extra: {'username': _username, 'code': _resetCodeCtrl.text},
+                  );
                 } else {
                   setState(() => _error = 'Please enter 6-digit code');
                 }
@@ -196,7 +197,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           const SizedBox(height: 14),
           Center(
             child: GestureDetector(
-              onTap: () => context.push('/reset-password'),
+              onTap: () => context.push(
+                '/reset-password',
+                extra: {'username': _username ?? _usernameCtrl.text.trim()},
+              ),
               child: const Text(
                 'Already have a code?',
                 style: TextStyle(

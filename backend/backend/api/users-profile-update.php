@@ -22,6 +22,9 @@ $email = trim((string)($body['email'] ?? ''));
 if ($name === '') {
     json_response(['success' => false, 'message' => 'Name is required'], 400);
 }
+if (mb_strlen($name) > 100 || strlen($username) > 50) {
+    json_response(['success' => false, 'message' => 'Name must be at most 100 characters and username at most 50'], 400);
+}
 if ($username === '') {
     json_response(['success' => false, 'message' => 'Username is required'], 400);
 }

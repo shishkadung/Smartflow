@@ -27,7 +27,8 @@ String formatMovementListTime(String? raw) {
   final local = dt.isUtc ? dt.toLocal() : dt;
   final now = DateTime.now();
   final clock = DateFormat('h:mm a').format(local);
-  final sameDay = local.year == now.year &&
+  final sameDay =
+      local.year == now.year &&
       local.month == now.month &&
       local.day == now.day;
 
@@ -38,6 +39,22 @@ String formatMovementListTime(String? raw) {
     return '${DateFormat('MMM d').format(local)} · $clock';
   }
   return DateFormat('MMM d, h:mm a').format(local);
+}
+
+DateTime? parseSmartflowDateTime(String? raw) {
+  if (raw == null || raw.isEmpty) return null;
+  final normalized = raw.contains('T') ? raw : raw.replaceFirst(' ', 'T');
+  final dt = DateTime.tryParse(normalized);
+  if (dt == null) return null;
+  return dt.isUtc ? dt.toLocal() : dt;
+}
+
+String formatTrailClock(DateTime local) => DateFormat('h:mm a').format(local);
+
+String formatTrailDay(DateTime local) {
+  final now = DateTime.now();
+  if (local.year == now.year) return DateFormat('MMM d').format(local);
+  return DateFormat('MMM d, y').format(local);
 }
 
 /// Subtitle under a movement row on home / history (time · route · staff).
@@ -68,7 +85,7 @@ String registerSubtitleForOffice(String officeCode) {
 }
 
 String scanSubtitleForOffice(String officeCode) {
-  return 'Mark IN when a folder arrives · OUT when you send it.';
+  return 'Receive (IN) when a folder arrives · Send (OUT) when you send it.';
 }
 
 /// Head dashboard caption (office-agnostic).

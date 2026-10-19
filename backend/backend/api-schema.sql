@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS users (
   role          VARCHAR(20)  NOT NULL DEFAULT 'staff',
   is_active     TINYINT(1)   NOT NULL DEFAULT 1,
   avatar_path   VARCHAR(255) NULL,
+  must_change_password     TINYINT(1) NOT NULL DEFAULT 0,
+  temp_password_expires_at DATETIME   NULL,
   PRIMARY KEY (id),
   UNIQUE KEY uk_users_username (username),
   UNIQUE KEY idx_users_email (email),
@@ -38,8 +40,12 @@ CREATE TABLE IF NOT EXISTS documents (
   type             VARCHAR(50)  NOT NULL,
   origin_office_id INT UNSIGNED NOT NULL,
   description      TEXT         NULL,
+  folder_inventory LONGTEXT NULL,
+  qr_issued_at_unix BIGINT       NULL,
   created_by       INT UNSIGNED NOT NULL,
   date_registered  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  filed_at         DATETIME     NULL,
+  filed_by         INT UNSIGNED NULL,
   PRIMARY KEY (id),
   KEY idx_documents_origin (origin_office_id),
   CONSTRAINT fk_documents_origin FOREIGN KEY (origin_office_id) REFERENCES offices (id),
@@ -54,6 +60,7 @@ CREATE TABLE IF NOT EXISTS movements (
   status      VARCHAR(10)  NOT NULL,
   user_id     INT UNSIGNED NOT NULL,
   remarks     TEXT         NULL,
+  contents_receipt LONGTEXT NULL,
   scanned_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_movements_document (document_id),
@@ -61,6 +68,9 @@ CREATE TABLE IF NOT EXISTS movements (
   KEY idx_movements_user (user_id),
   KEY idx_movements_scanned_at (scanned_at),
   KEY idx_movements_dedupe (document_id, office_id, status, user_id, scanned_at),
+  KEY idx_movements_latest (document_id, scanned_at, id),
+  KEY idx_movements_receipt (document_id, status, scanned_at, id),
+  KEY idx_movements_office_time (office_id, scanned_at, id),
   CONSTRAINT fk_movements_document FOREIGN KEY (document_id) REFERENCES documents (id),
   CONSTRAINT fk_movements_office   FOREIGN KEY (office_id)   REFERENCES offices (id),
   CONSTRAINT fk_movements_user     FOREIGN KEY (user_id)     REFERENCES users (id)
@@ -105,6 +115,31 @@ CREATE TABLE IF NOT EXISTS signup_requests (
   CONSTRAINT fk_signup_office FOREIGN KEY (office_id) REFERENCES offices (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Office checklists contain requirements, never assumed physical page counts.
+CREATE TABLE IF NOT EXISTS folder_checklists (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  office_id INT NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  document_type VARCHAR(150) NOT NULL,
+  items_json LONGTEXT NOT NULL,
+  updated_by INT NOT NULL,
+  is_active TINYINT NOT NULL DEFAULT 1,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX checklist_office (office_id, is_active)
+) ENGINE=InnoDB;
+
+-- Movement and outcome are committed together; cancelled IDs block late writes.
+CREATE TABLE IF NOT EXISTS movement_requests (
+  request_id CHAR(32) NOT NULL PRIMARY KEY,
+  user_id INT NOT NULL,
+  document_id VARCHAR(50) NOT NULL,
+  body_hash CHAR(64) NULL,
+  state VARCHAR(12) NOT NULL,
+  response_json LONGTEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX movement_request_owner (user_id, created_at)
+) ENGINE=InnoDB;
+
 INSERT IGNORE INTO offices (id, name, code) VALUES
   (1, 'Engineering Office', 'ENG'),
   (2, 'Human Resources Office', 'HR'),
@@ -115,8 +150,8 @@ INSERT IGNORE INTO offices (id, name, code) VALUES
 
 SET FOREIGN_KEY_CHECKS = 1;
 
--- After import, seed pilot user accounts (no sample documents):
--- GET http://localhost/Smartflow/backend/backend/api/dev-seed-demo-users.php
--- Optional: remove legacy demo docs — dev-purge-demo-documents.php
+-- HTTP maintenance endpoints are disabled. Never seed or purge the working database.
+-- Use scripts/test-request-linking.php for disposable sample accounts and folders.
+-- Deliberate CLI maintenance requires a verified target and explicit non-production opt-in.
 --
 -- Existing DBs: run backend/api/signup-migration.sql once for sign-up support.

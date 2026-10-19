@@ -5,52 +5,20 @@
 
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/routing-helper.php';
+smartflow_ensure_documents_filed_columns($pdo);
+require_once __DIR__ . '/thresholds-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
 }
 
-require_user_id();
+smartflow_require_admin($pdo, require_user_id());
 
 $monthStart = date('Y-m-01 00:00:00');
 $monthEnd   = date('Y-m-t 23:59:59', strtotime($monthStart));
-$maxHours   = 48;
-$trailCompleteSql = smartflow_sql_trail_complete('t.document_id');
-
-$stmtActive = $pdo->query("
-    SELECT COUNT(*) AS c
-    FROM (
-        SELECT m.document_id,
-               (SELECT m2.status FROM movements m2
-                WHERE m2.document_id = m.document_id
-                ORDER BY m2.scanned_at DESC, m2.id DESC LIMIT 1) AS last_status
-        FROM movements m
-        GROUP BY m.document_id
-    ) t
-    WHERE t.last_status = 'IN'
-      AND NOT {$trailCompleteSql}
-");
-$activeDocs = (int)($stmtActive->fetch()['c'] ?? 0);
-
-$stmtOverdue = $pdo->prepare("
-    SELECT COUNT(DISTINCT t.document_id) AS c
-    FROM (
-        SELECT m.document_id,
-               (SELECT m2.status FROM movements m2
-                WHERE m2.document_id = m.document_id
-                ORDER BY m2.scanned_at DESC, m2.id DESC LIMIT 1) AS last_status,
-               (SELECT m2.scanned_at FROM movements m2
-                WHERE m2.document_id = m.document_id
-                ORDER BY m2.scanned_at DESC, m2.id DESC LIMIT 1) AS last_scanned
-        FROM movements m
-        GROUP BY m.document_id
-    ) t
-    WHERE t.last_status = 'IN'
-      AND NOT {$trailCompleteSql}
-      AND TIMESTAMPDIFF(HOUR, t.last_scanned, NOW()) >= :maxh
-");
-$stmtOverdue->execute([':maxh' => $maxHours]);
-$overdue = (int)($stmtOverdue->fetch()['c'] ?? 0);
+smartflow_ensure_processing_thresholds($pdo);
+smartflow_ensure_documents_due_column($pdo);
+$trailCompleteSql = smartflow_sql_trail_complete('d.id');
 
 $stmtOffices = $pdo->prepare('
     SELECT o.id, o.name, o.code,
@@ -66,35 +34,43 @@ $stmtOffices->execute([':start' => $monthStart, ':end' => $monthEnd]);
 $offices = $stmtOffices->fetchAll();
 
 $perOffice = [];
+$activeDocs = 0;
+$overdue = 0;
+// Use one latest-custody snapshot for both municipal and office counts.
+// Manual due dates win; expired OUT thresholds remain "unconfirmed" alerts,
+// rather than processing-overdue counts. Completed trails have no deadline.
 $stmtPerOffice = $pdo->prepare("
-    SELECT t.last_office AS office_id,
-           COUNT(*) AS in_office,
-           SUM(CASE WHEN TIMESTAMPDIFF(HOUR, t.last_scanned, NOW()) >= :maxh THEN 1 ELSE 0 END) AS overdue
-    FROM (
-        SELECT m.document_id,
-               (SELECT m2.status FROM movements m2
-                WHERE m2.document_id = m.document_id
-                ORDER BY m2.scanned_at DESC, m2.id DESC LIMIT 1) AS last_status,
-               (SELECT m2.office_id FROM movements m2
-                WHERE m2.document_id = m.document_id
-                ORDER BY m2.scanned_at DESC, m2.id DESC LIMIT 1) AS last_office,
-               (SELECT m2.scanned_at FROM movements m2
-                WHERE m2.document_id = m.document_id
-                ORDER BY m2.scanned_at DESC, m2.id DESC LIMIT 1) AS last_scanned
-        FROM movements m
-        GROUP BY m.document_id
-    ) t
-    WHERE t.last_status = 'IN'
+    SELECT latest.office_id,
+           SUM(CASE WHEN latest.status = 'IN' THEN 1 ELSE 0 END) AS in_office,
+           SUM(CASE
+               WHEN d.due_at IS NOT NULL THEN NOW() > d.due_at
+               WHEN latest.status = 'IN' THEN
+                   NOW() > DATE_ADD(latest.scanned_at, INTERVAL COALESCE(pt.max_hours, :default_hours) HOUR)
+               ELSE 0
+           END) AS overdue
+    FROM documents d
+    JOIN movements latest ON latest.id = (
+        SELECT m.id FROM movements m
+        WHERE m.document_id = d.id
+        ORDER BY m.scanned_at DESC, m.id DESC LIMIT 1
+    )
+    LEFT JOIN processing_thresholds pt
+        ON pt.office_id = latest.office_id
+       AND pt.document_type = d.type
+       AND pt.is_active = 1
+    WHERE latest.status IN ('IN', 'OUT')
       AND NOT {$trailCompleteSql}
-    GROUP BY t.last_office
+    GROUP BY latest.office_id
 ");
-$stmtPerOffice->execute([':maxh' => $maxHours]);
+$stmtPerOffice->execute([':default_hours' => smartflow_threshold_defaults()['max_hours']]);
 foreach ($stmtPerOffice->fetchAll() as $row) {
     $oid = (int)$row['office_id'];
     $perOffice[$oid] = [
         'in_office' => (int)$row['in_office'],
         'overdue'   => (int)$row['overdue'],
     ];
+    $activeDocs += $perOffice[$oid]['in_office'];
+    $overdue += $perOffice[$oid]['overdue'];
 }
 
 $officeTotals = array_map(function ($r) use ($perOffice) {

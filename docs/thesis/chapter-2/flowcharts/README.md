@@ -1,18 +1,15 @@
 # SmartFlow Flowcharts (Chapter II §2.1.4)
 
-One file per role — open only what you need.
+One file per role — open only what you need. These follow the implemented system (Flutter screens + PHP API).
 
 | Figure | File | Role |
 |--------|------|------|
-| **2-5** | [figure-2-5-department-member.md](figure-2-5-department-member.md) | Department member (clerk) · Flutter |
-| **2-5b** | [figure-2-5b-department-head.md](figure-2-5b-department-head.md) | Department head · React web |
-| **2-5c** | [figure-2-5c-municipal-accountant.md](figure-2-5c-municipal-accountant.md) | Municipal Accountant · **ready** |
-| **2-5d** | [figure-2-5d-system-administrator.md](figure-2-5d-system-administrator.md) | System administrator · **ready** |
+| **2-5A** | [staff-clerk-flowchart.md](staff-clerk-flowchart.md) | Staff / clerk |
+| **2-5B** | [department-head-flowchart.md](department-head-flowchart.md) | Department head |
+| **2-5C** | [municipal-accountant-admin-flowchart.md](municipal-accountant-admin-flowchart.md) | Municipal Accountant / Admin (one role in the app) |
+| — | [authentication-access-flow.md](authentication-access-flow.md) | Sign in, sign up, password reset (separate figure) |
+| — | [implemented-role-flowcharts.md](implemented-role-flowcharts.md) | All roles on one page |
 
 **Shared:** [mermaid-how-to-view.md](mermaid-how-to-view.md) — preview & export PNG
 
-**Order to draw:** 2-5 → 2-5b → 2-5c → 2-5d — **all four files ready**
-
-**Heads:** Eng / HR / Budget = **2-5b** · **Municipal Accountant** = **2-5c** · **Admin** = **2-5d**
-
-**Not here:** Software architecture, DFD, ERD → `design-diagrams-for-word.md`
+**Not here:** Software architecture, DFD, ERD → `design-diagrams-for-word.md`, `../Figure-1.2-DFD-Level-0.md`, `../Figure-1.3-DFD-Level-1.md`

@@ -52,5 +52,8 @@ class ApiConfig {
 
   /// When true, every cold start shows Login (clears saved session).
   /// Set to false for production so users stay signed in.
-  static bool get devForceLoginOnStart => env != 'production';
+  static const bool devForceLoginOnStart = bool.fromEnvironment(
+    'FORCE_LOGIN_ON_START',
+    defaultValue: env != 'production',
+  );
 }

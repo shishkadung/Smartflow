@@ -6,7 +6,6 @@
 //
 // Prefer this once when switching from old fictional demo users to the team.
 
-require __DIR__ . '/config.php';
 require __DIR__ . '/dev-block.php';
 require_once __DIR__ . '/users-helper.php';
 

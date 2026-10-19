@@ -40,30 +40,44 @@ class SfRoleTip {
   final List<String> bullets;
 }
 
-SfHelpGuide sfHelpGuide(SfHelpPage page) {
+SfHelpGuide sfHelpGuide(SfHelpPage page, {String role = 'staff'}) {
+  if (role != 'staff' && (page == SfHelpPage.home || page == SfHelpPage.scan)) {
+    return SfHelpGuide(
+      title: page == SfHelpPage.scan
+          ? 'How to use Scan'
+          : 'How to use Dashboard',
+      purpose:
+          'Review folder custody and office activity. Office staff register folders and record physical handoffs.',
+      steps: const [
+        'Open a folder to review its current location and history.',
+        'Use a QR label or tracking ID to look up a folder. Lookup does not record a handoff.',
+        'Use Requests to ask another office for a folder or inter-office work.',
+      ],
+    );
+  }
   switch (page) {
     case SfHelpPage.home:
       return const SfHelpGuide(
-        title: 'How to use Home',
+        title: 'How to use Dashboard',
         purpose:
-            'Home shows today’s work for your office — what arrived, what you sent, and what is still on your desk.',
+            'Dashboard shows today’s work for your office — what arrived, what you sent, and what is still on your desk.',
         steps: [
-          'Received = folders you scanned IN today.',
-          'Sent = folders you scanned OUT today.',
-          'On desk = folders physically here right now.',
-          'Folder already here? Use New to register. Asking another office for a file? Use Requests.',
+          'Tap an arriving folder to receive it, or a folder on your desk to send it.',
+          'Scan is for the moment the label is in your hands.',
+          'Register only when the paper folder is already here. Asking another office for a file? Use Requests.',
+          'History is the audit trail. It is not where you receive or send.',
         ],
       );
     case SfHelpPage.scan:
       return const SfHelpGuide(
         title: 'How to use Scan',
         purpose:
-            'Scan records when a physical folder arrives or leaves your office. This is the official handoff log.',
+            'Scan finds a folder from its QR label or tracking ID. Lookup alone records no handoff.',
         steps: [
-          'Point the camera at the QR on the folder (or type/paste the Document ID).',
-          'Mark IN when the folder arrives · Mark OUT when you send it — pick the receiving office.',
-          'Already IN here? Do not Mark IN again — Mark OUT when you forward.',
-          'Missing QR? Type the Document ID (DOC-…) or reopen/reprint the QR from History.',
+          'Point the camera at the label, or paste the tracking ID.',
+          'Review its location first. Only an explicit confirmed Receive or Send by office staff records a physical handoff.',
+          'Already here? Do not receive it again — send it when it leaves.',
+          'Missing QR? Type the Document ID (DOC-…). The full record still has the label.',
         ],
       );
     case SfHelpPage.register:
@@ -74,8 +88,8 @@ SfHelpGuide sfHelpGuide(SfHelpPage page) {
         steps: [
           'Use New only if the paper folder is on your desk now.',
           'Do not register just to “ask” another office — use Requests instead.',
-          'Save the QR on your phone if needed; also write the Document ID on the folder.',
-          'Then use Scan → Mark OUT when you forward the folder.',
+          'Open Documents to view or download the QR. Printing is optional.',
+          'Forward (OUT) to the receiving office. They open Incoming and confirm actual receipt (IN).',
         ],
       );
     case SfHelpPage.requests:
@@ -85,8 +99,8 @@ SfHelpGuide sfHelpGuide(SfHelpPage page) {
             'Requests are tickets (“please prepare / please send a file”). They are not the same as scanning a folder.',
         steps: [
           'Inbox = requests sent to your office (you Accept or Decline).',
-          'My requests = tickets you sent to other offices.',
-          'After Accept: the holder office registers + scans — not the person who asked.',
+          'My requests = tickets you created. Active includes pending and accepted tickets; Past includes closed, declined and cancelled tickets.',
+          'Accepting or linking a request does not receive or move a folder. Register only an unlabelled folder already held by your office.',
           'Disbursement tickets: Accounting Accepts; Treasury marks payment released when done.',
         ],
       );
@@ -94,10 +108,10 @@ SfHelpGuide sfHelpGuide(SfHelpPage page) {
       return const SfHelpGuide(
         title: 'How to use History',
         purpose:
-            'History is the audit trail — who scanned the folder, where, and when (IN / OUT).',
+            'Choose Folder history for one folder, or Office activity for a dated office log.',
         steps: [
-          'Open a document or enter its tracking ID.',
-          'Read the timeline from top to bottom for the full path.',
+          'In Folder history, enter a tracking ID to see who registered, received and sent the folder.',
+          'Read the full timeline from top to bottom. Office activity has date, Received/Sent filters and pages for the complete daily log.',
           'Use this for follow-ups and COA support checks.',
         ],
       );
@@ -105,11 +119,11 @@ SfHelpGuide sfHelpGuide(SfHelpPage page) {
       return const SfHelpGuide(
         title: 'How to use Alerts',
         purpose:
-            'Alerts show folders that need attention in YOUR office only — overdue on your desk, or sent out with no receive scan yet.',
+            'Alerts flag late processing, deadlines and receipts not yet recorded. Municipal admins see alerts across offices.',
         steps: [
           'Open an alert to see which document needs attention.',
-          'IN overdue = still sitting at your office past the time limit.',
-          'Unconfirmed OUT = you forwarded it, but the next office has not Marked IN yet.',
+          'Overdue at office means the recorded folder deadline or processing limit has passed.',
+          'Receipt not recorded means sending was recorded but the receiving office has not confirmed receipt. It does not prove the folder arrived.',
           'Other offices’ delays appear on their Alerts (or Admin municipal view).',
         ],
       );
@@ -121,7 +135,7 @@ SfHelpGuide sfHelpGuide(SfHelpPage page) {
         steps: [
           'Open See profile for name, office, and desk stats.',
           'Open Account & security to update your photo, name/username/email, change password, or log out.',
-          'Use the top-bar ? for how-to steps on the page you are on.',
+          'Open Menu (the grid at the top right) for how-to steps on the page you are on.',
         ],
       );
     case SfHelpPage.adminHome:
@@ -132,8 +146,8 @@ SfHelpGuide sfHelpGuide(SfHelpPage page) {
         steps: [
           'Check active documents, overdue items, and pending sign-ups.',
           'Open office tiles to see health per department.',
-          'Use COA reports and QR scan monitor for compliance views.',
-          'Do not use this account for everyday Mark IN/OUT — the Accounting clerk account does that.',
+          'Use Custody reports and QR scan monitor for compliance views.',
+          'Do not use this account for everyday Receive (IN) / Send (OUT) — the Accounting clerk account does that.',
         ],
       );
     case SfHelpPage.adminUsers:
@@ -150,7 +164,8 @@ SfHelpGuide sfHelpGuide(SfHelpPage page) {
     case SfHelpPage.adminOffices:
       return const SfHelpGuide(
         title: 'How to use Offices',
-        purpose: 'View pilot offices included in SmartFlow (ENG, HR, BUD, ACC, TRE, MAY).',
+        purpose:
+            'View pilot offices included in SmartFlow (ENG, HR, BUD, ACC, TRE, MAY).',
         steps: [
           'Confirm each office code matches municipal structure.',
           'Clerks and heads are tied to these offices when they log in.',
@@ -159,15 +174,16 @@ SfHelpGuide sfHelpGuide(SfHelpPage page) {
     case SfHelpPage.adminSystem:
       return const SfHelpGuide(
         title: 'How to use System status',
-        purpose: 'Quick health check that the API and database are reachable for the pilot.',
+        purpose:
+            'Quick health check that the API and database are reachable for the pilot.',
         steps: [
           'Green / OK means offices can scan and register.',
-          'If something fails, restart XAMPP Apache + MySQL and sync the backend.',
+          'If a connection fails, retry and ask the administrator to check the service. A failure is not proof of zero activity.',
         ],
       );
     case SfHelpPage.adminReports:
       return const SfHelpGuide(
-        title: 'How to use COA reports',
+        title: 'How to use Custody reports',
         purpose:
             'Monthly custody summary to support COA preparation — not financial approval of vouchers.',
         steps: [
@@ -178,11 +194,12 @@ SfHelpGuide sfHelpGuide(SfHelpPage page) {
       );
     case SfHelpPage.adminThresholds:
       return const SfHelpGuide(
-        title: 'How to use Thresholds',
+        title: 'How to use Alert time limits',
         purpose:
-            'Set max processing hours so Alerts flag folders that stay too long in an office.',
+            'Set processing and receipt time limits so Alerts flag delays. Hours include nights and weekends; 48 hours means 2 calendar days.',
         steps: [
-          'Adjust hours per office if the pilot needs stricter or looser timing.',
+          'Select an office and tap a saved rule to prefill both limits. Use Add a rule for another document type.',
+          'Processing starts after receipt; the receipt limit starts after sending. A folder’s own deadline takes priority.',
           'Save changes so Alerts use the new rules.',
         ],
       );
@@ -211,35 +228,35 @@ SfRoleTip sfRoleTip({
       return const SfRoleTip(
         title: 'Your account: Municipal Accountant (Admin)',
         purpose:
-            'You see municipal-wide status and COA reports. Clerks scan the folders — this account is not for everyday Mark IN/OUT.',
+            'You see municipal-wide status and Custody reports. Clerks scan the folders — this account is not for everyday Receive (IN) / Send (OUT).',
         bullets: [
-          'Use dashboards, QR scan monitor, and COA reports.',
+          'Use dashboards and Custody reports. Open Menu → Administration for Users, Offices, Alert time limits, QR monitor and System.',
           'For Accounting handoffs, the Accounting clerk account does the scanning.',
-          'Tap the top-bar ? anytime for page help.',
+          'Open Menu (the grid at the top right) anytime for page help.',
         ],
       );
     case 'head':
       return SfRoleTip(
         title: 'Your account: Department Head · $office',
         purpose:
-            'You monitor your office queue and delays. You may also scan if you personally handle a folder.',
+            'You monitor your office queue and delays. Office staff register folders and record physical handoffs.',
         bullets: [
-          'Check Queue and Alerts for overdue or waiting folders.',
-          'If the folder is in your hands: Scan → Mark IN or OUT.',
-          'Folder not here yet? Use Requests — do not register for someone else’s file.',
-          'Tap the top-bar ? anytime for page help.',
+          'Open a folder from the queue to review its custody and history.',
+          'Scan a QR label to look up a folder. Lookup does not record a handoff.',
+          'Use Requests to ask another office for a folder or inter-office work.',
+          'History is the audit trail, not the place you move a folder.',
         ],
       );
     default:
       return SfRoleTip(
         title: 'Your account: Clerk · $office',
         purpose:
-            'You are the frontline scanner for folders at $office. Keep the paper trail in sync with Scan IN/OUT.',
+            'You move the folders at $office. Home shows what to receive and what to send.',
         bullets: [
-          'Folder on your desk? New (register) + save/attach QR, then Scan when it moves.',
-          'Asking another office for a file? Requests → wait for Inbox Accept there.',
-          'Scan: Mark IN when it arrives · Mark OUT when you send it.',
-          'Tap the top-bar ? anytime for page help.',
+          'Home: Receive what arrived. Send what is already on your desk.',
+          'Scan when the label is in your hands. One button is ready: Receive or Send.',
+          'Asking another office for a file? Use Requests. Do not register that folder.',
+          'History is the audit trail, not the place you move a folder.',
         ],
       );
   }

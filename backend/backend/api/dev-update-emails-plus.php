@@ -3,7 +3,6 @@
 // Update all users to use Gmail plus addressing (all go to same inbox)
 // Example: smartflow2k26+username@gmail.com
 
-require __DIR__ . '/config.php';
 require __DIR__ . '/dev-block.php';
 
 // Get all users

@@ -5,6 +5,8 @@ import { AuthProvider } from './auth.jsx'
 import App from './App.jsx'
 import './index.css'
 import './sf-life.css'
+import './page-layout.css'
+import './finishing-polish.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

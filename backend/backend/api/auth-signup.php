@@ -4,6 +4,8 @@
 // requested_role: staff | head | admin (maps from Employee / Head / Accountant|Admin UI)
 
 require __DIR__ . '/config.php';
+require_once __DIR__ . '/signup-status-helper.php';
+header('Cache-Control: no-store');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['success' => false, 'message' => 'Method not allowed'], 405);
@@ -16,6 +18,10 @@ $email = trim((string)($body['email'] ?? ''));
 $password = (string)($body['password'] ?? '');
 $officeId = (int)($body['office_id'] ?? 0);
 $role = trim((string)($body['requested_role'] ?? 'staff'));
+smartflow_public_auth_limit('signup', 10);
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    json_response(['success' => false, 'message' => 'Enter a valid email address'], 400);
+}
 
 $allowedRoles = ['staff', 'head', 'admin'];
 if (!in_array($role, $allowedRoles, true)) {
@@ -28,6 +34,9 @@ if ($fullName === '' || $username === '' || $email === '' || $password === '') {
 
 if ($officeId <= 0) {
     json_response(['success' => false, 'message' => 'office_id is required'], 400);
+}
+if (mb_strlen($fullName) > 100 || !preg_match('/^[a-zA-Z0-9._-]{3,50}$/', $username) || strlen($email) > 120) {
+    json_response(['success' => false, 'message' => 'Name must be at most 100 characters. Username must use 3–50 letters, numbers, dots, underscores or hyphens. Email must be at most 120 characters.'], 400);
 }
 
 if (strlen($password) < 8) {
@@ -46,6 +55,11 @@ $stmtUser->execute([':u' => $username]);
 if ($stmtUser->fetch()) {
     json_response(['success' => false, 'message' => 'Username is already taken'], 409);
 }
+$stmtEmail = $pdo->prepare('SELECT id FROM users WHERE email = :email LIMIT 1');
+$stmtEmail->execute([':email' => $email]);
+if ($stmtEmail->fetch()) {
+    json_response(['success' => false, 'message' => 'Email is already in use'], 409);
+}
 
 // Username match is case-insensitive under utf8mb4_unicode_ci.
 $stmtPending = $pdo->prepare("
@@ -63,6 +77,9 @@ if ($existing) {
 }
 
 $hash = password_hash($password, PASSWORD_DEFAULT);
+smartflow_ensure_signup_status_key($pdo);
+$statusKey = bin2hex(random_bytes(32));
+$statusKeyHash = hash('sha256', $statusKey);
 
 // Rejected requests keep the username unique key — update in place so the user can re-apply.
 if ($existing && $existing['status'] === 'rejected') {
@@ -74,11 +91,13 @@ if ($existing && $existing['status'] === 'rejected') {
             username = :username,
             email = :email,
             password_hash = :hash,
+            status_key_hash = :status_key_hash,
             office_id = :office_id,
             requested_role = :role,
             status = \'pending\',
             approved_by = NULL,
-            approved_at = NULL
+            approved_at = NULL,
+            approved_user_id = NULL
         WHERE id = :id AND status = \'rejected\'
     ');
     $stmt->execute([
@@ -86,10 +105,14 @@ if ($existing && $existing['status'] === 'rejected') {
         ':username'  => $username,
         ':email'     => $email,
         ':hash'      => $hash,
+        ':status_key_hash' => $statusKeyHash,
         ':office_id' => $officeId,
         ':role'      => $role,
         ':id'        => $id,
     ]);
+    if ($stmt->rowCount() !== 1) {
+        json_response(['success' => false, 'message' => 'This request changed. Check its status before submitting again.'], 409);
+    }
 } else {
     $nextId = (int)$pdo->query('SELECT COALESCE(MAX(id), 0) + 1 AS n FROM signup_requests')->fetch()['n'];
     $requestCode = 'REQ-' . str_pad((string)$nextId, 4, '0', STR_PAD_LEFT);
@@ -97,9 +120,9 @@ if ($existing && $existing['status'] === 'rejected') {
     try {
         $stmt = $pdo->prepare('
             INSERT INTO signup_requests
-                (request_code, full_name, username, email, password_hash, office_id, requested_role, status)
+                (request_code, full_name, username, email, password_hash, status_key_hash, office_id, requested_role, status)
             VALUES
-                (:code, :name, :username, :email, :hash, :office_id, :role, \'pending\')
+                (:code, :name, :username, :email, :hash, :status_key_hash, :office_id, :role, \'pending\')
         ');
         $stmt->execute([
             ':code'      => $requestCode,
@@ -107,6 +130,7 @@ if ($existing && $existing['status'] === 'rejected') {
             ':username'  => $username,
             ':email'     => $email,
             ':hash'      => $hash,
+            ':status_key_hash' => $statusKeyHash,
             ':office_id' => $officeId,
             ':role'      => $role,
         ]);
@@ -125,6 +149,7 @@ if ($existing && $existing['status'] === 'rejected') {
 
 json_response([
     'success' => true,
+    'status_key' => $statusKey,
     'message' => 'Sign-up request submitted. Await admin approval.',
     'request' => [
         'id'             => $id,

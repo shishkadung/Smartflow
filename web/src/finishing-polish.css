@@ -1,0 +1,220 @@
+/* Scan, registration and account administration use the quiet workspace language. */
+.app-shell .main > :is(.scan-page, .register-page, .profile-page, .users-page, .offices-page, .thresholds-page) { gap: 18px; }
+.app-shell :is(.scan-page, .register-page, .profile-page, .users-page, .offices-page, .thresholds-page) .page-heading { padding: 0; }
+.app-shell :is(.scan-page, .register-page, .profile-page, .users-page, .offices-page, .thresholds-page) .page-heading h2 { font-weight: 650; }
+.app-shell :is(.scan-page, .register-page, .profile-page, .users-page, .offices-page, .thresholds-page) .page-heading .muted { font-size: 14px; }
+.app-shell :is(.scan-page, .register-page, .profile-page, .users-page, .offices-page, .thresholds-page) .section-title { font-weight: 650; }
+.app-shell :is(.register-page, .profile-page, .users-page, .thresholds-page) .finishing-section-lead,
+.app-shell :is(.register-page, .users-page) .finishing-panel-heading > p,
+.app-shell .register-page .finishing-form-intro > p { margin: 0; color: var(--sf-muted); font-size: 13px; line-height: 1.5; }
+.app-shell :is(.users-page, .register-page) :is(.finishing-panel-heading, .finishing-form-intro) { display: grid; gap: 5px; }
+.app-shell :is(.users-page, .register-page) :is(.finishing-panel-heading, .finishing-form-intro) > .section-title { margin: 0; }
+
+/* The folder title and current custody lead; its code and logbook are secondary. */
+.app-shell .scan-page .scan-result { border-color: var(--sf-border); }
+.app-shell .scan-page .scan-result__body { gap: 16px; }
+.app-shell .scan-page .scan-folder-heading { display: grid; gap: 5px; min-width: 0; }
+.app-shell .scan-page .scan-folder-heading > * { margin: 0; overflow-wrap: anywhere; }
+.app-shell .scan-page .scan-result__type { font-size: 12px; font-weight: 400; text-transform: none; letter-spacing: 0; }
+.app-shell .scan-page .scan-result__title { font-size: 22px; font-weight: 650; line-height: 1.35; }
+.app-shell .scan-page .scan-result__id { font-family: inherit; font-size: 12px; font-weight: 400; letter-spacing: 0; color: var(--sf-muted); }
+.app-shell .scan-page .scan-custody { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 14px 0; border-block: 1px solid var(--sf-border); }
+.app-shell .scan-page .scan-custody > div { min-width: 0; }
+.app-shell .scan-page .scan-custody__label { color: var(--sf-muted); font-size: 12px; }
+.app-shell .scan-page .scan-result__route { margin: 4px 0 0; padding: 0; border-radius: 0; background: transparent; font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.app-shell .scan-page .scan-result__status { margin: 0; }
+.app-shell .scan-page .scan-result__status .status-pill { white-space: normal; }
+.app-shell .scan-page .scan-deadline { color: var(--sf-muted); font-size: 13px; line-height: 1.5; }
+.app-shell .scan-page .scan-deadline.is-overdue { color: var(--sf-red); font-weight: 600; }
+.app-shell .scan-page .scan-next-heading { display: grid; gap: 5px; }
+.app-shell .scan-page .scan-next-heading > * { margin: 0; }
+.app-shell .scan-page .scan-next-heading > p { font-size: 13px; line-height: 1.5; }
+.app-shell .scan-page .scan-folder-details { padding-block: 12px; border-block: 1px solid var(--sf-border); }
+.app-shell .scan-page .scan-folder-details > summary { min-height: 24px; color: var(--sf-muted); font-size: 13px; font-weight: 600; cursor: pointer; }
+.app-shell .scan-page .scan-folder-details[open] > summary { margin-bottom: 14px; }
+.app-shell .scan-page .scan-folder-details .document-meta { margin: 0 0 16px; }
+.app-shell .scan-page .scan-folder-details .folder-contents-summary { margin: 0; }
+.app-shell .scan-page .scan-lookup__hint { padding-top: 14px; border-top: 1px solid var(--sf-border); }
+
+/* Registration remains one form, with small sections in the order staff fill it. */
+.app-shell .register-page .register-layout { grid-template-columns: minmax(0, 1.65fr) minmax(250px, 0.8fr); gap: 22px; }
+.app-shell .register-page .finishing-form-section { display: grid; gap: 14px; min-width: 0; margin: 0; padding: 18px 0 0; border: 0; border-top: 1px solid var(--sf-border); }
+.app-shell .register-page .finishing-form-section > legend { float: left; width: 100%; margin: 0; padding: 0; color: var(--sf-ink); font-size: 15px; font-weight: 650; }
+.app-shell .register-page .finishing-form-section .form-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.app-shell .register-page .register-office-context { display: grid; gap: 6px; padding: 0; }
+.app-shell .register-page .register-office-context > span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 400; }
+.app-shell .register-page .register-office-context > strong { min-width: 0; text-align: left; font-size: 14px; font-weight: 600; line-height: 1.5; overflow-wrap: anywhere; }
+.app-shell .register-page .folder-contents { margin: 0; padding: 18px 0; border: 0; border-block: 1px solid var(--sf-border); }
+.app-shell .register-page .folder-contents > legend { float: left; width: 100%; padding: 0 0 10px; font-size: 15px; font-weight: 650; }
+.app-shell .register-page .folder-contents > p { clear: both; margin: 0 0 14px; font-size: 13px; line-height: 1.5; }
+.app-shell .register-page .folder-contents .folder-item { margin: 0 0 14px; padding: 14px; background: #f7f9fc; border-color: var(--sf-border); border-radius: 8px; }
+.app-shell .register-page .folder-contents .document-confirm { margin-top: 14px; font-size: 13px; line-height: 1.5; }
+.app-shell .register-page .register-submit-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 4px; }
+.app-shell .register-page .register-submit-actions > :is(button, a) { width: auto; }
+.app-shell .register-page .register-guidance-panel { text-align: left; }
+.app-shell .register-page .register-guidance-list { display: grid; gap: 14px; margin: 18px 0; padding-left: 20px; color: var(--sf-muted); font-size: 13px; line-height: 1.55; }
+.app-shell .register-page .register-guidance-list li { padding-left: 3px; }
+.app-shell .register-page .register-guidance-note { margin: 0 0 14px; padding-top: 16px; border-top: 1px solid var(--sf-border); color: var(--sf-ink); font-size: 13px; line-height: 1.5; }
+.app-shell .register-page .register-qr--ready { display: grid; gap: 14px; }
+.app-shell .register-page .register-qr--ready > * { margin-block: 0; }
+.app-shell .register-page .register-qr--ready .qr-box { margin: 0; }
+.app-shell .register-page .register-success__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+.app-shell .register-page .register-success__actions > :is(button, a) { flex: 1 1 180px; min-width: 0; }
+
+/* Account identity, editable details and security actions have separate groups. */
+.app-shell .profile-page .profile-hero--rich { padding: 22px 20px; border-bottom: 1px solid var(--sf-border); }
+.app-shell .profile-page .profile-hero__copy h2 { font-size: 22px; font-weight: 650; line-height: 1.35; }
+.app-shell .profile-page .profile-hero__role { font-size: 13px; font-weight: 400; line-height: 1.5; }
+.app-shell .profile-page .profile-overview { margin-top: 20px; }
+.app-shell .profile-page .profile-stats { border-width: 1px 0; border-radius: 0; }
+.app-shell .profile-page .profile-stats > .stat { text-align: left; }
+.app-shell .profile-page .profile-stats > .stat:first-child { padding-left: 0; }
+.app-shell .profile-page .profile-stats > .stat b { font-weight: 650; }
+.app-shell .profile-page .profile-goto-security { margin-top: 20px; }
+.app-shell .profile-page .profile-goto-security__copy { display: grid; gap: 3px; min-width: 0; text-align: left; }
+.app-shell .profile-page .profile-goto-security__copy strong { font-size: 14px; font-weight: 600; }
+.app-shell .profile-page .profile-goto-security__copy > span { color: var(--sf-muted); font-size: 12px; font-weight: 400; line-height: 1.5; }
+.app-shell .profile-page .profile-layout--security { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.2fr); align-items: start; gap: 22px; }
+.app-shell .profile-page .profile-security-stack { height: auto; }
+.app-shell .profile-page .profile-layout--security .profile-edit-card { height: auto; display: grid; gap: 16px; }
+.app-shell .profile-page .profile-readonly { padding: 16px 0 0; margin: 0; background: transparent; border: 0; border-top: 1px solid var(--sf-border); border-radius: 0; }
+.app-shell .profile-page .finishing-assignment-title { margin: 0 0 12px; font-size: 13px; font-weight: 650; }
+.app-shell .profile-page .profile-kv__row { align-items: start; gap: 10px; }
+.app-shell .profile-page .profile-session-col { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+.app-shell .profile-page .profile-session .profile-actions { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--sf-border); }
+.app-shell .profile-page .profile-action { min-height: 72px; }
+.app-shell .profile-page .profile-logout { margin: 0; min-height: 48px; border: 1px solid #e1bebe; background: #fff; }
+
+/* Administration groups review work separately from the account directory. */
+.app-shell .users-page .admin-grid { gap: 22px; }
+.app-shell .users-page .admin-signups { gap: 16px; }
+.app-shell .users-page .pending-card { border: 0; border-top: 1px solid var(--sf-border); border-radius: 0; background: transparent; padding: 16px 0 0; gap: 8px; }
+.app-shell .users-page .pending-card > strong { font-size: 15px; font-weight: 600; line-height: 1.4; }
+.app-shell .users-page .pending-card > .muted { font-size: 12px; line-height: 1.5; }
+.app-shell .users-page .pending-card .request-card__actions { margin-top: 6px; }
+.app-shell .users-page .pending-card .request-card__actions > button { min-width: 100px; flex: 1 1 100px; }
+.app-shell .users-page .pending-card .btn-danger { background: #fff; color: var(--sf-red); border-color: #e1bebe; }
+.app-shell .users-page .admin-directory .finishing-panel-heading { margin-bottom: 18px; }
+.app-shell .users-page .data-table td { vertical-align: top; }
+.app-shell .offices-page .admin-office-list { gap: 0; background: #fff; border: 1px solid var(--sf-border); border-radius: 12px; overflow: hidden; }
+.app-shell .offices-page .admin-office-row { align-items: start; border: 0; border-bottom: 1px solid var(--sf-border); border-radius: 0; gap: 16px; }
+.app-shell .offices-page .admin-office-row:last-child { border-bottom: 0; }
+.app-shell .offices-page .admin-office-row__body { gap: 12px; min-width: 0; }
+.app-shell .offices-page .admin-office-row__body > h3 { margin: 0; font-size: 16px; font-weight: 650; line-height: 1.4; }
+.app-shell .offices-page .admin-office-row__body > p { margin: 0; font-size: 13px; }
+.app-shell .offices-page .office-rule-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.app-shell .offices-page .office-rule-list li { display: grid; gap: 3px; font-size: 12px; line-height: 1.5; }
+.app-shell .offices-page .office-rule-list strong { color: var(--sf-ink); font-weight: 600; }
+.app-shell .offices-page .office-rule-list span { color: var(--sf-muted); }
+.app-shell .thresholds-page .clarity-panel-heading { align-items: start; }
+.app-shell .thresholds-page .clarity-panel-heading .section-title { margin-bottom: 5px; }
+.app-shell .thresholds-page .admin-threshold-list { margin-top: 18px; }
+.app-shell .thresholds-page .threshold-rule-copy > strong { font-size: 14px; font-weight: 600; }
+
+@media (max-width: 1100px) {
+  .app-shell .register-page .register-layout,
+  .app-shell .profile-page .profile-layout--security { grid-template-columns: minmax(0, 1fr); }
+  .app-shell .register-page .register-guidance-panel { max-width: none; }
+}
+@media (max-width: 767px) {
+  .app-shell .main > :is(.scan-page, .register-page, .profile-page, .users-page, .offices-page, .thresholds-page) { gap: 16px; }
+  .app-shell .scan-page .scan-result__title { font-size: 20px; }
+  .app-shell .scan-page .scan-custody { align-items: start; flex-direction: column; }
+  .app-shell .register-page .register-submit-actions > button { flex: 1 1 100%; }
+  .app-shell .profile-page .profile-hero--rich { padding: 18px 16px; }
+  .app-shell .profile-page .profile-hero__copy h2 { font-size: 20px; }
+  .app-shell .profile-page .profile-goto-security__lead { min-width: 0; }
+  .app-shell .offices-page .admin-office-row { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: 12px; }
+  .app-shell .offices-page .admin-office-row > .status-pill { grid-column: 2; justify-self: start; }
+  .app-shell .offices-page .admin-office-row__badge { width: 46px; min-width: 0; }
+}
+
+/* Register (desktop shell): related fields share rows so the form is about one and a half screens, and the guidance stays in view. */
+@media (min-width: 768px) {
+  .app-shell .register-page .finishing-form-section .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px 16px; align-items: start; }
+  .app-shell .register-page .register-layout .form-grid > .register-office-context,
+  .app-shell .register-page .register-layout .form-grid > .field:is(:has(#register-title), :has(#register-comment)) { grid-column: 1 / -1; }
+  .app-shell .register-page .register-guidance-panel { position: sticky; top: 4px; align-self: start; }
+}
+
+/* Staff Dashboard: Send and Receive look like the buttons they lead to; Incoming comes first and is highlighted only while something is arriving. */
+.app-shell .home-dashboard.desk-workspace .work-card__verb { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; min-width: 88px; padding: 0 16px; border: 1px solid var(--sf-border-strong); border-radius: 8px; background: #fff; color: var(--sf-navy, #0b1f3a); font-size: 13px; font-weight: 600; }
+.app-shell .home-dashboard.desk-workspace .work-card__verb::after { content: none; }
+.app-shell .home-dashboard.desk-workspace .work-card:hover .work-card__verb { background: #f1f5f9; }
+.app-shell .home-dashboard.desk-workspace .work-card--warn .work-card__verb { border-color: var(--sf-navy, #0b1f3a); background: var(--sf-navy, #0b1f3a); color: #fff; }
+.app-shell .home-dashboard.desk-workspace .work-card--warn:hover .work-card__verb { background: #16335c; }
+.app-shell .home-dashboard.desk-workspace .workspace-queues--arriving { grid-template-columns: minmax(0, 1fr); }
+.app-shell .home-dashboard.desk-workspace .workspace-panel--arriving { padding: 4px 18px 6px; border: 1px solid #f2c15c; border-radius: 12px; background: #fffaf0; }
+
+/* Documents: search, office filter, sort and update time share one row on desktop; the open folder stays in view beside a long list. */
+@media (min-width: 768px) {
+  .app-shell .document-page .document-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; }
+  .app-shell .document-page .document-controls > .document-find-controls { flex: 1 1 320px; min-width: 0; }
+  .app-shell .document-page .document-controls > .queue-controls { flex: 0 1 auto; align-items: center; flex-wrap: wrap; min-height: 44px; }
+}
+@media (max-width: 767px) {
+  .app-shell .document-page .document-controls { display: contents; }
+}
+@media (min-width: 1101px) and (min-height: 561px) {
+  .app-shell .document-workspace--selected > .document-detail-panel { position: sticky; top: 4px; max-height: calc(100dvh - 120px); overflow-y: auto; overscroll-behavior: contain; }
+}
+
+/* History > Office activity (desktop): each movement is one compact row, so far more of the full log fits on screen. Notes and destination corrections stay fully visible under the row. */
+@media (min-width: 768px) {
+  .app-shell .history-page .history-picks { gap: 0; margin-top: 4px; border: 1px solid var(--sf-border); border-radius: 12px; background: #fff; overflow: hidden; }
+  .app-shell .history-page .history-picks li { display: block; border-bottom: 1px solid var(--sf-border); }
+  .app-shell .history-page .history-picks li:last-child { border-bottom: 0; }
+  .app-shell .history-page .history-picks button { display: grid; grid-template-columns: 96px 156px minmax(0, 1fr) auto; align-items: center; gap: 2px 14px; padding: 10px 16px; border: 0; border-radius: 0; }
+  .app-shell .history-page .history-picks button > :nth-child(4) { text-align: right; white-space: nowrap; }
+  .app-shell .history-page .history-picks button > :nth-child(n+5) { grid-column: 2 / -1; }
+  .app-shell .history-page .history-picks button:focus-visible { outline: 2px solid var(--sf-blue); outline-offset: -2px; }
+}
+
+/* Staff and head pages with a narrower content width start at the same left edge as Documents and Requests (admin pages keep their shared frame). */
+@media (min-width: 768px) {
+  .app-shell:not(.app-shell--admin) .main > :is(.register-page, .profile-page, .alerts-page) { margin-inline: 0; }
+}
+
+/* Head Analytics: one summary line above the percentages; Slow documents rows show their hours and that they open the folder. */
+.app-shell .analytics-summary { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; margin: 0; font-size: 14px; }
+.app-shell .analytics-summary > .muted { font-size: 13px; }
+.app-shell .analytics-slow__hours { margin-left: auto; padding: 2px 10px; border-radius: 999px; background: #fdecec; color: #991b1b; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.app-shell .analytics-slow__chevron { color: var(--sf-blue); font-size: 20px; line-height: 1; }
+
+/* Head Dashboard: the Overdue figure becomes a link to the Documents Overdue view when there is something overdue. */
+.app-shell .home-dashboard a.workspace-metric { color: inherit; text-decoration: none; }
+.app-shell .home-dashboard a.workspace-metric:hover .workspace-metric__detail { text-decoration: underline; }
+.app-shell .home-dashboard a.workspace-metric:focus-visible { outline: 2px solid var(--sf-blue); outline-offset: 4px; border-radius: 8px; }
+
+/* Admin System: small status cards sit in a grid instead of one full-width card each; the email channel card stays full width below. */
+.app-shell .admin-system-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-items: stretch; }
+@media (min-width: 768px) { .app-shell .admin-system-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .app-shell .admin-system-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.app-shell .admin-system-grid > .stats { grid-column: 1 / -1; order: 1; margin: 0; }
+.app-shell .admin-system-grid > .card { margin: 0; }
+
+/* Admin Offices: one table; each office is a row instead of a tall card. */
+.app-shell .admin-office-table-wrap { padding: 4px 18px; overflow-x: auto; }
+.app-shell .admin-office-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.app-shell .admin-office-table thead th { padding: 10px 8px; text-align: left; color: var(--sf-muted); font-size: 12px; font-weight: 600; border-bottom: 1px solid var(--sf-border); }
+.app-shell .admin-office-table tbody tr + tr > * { border-top: 1px solid var(--sf-border); }
+.app-shell .admin-office-table tbody :is(th, td) { padding: 12px 8px; vertical-align: top; text-align: left; font-weight: 400; }
+.app-shell .admin-office-table tbody th { display: flex; align-items: center; gap: 12px; min-width: 220px; }
+.app-shell .admin-office-table__name { font-size: 15px; font-weight: 650; }
+.app-shell .admin-office-table .office-rule-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.app-shell .admin-office-table .office-rule-list li { display: flex; flex-wrap: wrap; gap: 2px 10px; overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  .app-shell .admin-office-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .app-shell .admin-office-table :is(tbody, tr, th, td) { display: block; }
+  .app-shell .admin-office-table tbody th { min-width: 0; padding-bottom: 4px; }
+  .app-shell .admin-office-table tbody td { padding-top: 2px; }
+}
+
+/* Offices: the action column sits at the right edge. */
+.app-shell .admin-office-table tbody td.admin-office-table__action { text-align: right; white-space: nowrap; }
+.app-shell .admin-office-table td.admin-office-table__action a { color: var(--sf-blue); font-weight: 600; text-decoration: none; }
+.app-shell .admin-office-table td.admin-office-table__action a:hover { text-decoration: underline; }
+
+/* Dialog forms: the confirmation checkbox and the action buttons no longer touch. */
+.modal-panel .document-confirm { margin-top: 12px; }
+.modal-panel__body form > .row-btns { margin-top: 16px; }

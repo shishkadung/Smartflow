@@ -1,0 +1,349 @@
+# SmartFlow testing and verification
+
+Last reviewed: **17 October 2026**. This is the test plan and command reference for the existing React web, Flutter mobile and PHP/MySQL backend. Current priority-fix verification is separated below from historic 14 October evidence; source review alone is not a test result.
+
+Use [PRD.md](PRD.md) for expected behavior, [SECURITY.md](SECURITY.md) for permission/security requirements and [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for visual acceptance. File links are relative to this document.
+
+The user-authorized **16 October bounded stabilization** uses a [frozen acceptance matrix](testing/STABILIZATION-MATRIX-2026-10-16.md), permanent regressions and separate device/hosting acceptance. Current implementation results and exact commands are in the [stabilization report](../.runtime/stabilization-2026-10-16/report.md); discovery failures below remain historical. New scripts copy public source only, select generated disposable schemas and remove owned resources. `TEST_DB_HOST` explicitly chooses the existing local MariaDB; loopback addresses do not establish server isolation. Do not start/stop a server or select the operational schema to run them.
+
+```powershell
+# Set TEST_DB_HOST to the reviewed local test server; these scripts generate their own schema.
+& C:\xampp\php\php.exe scripts/test-admin-session-boundary.php
+& C:\xampp\php\php.exe scripts/test-report-snapshot.php
+& C:\xampp\php\php.exe scripts/test-linked-ticket-scope.php
+& C:\xampp\php\php.exe scripts/test-system-backup.php
+& C:\xampp\php\php.exe scripts/test-legacy-restore.php
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/test-launch-helpers.ps1
+pwsh.exe -NoProfile -NonInteractive -File scripts/test-launch-helpers.ps1
+```
+
+Admin tests exercise actual resource waits, deactivation/logout/expiry and deadlock rollback without modifying endpoint copies. Report and backup races add scheduling-only latches to copies, leaving query/dump logic unchanged. Legacy restore runs only copied scripts and known-good synthetic SQL, including Unicode/binary and UTF-8 BOM variants; it never runs the original live restore. Both installed Windows shells are required for the cross-shell checks. Native login/navigation/confirmation tests use the actual router and mocked HTTP/preferences, including staged persistence, cancelled overlapping attempts, false preference results, root/shell modal ownership, disposed callbacks and already-submitted outcomes during failed logout. The web camera regression uses actual-page callbacks and controlled correction fields. Preserve their legitimate controls alongside the original failure triggers.
+
+The historical [read-only workflow review](../.runtime/workflow-review-2026-10-16/report.md), before stabilization, recorded nine additional reproducible issues that were unfixed at that review. Its discovery evidence is **23 admin-boundary assertions, 7 report checks, 49 backup/edge checks (including 39 inherited controls), 14 backup-concurrency checks, 19 recovery/4 reporting web controls and 11 native recovery controls**. Native Scan navigation deliberately retains **2 controls/2 defect failures**, and an existing-login consequence retains **1 control/1 defect failure**; both commands exit 1 and are not remediation passes. Parser checks cover 17 scripts in each of PowerShell 5.1 and 7, with launch encoding failures on 5.1 and legacy restore syntax failure on both. Clock/launcher witnesses are separate. No full suite or build was repeated in that review. The attempted separate MariaDB instance failed to bind; tests actually used generated disposable schemas on the existing local MariaDB at the explicit review host, with no operational schema selected. Cleanup confirms zero remaining review schemas, the unused datadir removed and the existing server preserved; there is no fresh operational row-digest baseline. Exact commands, test-only scheduling instrumentation and limits are in the report; use the stabilization report above for current repair evidence and do not reuse historical full-suite totals.
+
+The historical [read-only narrow follow-up](C:/Users/nljhn/.codex/state/plugins/codex-security/scans/SmartFlow/artifacts-d1d4e1406d787ced8fe0eadea031db09727deb9cb1717568f26d45c4c687ab24/artifacts/remaining-findings-2026-10-16.md), before stabilization, reproduced three then-open groups using 12 focused visibility checks (31 including inherited cases), a real-router native login witness plus an expected setState-after-dispose failure (final focused exit 1), and an actual-page mocked camera callback (two reads, zero writes). These are defect-discovery results, not fixed regressions. No full suite was repeated, and the seven-finding source hashes were unchanged during that review. Do not treat the earlier 547/88/187 pass below as coverage of these cases; current scoped repairs are tracked above.
+
+The current authorized **seven-finding remediation** freshly passed **547 isolated API / 88 web / 187 Flutter**, **13 admin-status concurrency / 40 actual synthetic backup-restore** checks, clean Flutter analysis and web/debug-APK builds. Full web lint remains **0 errors / 19 existing warnings**. Native evidence's 21 focused checks are a subset of the 187; new profile/evidence/web/API cases are included in their respective full suites. Three PHP files were deployed with 91-file parity; 14 operational table digests/private files are unchanged and no harness/restore schemas remain. The APK was **not installed: no ADB device was connected**. Protected native visual acceptance remains pending. See the [current report](C:/Users/nljhn/.codex/state/plugins/codex-security/scans/SmartFlow/artifacts-d1d4e1406d787ced8fe0eadea031db09727deb9cb1717568f26d45c4c687ab24/artifacts/seven-gap-remediation-2026-10-16.md).
+
+The preceding **read-only review** passed 525 API / 83 web / 167 Flutter and reproduced seven then-unfixed groups. Those are historical discovery results, distinct from the repairs above. Its synthetic 100/106/20 checks and 12 safe hosting checks retain their original scope. See the [original audit](../.runtime/full-system-audit-2026-10-16.md).
+
+The new permanent scripts run real endpoints or dump/restore only in private-file-free copies and freshly generated disposable databases. They never select the operational database or copy its private material:
+
+```powershell
+& C:\xampp\php\php.exe scripts/test-admin-status-concurrency.php
+& C:\xampp\php\php.exe scripts/test-system-backup.php
+```
+
+Admin tests use two temporary servers and a delay-only trigger to verify the mutual-deactivation boundary plus normal permissions/revocation. Backup tests redirect the copied script's known project/API paths and supply synthetic settings/key/uploads; default/custom roots, copied wrappers, containment, integrity, QR/data continuity and cleanup are exercised. Do not substitute a real backup wrapper or operational snapshot for those fixtures. Normal verification accepts `verify-system-backup.ps1 -Snapshot <snapshot>` under project backups, or an explicit `-BackupRoot <approved-root>` matching the root used at backup creation; it restores only to its own generated QA database.
+
+The current [polished-flow pass](../.runtime/polished-flow-report.md) passed **517 isolated API checks, 74 web tests, 152 full Flutter tests and 42 synthetic router checks**. The 15 final focused Flutter checks are a subset and include real AuthProvider regressions. Web/debug-APK builds, scoped Oxlint and final Flutter analysis passed. Six PHP changes were deployed with all 90 source/runtime files matching; cleanup metadata found zero remaining harness databases. The final APK installed with `-r` and launched to Sign in; protected native visual review still needs sign-in. Current source hashes, browser evidence and limits are in that report.
+
+The earlier [follow-up remediation](../.runtime/followup-remediation-report.md) passed 396 API, 66 web and 137 full Flutter tests, with 30 focused Flutter tests as a subset, analysis/builds and its own local deployment checks. The preceding [327/58/128 batch](../.runtime/gap-remediation-report.md) also retains its original scope. The [pre-fix flow review](../.runtime/current-flow-review-2026-10-15.md) is historical evidence; consult the current report for closure and remaining limits.
+
+## Select the right verification
+
+The **19 October mobile flow alignment** passed **334 full Flutter tests**, clean analysis and a debug APK build. Its **55 new regressions** are included in the full total: 17 request-action, 26 scanner-input/completion, 10 filing-history and two sign-in feedback cases. The scanner checks include the installed plugin's real MethodChannel behavior with delayed debug initialization, gallery cancellation/restart and loaded-folder restart; capture remains mounted across those transitions. Existing audit custody fixtures now explicitly select the Windows manual-input variant; their custody assertions are unchanged. Evidence-only rendering checks cover normal/enlarged-text request dialogs (including simulated keyboard), filing history and sign-in feedback. Commands, counts, installation/configuration and remaining hardware/font/role limits are in the [mobile report](../.runtime/mobile-flow-alignment-2026-10-19/report.md). No backend/web changes or tests are included in this native pass.
+
+The **19 October Claude continuation** passed **589 isolated API checks** (550 existing plus 25 threshold/Treasury and 14 recovery assertions), **111 full web tests**, scoped Scan lint and a production build. Five new actual-page QR input tests protect camera/upload/manual overlap, cancellation, signed verification and decoder cleanup/retry; they are included in the web total. Changed processing/receipt thresholds were tested through detail, overdue lists and alerts, while explicit deadlines, filed suppression and separate municipal processing-overdue rules remain. Password-reset tests use synthetic accounts without email and verify rollback, code rejection/reuse and session revocation. A real PNG decoded in the browser's in-memory fixture with one detail GET and zero writes; the report print Blob preview was inspected. Real email delivery, saved PDF output, physical camera/devices, other browsers and load remain separate acceptance. See the [continuation report](../.runtime/claude-continuation-2026-10-19/report.md) for commands, isolation and cleanup; no native suite/build or deployment occurred.
+
+The **18 October Requests workspace correction** passed **103 full web tests**, clean scoped Oxlint and a production build. Four new SSR regressions protect terminal/unauthorized footer absence, permitted staff/head/admin/Treasury/requester actions, busy/stale disabling and DV acceptance/release boundaries. The 24 focused tests run during implementation are a subset of the full suite. Desktop shell and Requests available-height/short-window/create-form CSS were reviewed against saved baselines, but browser access returned disabled, so actual geometry, zoom, focus scrolling, menus and desktop/tablet/phone acceptance remain pending. See the [correction report](../.runtime/requests-workspace-correction-2026-10-18/report.md); do not combine the earlier 99-test refinement or mobile/API results with these counts.
+
+The **18 October Register details cleanup** passed **34 combined checks**: 23 existing inventory/registration/layout cases plus 11 evidence-only scenarios, clean analysis and a debug APK build. The real Register/staff-shell fixture covers normal/enlarged layouts, empty/published/failed/long checklists, keyboard access, date clearing, checklist replacement cancellation/reset and explicit confirmation with a zero-page required attachment. HTTP is blocked and the fixture never presses Register. See the [details report](../.runtime/register-details-2026-10-18/report.md) for source boundaries and the session-preserving emulator review. The earlier 36-check Register header pass remains separate.
+
+The **18 October native Register refinement** passed **36 combined checks**: 23 existing registration/layout/recovery tests and 13 evidence-only scenarios, plus clean analysis and a debug APK build. The actual Register/staff-shell fixture covers Engineering, Accounting sender requirements, HR/Others, linked restored drafts, normal/enlarged text, keyboard-constrained submit access, long office wrapping, title-field growth and draft retention through Tips toggles. All fixture HTTP is blocked. See the [Register report](../.runtime/register-layout-2026-10-18/report.md) for screenshots, the session-preserving emulator update and limits. Earlier polish and Documents/Requests counts remain separate.
+
+The **18 October native Documents View dropdown** passed **25 existing affected Flutter tests and 19 evidence-only scenarios**, clean analysis and a debug APK build. The real role-shell fixture covers 320/390px, 1×/2× text, open menu labels, positive/zero/unavailable counts, municipal option scope, exclusive Overdue selection, pending-search commit, pagination reset and return to a tray. Fixture HTTP is blocked. See the [dropdown report](../.runtime/documents-view-dropdown-2026-10-18/report.md) for actual emulator evidence and the session-preserving APK update. These scoped results are separate from the earlier Requests/layout passes.
+
+The **18 October native Requests action placement** passed **42 existing affected Flutter tests and 14 evidence-only visual scenarios**, plus clean analysis and a debug APK build. The actual role-shell fixture checks the labelled lower-right action at 320/390px and 1×/2× text, complete raised-navigation clearance, scrolling to the final ticket action, error Retry access and keyboard dismissal/return. The keyboard scenarios use synthetic view insets; all fixture HTTP is blocked. See the [placement report](../.runtime/request-create-position-2026-10-18/report.md) for device evidence and the session-preserving APK update. These are fresh scoped results, separate from the preceding 85-check layout pass.
+
+The user-authorized **17 October visual polish** is recorded in the [polish report](../.runtime/ui-polish-2026-10-17/report.md). The new `mobile/flutter/test/scan_register_polish_layout_test.dart` checks loaded Scan, keyboard-constrained registration and creation recovery at 320/360/390px with 2× text. `mobile/flutter/test/admin_users_freshness_test.dart` checks unavailable versus verified-empty reads, stale refresh/action guards and overlapping response ownership. Existing session-registration interaction tests now settle scrolling and verify the submit control is hit-testable before invoking it; their original session assertions remain. An evidence-only fixture under that report folder renders actual Flutter pages with synthetic HTTP/preferences and blocks every API write; those images are renderer reviews with a local review font, not Android device or font-delivery acceptance.
+
+The subsequent [native navigation correction](../.runtime/navigation-2026-10-17/report.md) freshly passed **250 full Flutter tests**, clean analysis and **seven evidence-only renderer scenarios**. The latter cover normal/enlarged labels, the full Scan hit area, white page paint behind its transparent clearance, the last scrollable action and keyboard constraints. The final `-r` emulator update retained the user's re-established sign-in; actual protected Alerts/Scan review and an upper Scan tap passed. QR decoding, physical handoffs and other device/role acceptance remain separate. The first cold start in this follow-up cleared the cached sign-in because the development build omitted `FORCE_LOGIN_ON_START=false`; the corrected installed build explicitly supplies that flag. **Use that flag for every review update intended to preserve sign-in.** `install -r` preserves app data but cannot prevent application startup code from clearing its own session.
+
+The later [active-tab color/Scan refinement](../.runtime/navigation-balance-2026-10-17/report.md) passed **22 combined checks**: 13 existing layout checks plus nine evidence-only render scenarios, including 1.25× text. Analysis and debug APK build passed. The final `-r` update retained sign-in; protected Home/Scan appearances and the upper Scan hit area were reviewed on the emulator. Original shell/clearance geometry, callbacks and badges match the pre-refinement source. The earlier 250-test full result is historical for this smaller style pass and was not rerun or added to these counts.
+
+The subsequent [Alerts-position change](../.runtime/alert-nav-position-2026-10-17/report.md) passed **13 focused Flutter tests and three web navigation tests**, clean Flutter analysis, scoped web lint and both builds. New tests use real role shells with synthetic sessions and blocked HTTP to verify fourth-slot Alerts, matching routes/selection, retained center actions and native staff/head badges. Browser fixture review covered all roles at 390px and staff at 320px; existing native layout checks cover 320/390px and 1×/2× text. The `-r` APK update explicitly used `FORCE_LOGIN_ON_START=false` and retained the current sign-in. Actual emulator review covered the signed-in Accounting Head's Home/Alerts and badge; staff/admin native placement is covered by shell tests rather than new device sign-ins. Earlier full-suite counts were not rerun for this order change.
+
+The later [web sidebar refinement](../.runtime/admin-sidebar-2026-10-17/report.md) passed **three existing phone navigation tests**, scoped web lint and the production build after the final Administration-heading removal. Safe browser review covered navy desktop primary/admin links, active Thresholds and Custody reports, long rule text, empty and unavailable reports, retained badges and the 390px phone layout/menu. Final DOM evidence confirms no sidebar disclosure, matching link padding and reports directly below Dashboard. No new tests, API suite, Flutter build or APK installation was required for this web presentation change; earlier totals remain separate.
+
+The subsequent [admin page-alignment change](../.runtime/admin-page-alignment-2026-10-17/report.md) passed the production web build and actual browser review of all **11 admin destinations** at 1920×1080. Measured outer widths/left/right edges/title positions match across the pages. Additional 1920×720, 1280×720, 900×900 and 390×844 fixture reviews cover long content, document/card and request-detail breakpoints, stable scrollbar space and phone isolation; unavailable report/banner edges also match. This is CSS-only verification with synthetic fixture data, not a new business-test/full-suite total or operational UAT. No JavaScript, API or native changes were made.
+
+The later [web caption cleanup](../.runtime/caption-cleanup-2026-10-17/report.md) passed **10 existing targeted tests**, a production build and scoped lint with zero errors/two unchanged Profile effect warnings. Separate SSR review covered 18 initial page views, four exact Help mappings and retained Thresholds semantics with zero HTTP calls. Generic page captions were removed individually so read-only cues and actual registration outcomes remain supported. Live browser review was unavailable because local browser use was disabled in Work settings; no fresh screenshot or responsive acceptance is claimed for this pass. Earlier browser evidence and full-suite counts retain their dated scope.
+
+The **17 October 2026** user-selected web-and-Android six-office pilot has a [runbook and unsigned acceptance record](testing/OFFICE-PILOT-2026-10-17.md). Its focused `scripts/test-office-pilot.php` runner rehearses ordinary-folder filing/request closure and the DV route/payment-release separation using the existing private-file-free disposable fixture; set the reviewed `TEST_DB_HOST` explicitly. Technical results belong in the [dated rehearsal report](../.runtime/pilot-2026-10-17/report.md). They do not sign off actual office/device/hosting UAT or change product authority.
+
+The subsequent [developer/session/mobile remediation](../.runtime/three-gap-remediation-report.md) passed **525 isolated API, 83 web and 167 full Flutter tests**, with 39 focused Flutter checks as a subset, clean analyzer/builds and zero web lint errors (12 existing warnings). Separate suites passed **100 developer-security, 106 router and 20 code-sync checks**. Twelve safe deployed hosting checks passed; operational row digests across 14 tables were unchanged and zero harness schemas remained. Live destructive-route probes were rejected and replaced by isolated proof plus deployed hashes; do not probe operational reset/purge/migration routes even with HEAD. The user chose automated native checks; protected native visual review remains pending sign-in.
+
+Run the new synthetic suites without operational configuration/data:
+
+```powershell
+& C:\xampp\php\php.exe scripts/test-dev-security.php
+& C:\xampp\php\php.exe scripts/test-dev-router.php
+.\scripts\test-code-sync.ps1
+```
+
+The final web suite used `node --test --test-concurrency=1 test/*.test.mjs` to avoid concurrent Vite cache writers. New session tests cover cross-tab confirmation/transport boundaries, delayed body/auth results, header-bound export/upload/print and original-account creation recovery. New native tests cover card/detail Treasury/admin parity, blocked roles/states, confirmation/revision/cancellation and manual email-code entry.
+
+| Change | Minimum useful checks |
+|---|---|
+| Web layout/control order | Targeted lint, production build, actual browser at affected widths; relevant existing component tests |
+| Mobile layout/widgets | Analyzer, affected widget/layout tests, actual emulator screenshots at normal and enlarged text |
+| Request status/link logic | Isolated API harness plus web request tests and Flutter parity tests |
+| Custody/receipt/return/recovery | Isolated API harness, recovery/receipt tests, two-client workflow checks on an isolated database |
+| Session/auth/access | Session and routing suites, isolated role/API checks; real-device/session behavior when preparing release |
+| Reports/exports | Period-boundary and export tests, report/exception error states, file-save/print review on target platforms |
+| Documentation only | Verify source references, command accuracy, internal consistency and explicit unknowns; no build is required |
+
+## Preconditions and environment isolation
+
+The **19 October mobile hierarchy refinement** freshly passed **334 full Flutter tests**, clean analysis and both configured debug APK builds. Its **58 evidence-only before/after renderer scenarios** are separate: 20 staff Dashboard, 28 Requests and 10 Scan cases, with synthetic reads/blocked HTTP and normal/enlarged text. Existing focused tests remain subsets, with no new permanent tests for presentation-only changes. The emulator `-r` update retained the current administrator login; actual review covered shared Requests and session retention. Staff Dashboard/Scan used actual-widget renderer evidence because the current administrator navigation does not expose the staff Scan shortcut. No account switch/route bypass was used. See the [report](../.runtime/mobile-hierarchy-refinement-2026-10-19/report.md) for commands, source/font/device limits and phone APK configuration. Keep this new run separate from the earlier mobile flow-alignment run despite their identical suite counts.
+
+- Run commands from the directory shown. The examples below use PowerShell and the tool paths observed on this PC. Substitute your installed paths on another machine.
+- Web needs Node/npm and dependencies matching [package-lock.json](../web/package-lock.json). Use `npm ci` only when dependencies are missing or need a clean lockfile install; it replaces `node_modules` and requires package access. There is no `npm test` script in [package.json](../web/package.json).
+- Mobile needs the Dart/Flutter SDK requirements in [pubspec.yaml](../mobile/flutter/pubspec.yaml): Dart ≥3.12 and Flutter ≥3.44. Use `flutter pub get` when packages are missing. Native Android launch/build also needs Android SDK/JDK tooling. Widget tests do not require an emulator or live MySQL.
+- Backend integration needs MySQL reachable, PHP with PDO MySQL, cURL and mbstring, and credentials permitted to create/drop a **disposable** database. Confirm the database target before running any integration script.
+- Preserve real accounts, documents, uploads, audit data and saved sessions. Perform mutation scenarios in the disposable harness or an explicitly isolated development copy, never on the municipal working database.
+- Do not dump raw API/server logs: historical requests may contain token-bearing URLs, and current authentication headers, signup ownership keys and credentials remain sensitive. Record sanitized outcomes and screenshots. Header-only transport does not erase earlier logs.
+
+## Web commands
+
+From `SmartFlow/web`:
+
+```powershell
+npm run lint
+npm run build
+node --test test/*.test.mjs
+```
+
+The earlier priority batch passed **22 tests**; the 5/7/8/9 follow-up passed **32 tests** and a production build with 98 transformed modules. The subsequent flow simplification passed **41 web tests**, production build and scoped lint after fixing receiving-office error/retry. Use the emitted result when suites change. These tests use mocks and/or Vite SSR, not the live API. JSX test servers disable HMR/WebSocket to avoid a port collision. Builds write `web/dist`; they do not verify camera hardware or browser layout.
+
+For a narrow source change, the existing Oxlint binary supports targeted checks, for example:
+
+```powershell
+.\node_modules\.bin\oxlint.cmd src/pages/RequestsPage.jsx src/components/ui.jsx
+node --test test/requests-flow.test.mjs test/requests-workspace.test.mjs
+```
+
+| Suite | Protected behavior |
+|---|---|
+| [enhancements.test.mjs](../web/test/enhancements.test.mjs) | Queue order/search/overdue, municipal office filtering, shared destination/reason validation, 15-year report bounds, no automatic write retry, authenticated export errors |
+| [session-events.test.mjs](../web/test/session-events.test.mjs) | Only the matching invalid login expires; ordinary office denial and stale responses do not clear another session |
+| [requests-flow.test.mjs](../web/test/requests-flow.test.mjs) | Full purpose/reasons, handler/requester actions, linking/journey, Treasury/admin DV completion, accepted overdue work |
+| [desktop-workspace.test.mjs](../web/test/desktop-workspace.test.mjs) | Table metadata, native keyboard selection, selected state, busy guards, retained phone cards |
+| [requests-workspace.test.mjs](../web/test/requests-workspace.test.mjs) | Inline full details/actions, unavailable selections, blocked actions while a form/dialog/write is active |
+| [custody-permissions.test.mjs](../web/test/custody-permissions.test.mjs) | Staff-only custody controls with head/admin read-only lookup |
+| [creation-recovery.test.mjs](../web/test/creation-recovery.test.mjs) | Lost creation response, saved-ID explicit retry, changed payload/storage failure, delayed check preserving newer recovery |
+| [auth-security.test.mjs](../web/test/auth-security.test.mjs) | Header-only JSON/multipart/text transport, signup POST proof, authenticated printable Blob preview and failed-preview cleanup |
+| [dashboard-load.test.mjs](../web/test/dashboard-load.test.mjs) | Head/admin initial failure with retry, retained stale metrics and recovery without fabricated all-clear |
+| [document-detail-access.test.mjs](../web/test/document-detail-access.test.mjs) | Out-of-tray 404 tracking fallback remains read-only; 401/403/server/municipal failures are not bypassed |
+| [custody-flow.test.mjs](../web/test/custody-flow.test.mjs) | Single receipt confirmation, cancelled receipt without a write, retained stale/count payload, consistent handoff destinations and permitted local request return |
+| [request-navigation.test.mjs](../web/test/request-navigation.test.mjs) | Committed list/search/page/selection round trip, invalid parameter rejection, retained context when clearing selection and busy-link guards |
+| [followup-remediation.test.mjs](../web/test/followup-remediation.test.mjs) | QR/Analytics unavailable, stale and changed-query states; independent exact-ticket freshness; separate full request review/outcome evidence and generic legacy metadata; captured filing movement payload |
+| [polished-flow.test.mjs](../web/test/polished-flow.test.mjs) | Exact new/recovered request reveal with prior-view return, Scan saved/unverified reads and shared frozen filing confirmation |
+
+SSR/element tests do not prove pointer behavior, dialog focus, responsive widths or visual quality. Follow them with browser review.
+
+## Safe browser review fixture
+
+Run Vite from `web` using `npm run dev`. Use the dedicated [ui-review.html](../web/ui-review.html) and [test/ui-review.jsx](../web/test/ui-review.jsx) rather than performing mutations in an existing signed-in session:
+
+- `http://localhost:5173/ui-review.html?page=/home&role=staff&state=empty`
+- `http://localhost:5173/ui-review.html?page=/documents&role=staff&id=DOC-2026-000001`
+- `http://localhost:5173/ui-review.html?page=/requests&role=staff&id=101&state=long`
+- `http://localhost:5173/ui-review.html?page=/scan&role=staff&id=DOC-2026-000001`
+- `http://localhost:5173/ui-review.html?page=/documents&role=staff&id=DOC-2026-000001&state=contents`
+- `http://localhost:5173/ui-review.html?page=/documents&role=staff&id=DOC-2026-000001&state=offices-retry`
+- `http://localhost:5173/ui-review.html?page=/admin/reports&role=admin`
+
+The fixture replaces local/session storage in its own page, uses a synthetic Accounting account and intercepts fetch in memory. Listed sample writes remain in memory; account/configuration and unlisted writes are blocked. Reloading resets its data. `role` supports staff/head/admin; empty, long, volume, recovery and busy samples exercise different compositions. `state=volume` supplies more than 100 requests and paged office history; `state=recovery` supplies a pending creation outcome. `state=contents` supplies a counted incoming folder for the sole receipt dialog; `state=offices-retry` fails the first receiving-office load so Refresh/error retention and explicit Retry can be reviewed without remounting. `chrome=0` hides the review banner for screenshots. It is not a backend contract test or a complete permission simulator, and its sample dates can become stale.
+
+Review at 1920×1080, 1440×900 and 1280×720 desktop; 900×800/768px tablet; and 390×844, 360px and 320×700 phone. Check:
+
+1. One clear page heading, grouped toolbar, visible content and intentional empty/loading/error states.
+2. No page-level horizontal overflow or clipped text/actions. Long names, purposes, reasons and custom types wrap.
+3. Requests: New request precedes Inbox/My requests; desktop list/details and phone dialog keep full text, footer actions and draft state. Type multiple characters/backspace in notes, Tab through controls, close with Escape, reopen and check focus.
+4. Documents: click and keyboard-select tracking ID, open details, return focus to the list, search/filter and inspect custody/deadline/overdue states. Municipal records expose no custody write controls.
+5. Scan: empty lookup is one coherent workspace; successful lookup shows the result; ID entry, camera/upload controls and errors stay usable when columns stack. Lookup alone never records a handoff.
+6. Reports: month/quarter/year bounds, unavailable exceptions versus verified zero, long report content and accessible export controls.
+7. Follow-up: linked Requests folder opens the exact Documents record with History secondary; outside-tray detail is read-only. Verify correction form reason/confirmation, changed/received record rejection, visible old/new destination history and pending-outcome recovery using sample data.
+8. Head/admin dashboard initial failure has retry and no fabricated zero metrics; failed refresh retains visibly stale data. Signup status proof and sign-out/password-change errors stay explicit. Do not expose status keys/tokens in captured URLs or screenshots.
+9. Flow simplification: Receive opens one physical-check dialog without a pre-dialog checkbox; cancelling makes no write. Counted folders retain discrepancy reasons/confirmation. Compare Scan/Documents send suggestions and return restrictions. From a filtered/paged Requests selection, open its linked folder and use Back to request; confirm the committed search, tab, filter, page and refreshed exact selection remain available. Direct Documents entry keeps ordinary list navigation.
+10. Polished flow: create/recover a request from restrictive old filters, inspect that exact ticket, then return to the old view. Review web Scan after a saved action followed by a failed detail read: success stays visible, custody is unverified, actions are blocked and Retry makes no write. Cancel and confirm filing in Documents and Scan; verify the reviewed movement stays frozen.
+
+Capture screenshots after real interaction, label them **sample data**, and inspect the actual images. DOM measurements and green tests supplement visual review; they do not replace it.
+
+## Flutter commands
+
+From `SmartFlow/mobile/flutter`:
+
+```powershell
+& C:\src\flutter\bin\flutter.bat analyze
+& C:\src\flutter\bin\flutter.bat test
+```
+
+Run an affected subset while developing, then the appropriate wider suite when behavior crosses screens:
+
+```powershell
+& C:\src\flutter\bin\flutter.bat test test/request_parity_test.dart test/movement_recovery_test.dart test/scanner_recovery_test.dart
+& C:\src\flutter\bin\flutter.bat test test/mobile_layout_matrix_test.dart test/admin_head_layout_test.dart test/bottom_nav_layout_test.dart
+```
+
+| Suite/group | Protected behavior |
+|---|---|
+| [request_parity_test.dart](../mobile/flutter/test/request_parity_test.dart) | Full request details, drafts/actions, municipal read-only controls, admin activation safeguards, honest exception errors and role Home actions |
+| [custody_permissions_test.dart](../mobile/flutter/test/custody_permissions_test.dart), [records_paging_test.dart](../mobile/flutter/test/records_paging_test.dart) | Staff-only physical actions, server paging/overdue/exact request lookup, and complete paged office history |
+| [creation_recovery_test.dart](../mobile/flutter/test/creation_recovery_test.dart) | Creation response loss, saved operation replay, changed payload/storage failure and delayed outcome cleanup |
+| [movement_recovery_test.dart](../mobile/flutter/test/movement_recovery_test.dart), [scanner_recovery_test.dart](../mobile/flutter/test/scanner_recovery_test.dart) | Lost-response movement/correction outcome check, scoped persistence, no duplicate POST, overlapping tap guard, cancellation/recovery and rejected scan behavior |
+| [folder_contents_test.dart](../mobile/flutter/test/folder_contents_test.dart), [custody_button_layout_test.dart](../mobile/flutter/test/custody_button_layout_test.dart) | Actual page counts/receipt, cancelling without a movement, confirmation/custody action layout |
+| [mobile_layout_matrix_test.dart](../mobile/flutter/test/mobile_layout_matrix_test.dart), [admin_head_layout_test.dart](../mobile/flutter/test/admin_head_layout_test.dart), [bottom_nav_layout_test.dart](../mobile/flutter/test/bottom_nav_layout_test.dart) | Core pages at 320/360/390px with 1×/2× text; selected admin/head screens at narrow width; usable navigation |
+| [mobile_polish_test.dart](../mobile/flutter/test/mobile_polish_test.dart) | Registration drafts, malformed drafts, per-account isolation, Accounting sender requirement and form behavior |
+| [dependency_upgrade_test.dart](../mobile/flutter/test/dependency_upgrade_test.dart), [session_refresh_test.dart](../mobile/flutter/test/session_refresh_test.dart) | Staff/head/admin routing, protected routes, expiry/refresh lifecycle, API decoding/optional fields and date formatting |
+| [enhancements_test.dart](../mobile/flutter/test/enhancements_test.dart), [widget_test.dart](../mobile/flutter/test/widget_test.dart) | Queue/transport/export behavior, reports/save/print bridges, journey/error states and app build smoke check |
+| [destination_correction_test.dart](../mobile/flutter/test/destination_correction_test.dart) | Correction confirmation/reason, frozen displayed evidence, role/state controls, office retry, duplicate-tap guard and narrow/enlarged-text dialog |
+| [dashboard_navigation_test.dart](../mobile/flutter/test/dashboard_navigation_test.dart) | Head/admin failed/stale dashboard states and direct linked-folder Documents navigation |
+| [head_queue_feedback_test.dart](../mobile/flutter/test/head_queue_feedback_test.dart), [profile_snapshot_feedback_test.dart](../mobile/flutter/test/profile_snapshot_feedback_test.dart), [admin_ux_feedback_test.dart](../mobile/flutter/test/admin_ux_feedback_test.dart) | Queue unavailable/stale/empty/retry, search reset, overlapping/originating-login reads; all-role Profile snapshot feedback and unknown status; pending signup reservation, conflict blocking, cancellation, error and disposed/changed-login outcomes |
+| [auth_security_test.dart](../mobile/flutter/test/auth_security_test.dart) | Header-only transport, signup POST proof, failed/successful server logout, matching-login cleanup and self-contained printable QR content |
+| [custody_flow_simplification_test.dart](../mobile/flutter/test/custody_flow_simplification_test.dart) | Single Documents receipt flow, cancelled dialog, retained count/stale-write fields, shared OUT suggestions/return restrictions and request-folder return context; scanner receipt coverage remains in its existing suites |
+
+The **18 October mobile UX feedback fixes** passed **279 full Flutter tests**, including 26 new focused regressions, plus **22 separate evidence-only visual scenarios** at 390px/1× and 320px/2×. Final analysis and the debug APK build passed. The protected `-r` update explicitly uses `FORCE_LOGIN_ON_START=false` and retained the Engineering staff session. Actual device review covers the staff Profile and existing navigation; head/admin failed-read and pending-decision visuals use isolated synthetic data rather than live account actions. See the [current report](../.runtime/mobile-ux-fixes-2026-10-18/report.md) for commands, source scope, screenshots and font/device limits. These totals do not add to historical runs; the 26 new checks are included in 279.
+
+The follow-up additions in [audit_remediation_test.dart](../mobile/flutter/test/audit_remediation_test.dart) cover cancelled/stale filing confirmations on Documents and Scan, frozen movement IDs and exceptions-only Retry success. [request_parity_test.dart](../mobile/flutter/test/request_parity_test.dart) covers separate long review/outcome evidence, saved actor/time/office, neutral legacy metadata and known-empty versus unavailable outcome notes.
+
+[polished_flow_test.dart](../mobile/flutter/test/polished_flow_test.dart) adds From office category switching, exact created/recovered-ticket reveal and previous-view restoration, Requests/Documents query-specific rows/counts, failed-read action guards and account-change handling, and named Others routing. Final native results after the independent identity-guard review belong to the [current report](../.runtime/polished-flow-report.md); do not reuse the earlier 137-test result for this pass.
+
+Tests use mock API/HTTP/shared-preference/platform behavior. A passing platform bridge test does not prove that a physical device saved or printed a file. Auditor end-to-end UI coverage is not established by the staff/head/admin routing suite.
+
+### Emulator review
+
+The [18 October native layout refinement](../.runtime/mobile-layout-refinement-2026-10-17/report.md) passed **63 existing affected Flutter cases plus 22 evidence-only renderer cases (85 combined)**, clean analysis and a debug APK build. Requests and Dashboard were reviewed in populated/empty/unavailable/stale samples, and all role navigation at normal/2× text. Header/action/tab and Menu label clipping found in previews was repaired before the final pass. The final emulator update retained the current Engineering staff sign-in; actual Dashboard/Requests and Menu consistency were reviewed. Renderer font-delivery limits and intermediate fixture repairs are recorded separately; no full suite, web/API run or device-wide font override is claimed.
+
+The later [17 October Profile/Menu swap](../.runtime/profile-menu-swap-2026-10-17/report.md) passed **16 existing focused Flutter checks plus six evidence-only renderer scenarios (22 combined)**, clean analysis, six web navigation tests, scoped web lint and web/debug-APK builds. All roles were rendered at 390px/1× and 320px/2× text; actual phone-web review covered long/empty/unavailable states and desktop preservation. A protected Engineering staff emulator review verified header Profile, fifth-slot Menu, sheet → Requests navigation and current sign-in retention after `install -r` with `FORCE_LOGIN_ON_START=false`. The full suites were not rerun; earlier results retain their dated scope.
+
+The [17 October Flutter upgrade emulator check](../.runtime/flutter-upgrade-emulator-2026-10-17/report.md) verified Flutter 3.47.7 / Dart 3.13.5 with clean analysis, 30 existing focused tests, a debug APK build and a data-preserving update on the existing Android 17 / API 37 Pixel_6_Pro AVD. An initial black screen cleared after an AVD cold start (`-no-snapshot-load`) and a normal app launch after Android finished booting; a repeat normal launch rendered Get Started with Impeller OpenGLES. No source/dependency or persistent emulator setting changed. Protected workflows/camera still require user sign-in; this is separate from earlier full-suite evidence.
+
+Inspect connected devices first:
+
+```powershell
+& C:\Users\nljhn\AppData\Local\Android\Sdk\platform-tools\adb.exe devices
+```
+
+For the existing local API on port 8000, launch from `mobile/flutter`:
+
+```powershell
+& C:\src\flutter\bin\flutter.bat run -d emulator-5554 --dart-define=API_BASE=http://10.0.2.2:8000/backend/backend/api --dart-define=FORCE_LOGIN_ON_START=false
+```
+
+This builds/installs/launches the app; it is not a documentation or unit-test command. Verify `emulator-5554` is the intended emulator. The API host differs from the PC URL: emulator `10.0.2.2` reaches the host, while emulator `localhost` reaches the emulator itself. The default [ApiConfig](../mobile/flutter/lib/config/api_config.dart) points to the XAMPP port-80 path unless overridden; `ENV=production` selects its hardcoded production URL ahead of an API override. Do not use production mode as a test-network switch.
+
+For an explicitly selected USB-connected physical Android phone, the existing Apache API can be reached through `adb reverse tcp:8080 tcp:80` with `API_BASE=http://127.0.0.1:8080/Smartflow/backend/backend/api`. Run [build-phone.ps1](../scripts/build-phone.ps1) with that explicit `-ApiBase`; it supplies `FORCE_LOGIN_ON_START=false` and retains the default APK separately. Target every ADB command with the selected device serial and use `install -r`; do not uninstall/reset to resolve an update failure. Keep USB and the PC/API running for this address; reapply the reverse mapping after reconnecting when needed. The [17 October TECNO setup](../.runtime/tecno-device-test-2026-10-17/README.md) verified build/install/hash/launch to Sign in on Android 16 ARM64. Protected workflows/camera remain for user sign-in and device testing; this setup is not a new suite or production acceptance result.
+
+Review Home, Requests, Register, Documents, Scan, History, Alerts and Profile, then role-specific head/admin screens. Preserve the user's saved account. Check normal and enlarged text; retain the raised Scan button and inspect the unwanted gray navigation strip. Restore normal emulator text settings after review. Mutating workflow checks still require an isolated API/database.
+
+## PHP/MySQL commands
+
+From the `SmartFlow` root, PHP syntax checks are safe because they do not execute endpoints:
+
+```powershell
+& C:\xampp\php\php.exe -l backend/backend/api/documents-create.php
+& C:\xampp\php\php.exe -l backend/backend/api/document-requests-update.php
+& C:\xampp\php\php.exe -l backend/backend/api/movements-create.php
+```
+
+The preferred regression harness is [scripts/test-request-linking.php](../scripts/test-request-linking.php):
+
+```powershell
+& C:\xampp\php\php.exe scripts/test-request-linking.php
+```
+
+It reads optional `TEST_DB_HOST`, `TEST_DB_USER`, `TEST_DB_PASS` (defaults: local MySQL/root/empty password). It generates `smartflow_request_test_<12 hex characters>`, creates and selects that disposable DB, loads [api-schema.sql](../backend/backend/api-schema.sql), starts a temporary PHP server with an overridden `DB_NAME` and random QR signing secret, and uses fixture users. It rejects a schema containing database selection/create/drop statements. Its `finally` block stops the test server and drops only the generated name matching its guard. It does **not** select the working `smartflow` DB. A forced process termination may leave a test DB/temp server; identify exact resources before cleaning them up.
+
+The harness tests request deadlines/status/linking, role authority, atomic registration rollback, office queue/filter counts, complete DV custody with correction returns, actual receipts, duplicate/wrong-receiver rejection, terminal Treasury/Accounting handling and QR continuity. It includes [request-consistency cases](../scripts/request-consistency-cases.php) and [system-gap cases](../scripts/system-gap-cases.php): nonstaff custody denial, stale request status/revision, completion-link validation, creation replay/rollback/ownership, requests beyond 100, exact lookup, complete daily office movement pages and Treasury completed-ticket visibility. The earlier priority run passed 187 checks; use the current emitted result rather than assuming that count will never change. These are functional regressions, not a parallel contention/load harness.
+
+The 5/7/8/9 follow-up adds [destination-correction cases](../scripts/destination-correction-cases.php) and [auth-security cases](../scripts/auth-security-cases.php) to the same guarded harness. Do not execute those includes directly against the working database. They cover sender-staff authority, confirmation/revision/destination checks, retained OUT identity/time/counts, correction evidence and incoming trays, lost-response replay/mismatched-operation denial, post-receipt rejection, cancellation/rollback, previous-holder and terminal DV restrictions. Auth cases cover rejected URL/body tokens, accepted compatibility headers, private no-store label retrieval, signup proof/minimal responses/legacy current passwords, immutable approved-account binding across rename/username reuse and unbound-history denial, current-token logout, all-session password revocation with rollback injection, and deactivation/reactivation nonrevival. The current integrated harness passed **278 checks**, exit 0; a follow-up information-schema query confirmed its generated `smartflow_request_test_5bc253f7949a` database was removed. This remains functional local regression evidence rather than load/concurrency certification.
+
+The later [Scan guard cases](../scripts/scan-guard-cases.php) add 28 checks to the subsequent 299-check clarity baseline: missing/malformed/zero guards, source omission, intervening custody cycle, wrong/corrected destination with stable OUT ID, rejected-operation recovery, recorded replay after later movement and legacy no-movement0. The integrated run passed **327**; exact DB `smartflow_request_test_c3efe6ff280e` removal was confirmed. [Web remediation tests](../web/test/gap-remediation.test.mjs) add receipt evidence, effective destination, scoped query snapshots and unavailable/verified-empty states. [Native remediation tests](../mobile/flutter/test/audit_remediation_test.dart) exercise real screen callbacks with mocked APIs, including Scan/Home frozen IDs and exceptions13/15. The smoke helper now captures an expected fixture movement ID, but the mutating smoke script remains subject to the isolation warning below and was not run.
+
+The later [follow-up integrity cases](../scripts/followup-integrity-cases.php), included only by the guarded disposable harness, verify complete separate request review/terminal evidence, legacy attribution, saved offices after account reassignment and primary evidence surviving an audit failure. Filing tests cover required positive displayed movement, staff/current-custody/fixed-route guards and an intervening send/return cycle. Deadline tests cover required movement/raw saved-deadline guards and latest-acting-office policy. A controlled contention case holds the folder lock, starts the real deadline endpoint, commits a receiving-office IN, then checks old-head 403 and an unchanged deadline. This establishes that specific lock/wait behavior, not multi-device load performance.
+
+Earlier follow-up results: **396 isolated API checks**, **66 web tests** and the web production build passed; **137 full Flutter tests** and **30 focused Flutter checks** passed, with focused checks a subset rather than an additional full suite. Generated DB `smartflow_request_test_280f8b3e5f8d` was confirmed absent by metadata (0 matching schemas). Final scoped oxlint/Flutter analysis and APK rebuild/install passed; six deployed nullable evidence columns and 90-file PHP parity were verified. Actual browser and emulator landing evidence, commands and limits are in the [follow-up remediation report](../.runtime/followup-remediation-report.md), separate from the historical 327/58/128 pass.
+
+The later [final-flow cases](../scripts/final-flow-cases.php), included last by the guarded harness, add 121 checks for named Others registration/filing, financial-history noncompletion and audit controls, legacy leading spaces/tabs/newlines, financial legacy behavior, pull roles/kinds/categories/defaults/targets, and preserved old/new creation replay. The full run passed **517** in `smartflow_request_test_516e7623e5c0`; metadata confirmed that database absent and zero remaining harness schemas. It ran from a fresh temporary API/script/schema copy without environment/private files, isolating filesystem rate-limit counters as well as the database. All 90 source PHP files matched that tested copy. No working records or saved tickets were rewritten.
+
+The [email-channel cases](../scripts/email-channel-cases.php), included by the same guarded harness, cover the administrator's password-reset email health: the secret-free settings summary (not configured, sandbox with and without an inbox number, live, invalid sender), administrator-only access and POST-only method, the test email going only to the signed-in administrator's own address (masked in the response), a provider acceptance (HTTP 202) and a provider rejection (HTTP 404) from a local stand-in mail server that the harness starts and stops itself, the last-attempt record shared with real reset requests, no token, provider address, recipient or sender address in any response, the unchanged public reset answer, a limit of three tests per five minutes and audit rows without email addresses. No real provider, token or recipient is used. The full run with these 26 additional checks passed **615 checks** in a generated database; the isolated runner removed its fixture and the harness removed the schema. Real delivery to an inbox still needs a live provider with a verified sender domain and a manual check.
+
+The [SMTP channel cases](../scripts/smtp-channel-cases.php) add the Gmail/SMTP path with a loopback stand-in server ([smtp-stub.php](../scripts/smtp-stub.php)); real Gmail is never contacted by the harness. They cover the secret-free settings summary for Gmail (ready, missing App Password, different sender, unencrypted, loopback), plain-language failure explanations, refusal of plain SMTP to a real host and of header-injection recipients, an authenticated message delivered to the administrator only, a refused sign-in, an unreachable server, a refused recipient, no password/account/server address in any response, and the end-to-end recovery proof: the emailed six-digit code resets the password once, after which only the new password signs in. With the email-channel cases the full run passed **641 checks** in a generated database. A separate manual connectivity probe (no login, no message) confirmed that this machine reaches smtp.gmail.com:587 and completes STARTTLS with certificate verification; a real delivery still needs the Gmail App Password configured on the server and the System page "Send test email" check.
+
+The [admin reset cases](../scripts/admin-reset-cases.php) cover the administrator backup password reset: authority (unsigned, non-admin, POST-only, own account, other administrator, unknown, inactive), a 12-character unambiguous temporary password issued once with only a hash stored and a 24-hour expiry, earlier sessions and the old password ending, every other API action refused while the temporary password is in use, the change screen's session check, replacing it (and refusing a wrong current password), normal operation afterwards, audit rows without the password, heads, reissuing, expiry, the emailed-code path clearing the flag, the pre-upgrade state with no flag columns, and a ten-per-hour limit. The full harness with all additions passed **675 checks** in a generated database that the runner removed.
+
+### Protected local development server
+
+From the workspace root, launch the existing API without setup, sync, seed or reset:
+
+```powershell
+.\scripts\start-api-dev.ps1
+```
+
+The launcher defaults to `127.0.0.1:8000`; `-Foreground` attaches it to the terminal, and an occupied port is rejected without stopping another process. Its [router](../scripts/dev-router.php) exposes only the allowed API PHP/label assets. Run its independent synthetic-file suite without application configuration or a database:
+
+```powershell
+& C:\xampp\php\php.exe scripts/test-dev-router.php
+```
+
+Current result: **42 checks passed**. Local HEAD checks verified private key/environment/log/repository paths return 404, protected API returns 401, label JavaScript returns 200 and XAMPP's private-key 403 remains intact. No real key contents were fetched or rotated, and application settings were preserved. This does not certify production hosting.
+
+### Legacy scripts that mutate their target
+
+[scripts/smoke-test.ps1](../scripts/smoke-test.ps1) is **not an isolated harness**. It logs into seeded pilot accounts at `ApiBase`, creates/moves documents and requests, touches thresholds/audit events, then issues SQL deletes against `Database` unless `KeepData` is set. Its defaults target a database named `smartflow`. `KeepData` disables cleanup but does not disable mutations.
+
+Run it only against a disposable copy with both targets aligned, for example:
+
+```powershell
+.\scripts\smoke-test.ps1 -ApiBase http://127.0.0.1:8100/backend/backend/api -Database smartflow_smoke_disposable
+```
+
+This example is usable **only after** a separate server on port 8100 is configured to that disposable database, required fixture accounts exist there, and the script's MySQL credentials are verified. Changing `Database` alone does not change the API's target database. Do not run seed/reset/purge/restore/sync scripts on live data to satisfy a test prerequisite.
+
+## Cross-platform acceptance matrix
+
+The screenshot-authorized usability refinement additionally passed **118 full Flutter tests** and clean analysis; the debug APK built with the existing emulator API/session defines, installed with `-r` and launched. The existing stopped Pixel 6 Pro AVD was started without reset/wipe. Its landing is Get Started/Sign in, so protected emulator visual review remains pending sign-in. Eleven optional sample-widget checks/captures are separate evidence, not an extra eleven to add to 118. Native regressions cover active/past requests and retained return context, both History views, dual time-limit prefill/stale-save guards, outgoing manual-deadline alerts and hidden reminders during refresh failure. Source inventory/logs and browser evidence belong to the [usability report](../.runtime/usability-clarity-report.md).
+
+These are required review scenarios, not a claim that every combination already has automated coverage.
+
+| Actor/context | Scenario | Verify on |
+|---|---|---|
+| Signed out / expired / deactivated | Protected route, failed login, expiry, old response after a new session | Both clients and API |
+| ENG/BUD/ACC/TRE/MAY staff | DV register → send → actual receipt → next handoff; full route, correction return and optional final Accounting receipt | Both clients + isolated API |
+| Physical folder holder | Inventory/received counts, incomplete reason, cancelled confirmation, duplicate tap, stale custody and response loss | Both clients + API; camera path on device |
+| Sending-office staff | Correct latest unreceived destination with full reason/confirmation; old receiver denied, new receiver accepts; no extra movement; stale/received/filed/wrong-role rejected; recover uncertain correction | Both clients + isolated API |
+| Applicant / signed-in user | Owner-only signup status including legacy credentials; tokens absent from URLs/bodies; logout current session, password change all sessions, deactivation nonrevival | Both clients + isolated API |
+| Requester | Create, full purpose, pending cancellation, accepted overdue, declined/closed notes, linked journey | Both clients + API |
+| Handler | Accept/decline, existing-folder link, register with link, invalid link rollback, non-DV close | Both clients + isolated API |
+| Accounting/Treasury | Accounting accepts/links DV; Treasury completes after payment release; wrong authority rejected | Both clients + API |
+| Head | Office queue/analytics, overdue drilldown, request/checklist actions; registration/IN/OUT/filing denied | Both clients + API |
+| Admin | Municipal read-only drilldowns; accounts/self-deactivation safeguard; thresholds, offices, reports, QR/audit oversight | Both clients + isolated API |
+| Auditor | Server rejects unauthorized linking/register/mutation; confirm intended client access before promising parity | API; full UI coverage is unknown |
+| Reporting users | Month/quarter/year boundaries, exports, failed summary/exception reads, long labels and period filtering | Both clients + API; native save/print on devices |
+
+## Historic evidence and remaining gaps
+
+The later screenshot-authorized usability pass has separate current evidence: **299 isolated API checks** passed (generated database `smartflow_request_test_160bdc7330c0` was confirmed removed), and **48 web tests** passed with production build and scoped lint. API additions exercise active/past filtering, complete counts/paging/scoping and safe existing-rule receipt-limit preservation. Web additions protect complete chronological/correction evidence, unavailable/stale alerts, custody/deadline/contents distinctions, active-default and explicit-All request return state, and full purpose/next-step ordering. See [clarity-cases.php](../scripts/clarity-cases.php), [clarity-pages.test.mjs](../web/test/clarity-pages.test.mjs), [request-navigation.test.mjs](../web/test/request-navigation.test.mjs) and the [usability report](../.runtime/usability-clarity-report.md) for final native/device evidence and limits. Earlier 278/41/107 results retain their original scopes.
+
+Earlier **15 October 2026 priority fixes**: the isolated API harness passed **187 checks**, with its disposable database/server removed; the integrated web suite passed **22 tests**, with the seven owning Requests tests, scoped lint and production build passing again after final search alignment. Final Flutter analysis found no issues and **78 tests passed**; the debug APK was built, installed and reviewed on the existing Pixel 6 Pro emulator with its admin session preserved. Browser review covered sample paging/search/recovery/error states at desktop and phone widths. Commands, scope, screenshots and limits are maintained in the [priority fixes report](../.runtime/system-gap-fixes-report.md).
+
+The later user-authorized **5/7/8/9 follow-up** implements destination recording correction, remaining head/admin dashboard failures, signup/token/session security and direct linked-folder navigation. Current emitted results: **278 guarded API checks**, **32 web tests**, and **103 full Flutter tests** passed with exit 0; Flutter analysis found no issues, web production build passed with 98 transformed modules, and the debug APK built successfully. The disposable API database was confirmed removed. APK installation used `-r` to preserve app data; the emulator landing screen was checked, while protected emulator review remains pending user sign-in.
+
+Actual browser sample review covered correction form/audit history at desktop and phone widths, Request 104 opening the exact outside-tray folder in Documents read-only, and admin unavailable/retry without fabricated zero counts. Commands, screenshots and limits belong in the [follow-up report](../.runtime/system-gap-followup-report.md). No Git baseline was available; evidence identifies the workspace files and commands rather than an invented commit. The earlier 187/22/78 results above establish their original batch only. These passes do not establish that every system gap is closed.
+
+The subsequent **flow simplification** is a client-only interaction pass: one physical-receipt dialog, consistent handoff controls and contextual request return. Final results passed **41 web tests** and **107 full Flutter tests**, both exit 0, plus web build/scoped lint and Flutter analysis with no issues, exit 0. The earlier 29 focused Flutter tests were development evidence, not additional full-suite tests. The debug APK built, installed with `-r` and launched successfully; the emulator is on Get Started/Sign in, so protected actual-screen visual review remains pending user sign-in. Widget regressions prove the covered interactions without live mutations.
+
+Actual browser sample review covered desktop 1440px and 390px sole counted receipt/cancellation, Back to request and shared return controls. The receiving-office failure fixture verified that Refresh retains the explicit error and Retry reloads choices/re-enables Send without remounting. See the [flow simplification report](../.runtime/flow-simplification-report.md) for screenshots and limitations. The previous 278 API/32 web/103 Flutter results above are historical evidence for their own batch, not a newly rerun API suite for this interaction change.
+
+| Evidence recorded on 14 October 2026 | Source and limits |
+|---|---|
+| 109 isolated API checks; disposable DB/server removed | [implementation-report.md](../.runtime/implementation-report.md). This was a local functional regression run, not production load or concurrency certification. |
+| 17 web tests, production build, desktop/tablet/phone browser checks | [desktop-workspace-report.md](../.runtime/desktop-workspace-report.md). The later New request placement had a final production build and browser order/overflow check; its note records Requests tests before the final order-only adjustment, not a fresh full 17-test run afterward. |
+| Flutter analyzer and 61 tests; Pixel 6 Pro emulator screenshots/APK review | [consistency-report.md](../.runtime/consistency-report.md). Actual review preserved the Engineering staff session. Earlier implementation evidence recorded 58 tests before the later consistency additions. |
+
+Unverified or incomplete areas include physical Android camera autofocus/QR lighting/print quality, webcam hardware, iOS device/build behavior, real printer/storage permissions, all auditor journeys, production HTTPS/proxy/email delivery, restore drills for the final deployment, multi-device concurrent updates under load, and municipal user acceptance testing. Emulator/mock success must not be presented as evidence for these areas.
+
+For every future verification report, record the date, source version/diff, commands and exit results, fixture/live environment, role/office, viewport/device/text scale, screenshots and outstanding limits. If a test cannot run, state the missing prerequisite and leave its status unverified. Repeat broad checks only when changed behavior, a failure or an unresolved concern justifies it.

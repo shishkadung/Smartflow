@@ -2,7 +2,6 @@
 // GET /dev-reset-users.php
 // Keep only Capstone team usernames; delete everyone else; reset passwords.
 
-require __DIR__ . '/config.php';
 require __DIR__ . '/dev-block.php';
 require_once __DIR__ . '/users-helper.php';
 

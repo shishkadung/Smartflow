@@ -9,6 +9,7 @@
 
 require __DIR__ . '/config.php';
 require_once __DIR__ . '/document-requests-helper.php';
+require_once __DIR__ . '/creation-requests-helper.php';
 
 smartflow_ensure_document_requests($pdo);
 
@@ -31,10 +32,23 @@ if (!$user) {
 }
 
 $body = get_json_body();
+try { $operationId = smartflow_creation_id($body['operation_id'] ?? null); }
+catch (InvalidArgumentException $e) { json_response(['success'=>false,'message'=>$e->getMessage()],400); }
+smartflow_ensure_creation_requests($pdo);
+try {
+    $replay = smartflow_replay_creation($pdo, $operationId, $userId, 'request', $body);
+    if ($replay !== null) json_response($replay, 201);
+} catch (InvalidArgumentException $e) { json_response(['success'=>false,'message'=>$e->getMessage()], $e->getCode()); }
 $kind = strtolower(trim((string)($body['request_kind'] ?? 'access')));
 $category = trim((string)($body['document_category'] ?? ''));
 $purpose = trim((string)($body['purpose'] ?? ''));
-$targetOfficeId = isset($body['target_office_id']) ? (int)$body['target_office_id'] : null;
+$targetOfficeId = null;
+if (isset($body['target_office_id'])) {
+    $targetOfficeId = filter_var($body['target_office_id'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+    if ((!is_int($body['target_office_id']) && !is_string($body['target_office_id'])) || $targetOfficeId === false) {
+        json_response(['success' => false, 'message' => 'target_office_id must be a positive office ID'], 400);
+    }
+}
 $requiredByRaw = trim((string)($body['required_by'] ?? ''));
 
 if ($purpose === '') {
@@ -72,6 +86,10 @@ if ($category !== '' && !in_array(strtolower($category), $allowed, true)) {
 }
 
 $resolved = smartflow_resolve_document_request($pdo, $user, $kind, $category, $targetOfficeId);
+$pdo->beginTransaction();
+try {
+$saved = smartflow_lock_creation($pdo, $operationId, $userId, 'request', $body);
+if ($saved !== null) { $pdo->commit(); json_response($saved, 201); }
 $code = smartflow_generate_request_code($pdo);
 
 $ins = $pdo->prepare('
@@ -85,7 +103,7 @@ $ins = $pdo->prepare('
         :hoid, :toid, :purpose, :reqby, \'pending\'
     )
 ');
-$ins->execute([
+$insertBody = [
     ':code'    => $code,
     ':kind'    => $kind,
     ':cat'     => $resolved['document_category'],
@@ -96,15 +114,31 @@ $ins->execute([
     ':toid'    => $resolved['target_office_id'],
     ':purpose' => $purpose,
     ':reqby'   => $requiredByDate,
-]);
+];
+$inserted = false;
+for ($attempt = 0; $attempt < 5; $attempt++) {
+    if ($attempt > 0) $insertBody[':code'] = preg_replace_callback('/(\d+)$/', static fn($m) => str_pad((string)((int)$m[1] + $attempt), strlen($m[1]), '0', STR_PAD_LEFT), $code);
+    try { $ins->execute($insertBody); $inserted = true; break; }
+    catch (PDOException $e) { if ((int)($e->errorInfo[1] ?? 0) !== 1062) throw $e; }
+}
+if (!$inserted) throw new RuntimeException('Could not assign a request code');
 
 $id = (int)$pdo->lastInsertId();
 $stmtRow = $pdo->prepare(SMARTFLOW_DR_SELECT . ' WHERE r.id = :id LIMIT 1');
 $stmtRow->execute([':id' => $id]);
 $row = $stmtRow->fetch();
 
-json_response([
+$response = [
     'success' => true,
     'message' => 'Request submitted to ' . ($row['handler_office_name'] ?? 'handler office'),
     'request' => smartflow_format_document_request_row($row),
-], 201);
+];
+smartflow_save_creation($pdo, $operationId, $response);
+$pdo->commit();
+} catch (Throwable $e) {
+    if ($pdo->inTransaction()) $pdo->rollBack();
+    if ($e instanceof InvalidArgumentException && $e->getCode() >= 400 && $e->getCode() <= 499) json_response(['success'=>false,'message'=>$e->getMessage()],$e->getCode());
+    smartflow_log('error','Request creation rolled back',['error'=>$e->getMessage()]);
+    json_response(['success'=>false,'message'=>'Could not submit request; no ticket was saved'],500);
+}
+json_response($response, 201);

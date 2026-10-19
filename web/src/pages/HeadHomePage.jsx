@@ -1,30 +1,51 @@
+import { useLiveRefresh } from '../live-refresh.js'
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { smartflow, ApiError } from '../api.js'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
-import { LifeEmpty, LifeSkeleton, Overview, Segmented, statTone } from '../components/ui.jsx'
+import { LifeEmpty, LifeSkeleton, Overview, Segmented, WorkCard } from '../components/ui.jsx'
+import { HomeMetrics, HomeTaskLinks } from '../components/HomeWorkspace.jsx'
+
+const emptyQueue = []
 
 export default function HeadHomePage() {
-  const { user } = useAuth()
-  const navigate = useNavigate()
+  const revision = useLiveRefresh()
+  const { user, smartflow } = useAuth()
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
-  const [filter, setFilter] = useState('all')
-  const [sort, setSort] = useState('hoursDesc')
-  const [query, setQuery] = useState('')
-  const [copied, setCopied] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [retry, setRetry] = useState(0)
 
   useEffect(() => {
     let cancelled = false
+    // oxlint-disable-next-line react/set-state-in-effect -- Track the dashboard refresh while retaining its last successful data.
+    setLoading(true)
     smartflow.headDashboard(user.office_id)
-      .then((d) => { if (!cancelled) setData(d) })
+      .then((d) => { if (!cancelled) { setData(d); setError('') } })
       .catch((e) => { if (!cancelled) setError(e instanceof ApiError ? e.message : 'Could not load office queue') })
+      .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [user.office_id])
+  }, [user.office_id, revision, retry, smartflow])
+
+  return <HeadDashboardContent data={data} error={error} loading={loading} onRetry={() => setRetry((value) => value + 1)} />
+}
+
+export function HeadDashboardContent({ data, error, loading, onRetry }) {
+  const navigate = useNavigate()
+  const { hash } = useLocation()
+  const [filter, setFilter] = useState('all')
+  const [sort, setSort] = useState('hoursDesc')
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    if (hash !== '#office-queue') return undefined
+    const node = document.getElementById('office-queue')
+    node?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    return undefined
+  }, [hash, data])
 
   const stats = data?.stats || {}
-  const queue = data?.queue || []
-  const loading = !data && !error
+  const queue = data?.queue || emptyQueue
 
   function awaitingReceive(item) {
     const meta = String(item.meta || '').toLowerCase()
@@ -57,46 +78,44 @@ export default function HeadHomePage() {
   }, [queue, filter, sort, query])
 
   return (
-    <div className="sf-life">
+    <div className="sf-life home-dashboard">
       <Overview
-        title="Office overview"
-        body="Snapshot of folders at your office."
+        title="Dashboard"
       />
-      {error ? <div className="error">{error}</div> : null}
-      <div className="stats sf-life__stats">
-        <div className={statTone(stats.in_office, 'stat--desk')}>
-          <b>{stats.in_office ?? '—'}</b>
-          <span>In office</span>
-        </div>
-        <div className={statTone(stats.overdue, 'stat--overdue')}>
-          <b>{stats.overdue ?? '—'}</b>
-          <span>Overdue</span>
-        </div>
-        <div className={statTone(stats.avg_hours, 'stat--hours')}>
-          <b>{stats.avg_hours ?? '—'}</b>
-          <span>Avg hours</span>
-        </div>
-      </div>
-      <div className="card sf-life__panel">
+      {error ? <div className="error" role="alert">
+        <strong>{data ? 'Refresh failed' : 'Dashboard unavailable'}</strong>
+        <p>{error}</p>
+        {data ? <p>Showing previously loaded data; counts may be out of date.</p> : <p>Office counts and queue could not be checked.</p>}
+        <button type="button" className="btn-secondary" disabled={loading} onClick={onRetry}>{loading ? 'Retrying…' : 'Try again'}</button>
+      </div> : null}
+      {data ? <HomeMetrics items={[
+        { label: 'In office', value: stats.in_office, detail: 'Current custody' },
+        { label: 'Overdue', value: stats.overdue, detail: Number(stats.overdue) > 0 ? 'Needs follow-up · view' : 'Needs follow-up', alert: true, ...(Number(stats.overdue) > 0 ? { to: '/documents?overdue=1' } : {}) },
+        { label: 'Avg hours', value: stats.avg_hours, detail: 'Processing time' },
+      ]} /> : null}
+      <HomeTaskLinks />
+      {loading && !data ? <LifeSkeleton rows={3} label="Loading queue" /> : null}
+      {data ?
+      <div className="card sf-life__panel" id="office-queue">
         <h3 className="section-title">Queue</h3>
-        <div className="toolbar">
-          <Segmented
-            value={filter}
-            onChange={setFilter}
-            options={[
-              { value: 'all', label: 'All' },
-              { value: 'in_office', label: 'In office' },
-              { value: 'overdue', label: 'Overdue' },
-              { value: 'forwarded', label: 'Awaiting receive' },
-            ]}
-          />
-        </div>
-        <div className="history-side" style={{ marginTop: 10 }}>
-          <div className="field" style={{ marginBottom: 0 }}>
+        <div className="head-queue-controls">
+          <div className="toolbar">
+            <Segmented
+              value={filter}
+              onChange={setFilter}
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'in_office', label: 'In office' },
+                { value: 'overdue', label: 'Overdue' },
+                { value: 'forwarded', label: 'Awaiting receive' },
+              ]}
+            />
+          </div>
+          <div className="field head-queue-controls__find">
             <label>Find in queue</label>
             <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tracking ID or title" />
           </div>
-          <div className="field" style={{ marginBottom: 0 }}>
+          <div className="field head-queue-controls__sort">
             <label>Sort</label>
             <select value={sort} onChange={(e) => setSort(e.target.value)}>
               <option value="hoursDesc">Longest wait</option>
@@ -105,47 +124,42 @@ export default function HeadHomePage() {
             </select>
           </div>
         </div>
-        {loading ? <LifeSkeleton rows={3} label="Loading queue" /> : null}
-        {!loading && queue.length === 0 ? (
+        {!error && queue.length === 0 ? (
           <LifeEmpty icon="custodyLog" tone="ok">No documents in the office queue.</LifeEmpty>
         ) : null}
-        {!loading && queue.length > 0 && visible.length === 0 ? (
+        {queue.length > 0 && visible.length === 0 ? (
           <LifeEmpty icon="custodyLog" action={<button type="button" className="btn-secondary" onClick={() => { setFilter('all'); setQuery('') }}>Show all</button>}>
             No documents in this filter.
           </LifeEmpty>
         ) : null}
         {visible.length > 0 ? (
-          <ul className="history-picks">
+          <div className="work-list">
             {visible.map((doc) => {
               const docId = doc.document_id || doc.id
+              const status = String(doc.status_label || '').trim().toLowerCase()
+              const waiting = awaitingReceive(doc)
+              // Use the server's classification: completed or elsewhere-held folders must not read as "In office".
+              const tone = status === 'overdue' ? 'bad' : waiting ? 'warn' : status === 'completed' ? 'ok' : status === 'in_office' ? 'info' : 'neutral'
+              const pill = status === 'overdue' ? 'Overdue' : waiting ? 'Awaiting receive' : status === 'completed' ? 'Completed' : status === 'in_office' ? 'In office' : (doc.status_pill || 'On time')
+              const hours = Number(doc.hours_pending)
+              const wait = Number.isFinite(hours) && hours > 0 ? `${hours}h waiting` : 'Just recorded'
               return (
-                <li key={docId}>
-                  <button type="button" onClick={() => navigate(`/history?id=${docId}`)}>
-                    <strong>{docId}</strong>
-                    <span>{doc.title || doc.type}</span>
-                    <span>{doc.status_label || doc.current_status || ''}</span>
-                    {doc.hours_pending != null ? <span>{doc.hours_pending}h</span> : null}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost"
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(docId)
-                        setCopied(docId)
-                      } catch {
-                        setCopied('')
-                      }
-                    }}
-                  >
-                    {copied === docId ? 'Copied' : 'Copy ID'}
-                  </button>
-                </li>
+                <WorkCard
+                  key={docId}
+                  kicker={docId}
+                  title={doc.title || doc.type || 'Folder'}
+                  meta={wait}
+                  pill={pill}
+                  tone={tone}
+                  verb="Open"
+                  onOpen={() => navigate(`/documents?id=${encodeURIComponent(docId)}`)}
+                />
               )
             })}
-          </ul>
+          </div>
         ) : null}
       </div>
+      : null}
     </div>
   )
 }

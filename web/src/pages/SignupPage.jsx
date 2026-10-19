@@ -15,9 +15,10 @@ function BackLink({ to = '/' }) {
 
 export default function SignupPage() {
   const navigate = useNavigate()
+  const { state } = useLocation()
   const [offices, setOffices] = useState([])
   const [fullName, setFullName] = useState('')
-  const [username, setUsername] = useState('')
+  const [username, setUsername] = useState(state?.username || '')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -25,14 +26,13 @@ export default function SignupPage() {
   const [role, setRole] = useState('staff')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [officesFailed, setOfficesFailed] = useState(false)
 
+  // No office is preselected: an applicant must choose their own office rather than submit under the first listed one.
   useEffect(() => {
     smartflow.offices()
-      .then((d) => {
-        setOffices(d.offices || [])
-        if (d.offices?.[0]) setOfficeId(String(d.offices[0].id))
-      })
-      .catch(() => setError('Could not load offices'))
+      .then((d) => setOffices(d.offices || []))
+      .catch(() => { setOfficesFailed(true); setError('Could not load offices') })
   }, [])
 
   async function onSubmit(e) {
@@ -53,6 +53,7 @@ export default function SignupPage() {
         state: {
           code: data.request?.request_code || data.request_code || data.code || '',
           username: username.trim(),
+          statusKey: data.status_key || '',
           message: data.message,
         },
       })
@@ -68,6 +69,7 @@ export default function SignupPage() {
       layout="split"
       welcome="Join the portal"
       showPoints={false}
+      grow
       body="Request access for your municipal office. Sign-in works only after approval."
       strap="Account request"
       title="Request access"
@@ -114,7 +116,7 @@ export default function SignupPage() {
         <div className="field">
           <label htmlFor="signup-office">Office</label>
           <select id="signup-office" value={officeId} onChange={(e) => setOfficeId(e.target.value)} required>
-            {offices.length === 0 ? <option value="">Loading offices…</option> : null}
+            <option value="">{offices.length > 0 ? 'Select your office' : officesFailed ? 'Offices unavailable' : 'Loading offices…'}</option>
             {offices.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.code} — {o.name}
@@ -130,7 +132,7 @@ export default function SignupPage() {
             <option value="admin">Municipal accountant / admin</option>
           </select>
         </div>
-        <button className="btn btn--navy" type="submit" disabled={loading || !officeId}>
+        <button className="btn btn--navy" type="submit" disabled={loading}>
           {loading ? 'Submitting…' : 'Submit for approval'}
         </button>
         <div className="auth-links">
@@ -146,38 +148,53 @@ export function SignupPendingPage() {
   const navigate = useNavigate()
   const [checking, setChecking] = useState(false)
   const [statusError, setStatusError] = useState('')
+  const [rejected, setRejected] = useState(false)
+  const [code, setCode] = useState(state?.code || '')
+  const [username, setUsername] = useState(state?.username || '')
+  const [statusKey, setStatusKey] = useState(state?.statusKey || '')
+  const [password, setPassword] = useState('')
+  const [notice, setNotice] = useState('')
+  // Arriving from the Request access form carries the new code; arriving from the sign-in link is only a status check.
+  const justSubmitted = Boolean(state?.code)
 
   async function refresh() {
-    if (!state?.code && !state?.username) return
+    if ((!code || !statusKey) && (!username || !password)) {
+      setStatusError('Enter your request code and status key. Older requests can use their username and password.')
+      return
+    }
     setChecking(true)
     setStatusError('')
+    setNotice('')
+    setRejected(false)
     try {
-      const data = await smartflow.signupStatus({ code: state?.code, username: state?.username })
+      const data = await smartflow.signupStatus({ code, username, statusKey, password })
       const req = data.request || {}
       if (req.status === 'approved') {
         navigate('/signup/approved', { replace: true, state: req })
         return
       }
       if (req.status === 'rejected') {
-        setStatusError(req.review_notes || 'This request was declined. Contact the Municipal Accountant.')
+        setRejected(true)
+        setStatusError(req.review_notes || 'This request was declined. Review your account details with the Municipal Accountant, then submit a new request.')
       }
     } catch (err) {
       setStatusError(err instanceof ApiError ? err.message : 'Could not check status')
     } finally {
+      setPassword('')
       setChecking(false)
     }
   }
 
-  useEffect(() => { refresh() }, [])
+  useEffect(() => { if (state?.code && state?.statusKey) refresh() }, [])
 
   return (
     <AuthShell
       layout="split"
-      welcome="Request sent"
+      welcome={rejected ? 'Request declined' : justSubmitted ? 'Request sent' : 'Check your request'}
       showPoints={false}
-      body={state?.message || 'Your access request is awaiting review by the Municipal Accountant.'}
-      strap="Pending approval"
-      title="Request received"
+      body={rejected ? 'You can correct your details and reapply with the same username.' : justSubmitted ? (state?.message || 'Your access request is awaiting review by the Municipal Accountant.') : 'Enter the request code and private status key you received to see whether your access was approved.'}
+      strap={rejected ? 'Review your details' : justSubmitted ? 'Pending approval' : 'Access request'}
+      title={rejected ? 'Request declined' : justSubmitted ? 'Request received' : 'Check access request'}
       leading={<BackLink />}
     >
       <div className="form-card auth-split__form">
@@ -188,8 +205,21 @@ export function SignupPendingPage() {
           </div>
         ) : null}
         {state?.username ? <p className="muted">Username: @{state.username}</p> : null}
-        <div className="auth-note">Keep this code. You cannot sign in until an admin approves.</div>
+        <div className="auth-note">Keep your request code and private status key to check approval. The request code alone does not grant access.</div>
+        <div className="field"><label htmlFor="status-code">Request code</label><input id="status-code" value={code} onChange={(e) => setCode(e.target.value)} autoComplete="off" /></div>
+        <div className="field"><label htmlFor="status-key">Private status key</label><input id="status-key" type="password" value={statusKey} onChange={(e) => setStatusKey(e.target.value)} autoComplete="off" /></div>
+        {justSubmitted && statusKey ? <button type="button" className="btn-ghost" onClick={async () => {
+          try { await navigator.clipboard.writeText(statusKey); setStatusError(''); setNotice('Status key copied. Keep it private.') }
+          catch { setNotice(''); setStatusError('Could not copy the status key. Select and copy it from the field.') }
+        }}>Copy private status key</button> : null}
+        {notice ? <div className="hint" role="status">{notice}</div> : null}
+        <details><summary>Check an older request without a status key</summary>
+          <div className="field"><label htmlFor="status-user">Username</label><input id="status-user" value={username} onChange={(e) => setUsername(e.target.value)} autoComplete="username" /></div>
+          <div className="field"><label htmlFor="status-password">Account password</label><input id="status-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" /></div>
+          <p className="muted">Use your submitted password before approval, or your current password after approval. It is cleared after each check.</p>
+        </details>
         {statusError ? <div className="error" role="alert">{statusError}</div> : null}
+        {rejected ? <Link className="btn as-link" to="/signup" state={{ username: state?.username }}>Review details and reapply</Link> : null}
         <button className="btn" type="button" onClick={refresh} disabled={checking}>
           {checking ? 'Checking…' : 'Refresh status'}
         </button>

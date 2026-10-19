@@ -1,9 +1,11 @@
+import { useAuth } from '../auth.jsx'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import { smartflow, ApiError } from '../api.js'
-import { LifeEmpty, Overview, StatusPill } from '../components/ui.jsx'
+import { ApiError } from '../api.js'
+import { LifeEmpty, Overview } from '../components/ui.jsx'
 
 export default function AdminOfficesPage() {
+  const { smartflow } = useAuth()
   const [offices, setOffices] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -21,43 +23,44 @@ export default function AdminOfficesPage() {
         if (!cancelled) setLoading(false)
       })
     return () => { cancelled = true }
-  }, [])
+  }, [smartflow])
 
   return (
-    <div className="sf-life">
+    <div className="sf-life offices-page">
       <Overview
         title="Offices"
-        body="Municipal offices in the SmartFlow deployment."
+        actions={<Link className="btn-secondary" to="/admin/thresholds">Manage thresholds</Link>}
       />
-      {error ? <div className="error">{error}</div> : null}
-      <Link className="btn btn--navy" to="/admin/thresholds" style={{ alignSelf: 'flex-start' }}>
-        Edit processing thresholds
-      </Link>
+      {error ? <div className="error" role="alert">{error}</div> : null}
       {loading ? <p className="muted">Loading…</p> : null}
-      {!loading && offices.length === 0 ? (
-        <LifeEmpty icon="offices" tone="ok">No offices loaded. Check API connection and refresh.</LifeEmpty>
+      {!loading && !error && offices.length === 0 ? (
+        <LifeEmpty icon="offices">No offices configured.</LifeEmpty>
       ) : null}
-      <div className="admin-office-list">
-        {offices.map((o) => {
-          const code = String(o.office_code || '').toUpperCase()
-          const thresholds = o.thresholds || []
-          const threshText = thresholds.length === 0
-            ? 'No thresholds configured'
-            : thresholds.map((t) => `${t.document_type} · ${t.max_hours} hours at this desk`).join(' · ')
-          return (
-            <div key={o.office_id || code} className="card sf-life__panel admin-office-row">
-              <div className={`admin-office-row__badge office-accent--${code.toLowerCase() || 'eng'}`}>
-                {code || '?'}
-              </div>
-              <div className="admin-office-row__body">
-                <strong>{o.office_name || code}</strong>
-                <span className="muted">{threshText}</span>
-              </div>
-              <StatusPill tone="ok">Active</StatusPill>
-            </div>
-          )
-        })}
-      </div>
+      {offices.length ? (
+        <div className="card sf-life__panel admin-office-table-wrap">
+          <table className="admin-office-table">
+            <thead><tr><th scope="col"><span className="sr-only">Office</span></th><th scope="col">Time limits (processing hours · hours to record receipt)</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead>
+            <tbody>
+              {offices.map((o) => {
+                const code = String(o.office_code || '').toUpperCase()
+                const thresholds = o.thresholds || []
+                return (
+                  <tr key={o.office_id || code}>
+                    <th scope="row">
+                      <span className={`admin-office-row__badge office-accent--${code.toLowerCase() || 'eng'}`}>{code || '?'}</span>
+                      <span className="admin-office-table__name">{o.office_name || code}</span>
+                    </th>
+                    <td>
+                      {thresholds.length ? <ul className="office-rule-list">{thresholds.map(t => <li key={t.document_type}><strong>{t.document_type}</strong><span>{t.max_hours} processing hours · {t.out_unconfirmed_hours ?? 24} hours to record receipt</span></li>)}</ul> : <span className="muted">No custom alert rules configured.</span>}
+                    </td>
+                    <td className="admin-office-table__action"><Link to={`/admin/thresholds?office=${encodeURIComponent(o.office_id)}`} aria-label={`${thresholds.length ? 'Edit' : 'Add'} limits for ${o.office_name || code}`}>{thresholds.length ? 'Edit limits' : 'Add limits'} ›</Link></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
     </div>
   )
 }

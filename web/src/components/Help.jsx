@@ -1,30 +1,28 @@
 import { useEffect, useState } from 'react'
-import { hasSeenRoleTip, markRoleTipSeen, resetRoleTip, roleTipFor } from '../help.js'
+import { hasSeenRoleTip, markRoleTipSeen, resetRoleTip, roleTipFor, HELP_PAGES, helpPageForPath } from '../help.js'
+import { useLocation } from 'react-router-dom'
 import { useAuth } from '../auth.jsx'
 import { SfIcon } from '../icons.jsx'
+import { Modal as HelpModal } from './ui.jsx'
 
-function HelpModal({ open, title, onClose, children, footer }) {
-  useEffect(() => {
-    if (!open) return undefined
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
-
-  if (!open) return null
-  return (
-    <div className="modal-root" role="presentation">
-      <button type="button" className="modal-backdrop" aria-label="Close" onClick={onClose} />
-      <div className="modal-panel" role="dialog" aria-modal="true" aria-label={title}>
-        <div className="modal-panel__head">
-          <h3>{title}</h3>
-          <button type="button" className="btn-ghost" onClick={onClose}>Close</button>
-        </div>
-        <div className="modal-panel__body">{children}</div>
-        {footer ? <div className="modal-panel__foot">{footer}</div> : null}
-      </div>
-    </div>
-  )
+export function PageHelp() {
+  const { pathname } = useLocation()
+  const { user } = useAuth()
+  const [open, setOpen] = useState(false)
+  const page = helpPageForPath(pathname)
+  const guide = user?.role !== 'staff' && ['home', 'scan'].includes(page)
+    ? { title: page === 'scan' ? 'How to use Scan' : 'How to use Dashboard',
+        purpose: 'Review folder custody and office activity. Office staff register folders and record physical handoffs.',
+        steps: ['Open a folder to review its current location and history.', 'Use a QR label or tracking ID to look up a folder. Lookup does not record a handoff.', 'Use Requests to ask another office for a folder or inter-office work.'] }
+    : HELP_PAGES[page]
+  if (!guide) return null
+  return <>
+    <button className="btn-ghost page-help" type="button" aria-label="Help for this page" onClick={() => setOpen(true)}>?</button>
+    <HelpModal open={open} title={guide.title} onClose={() => setOpen(false)}>
+      <p className="help-purpose">{guide.purpose}</p>
+      <ol className="help-bullets">{guide.steps.map(step => <li key={step}>{step}</li>)}</ol>
+    </HelpModal>
+  </>
 }
 
 /** First-login role tip (once per username). */
@@ -36,9 +34,10 @@ export function RoleTipHost() {
   useEffect(() => {
     if (!user?.username) return
     if (hasSeenRoleTip(user.username)) return
+    // oxlint-disable-next-line react/set-state-in-effect -- The persisted first-login preference determines whether this role guide opens.
     setTip(roleTipFor(user))
     setOpen(true)
-  }, [user?.username, user?.role, user?.office_code, user?.office_name])
+  }, [user])
 
   function close() {
     if (user?.username) markRoleTipSeen(user.username)
