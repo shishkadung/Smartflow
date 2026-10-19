@@ -1517,7 +1517,6 @@ a.admin-tile--alert span {
   padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid rgba(11, 31, 58, 0.1);
-  border-left-width: 4px;
   background: #fff;
   text-decoration: none;
   color: inherit;
@@ -1543,13 +1542,6 @@ a.admin-tile--alert span {
   font-weight: 700;
   color: var(--sf-red);
 }
-.office-accent--acc { border-left-color: var(--sf-acc); }
-.office-accent--bud { border-left-color: #15803d; }
-.office-accent--eng { border-left-color: var(--sf-blue); }
-.office-accent--hr { border-left-color: #7c3aed; }
-.office-accent--tre { border-left-color: #0f766e; }
-.office-accent--may { border-left-color: var(--sf-may); }
-
 .admin-office-list {
   display: flex;
   flex-direction: column;
@@ -1572,14 +1564,7 @@ a.admin-tile--alert span {
   flex-shrink: 0;
   background: rgba(11, 31, 58, 0.06);
   color: var(--sf-navy);
-  border-left: 3px solid var(--sf-blue);
 }
-.admin-office-row__badge.office-accent--acc { border-left-color: var(--sf-acc); color: var(--sf-acc); }
-.admin-office-row__badge.office-accent--bud { border-left-color: #15803d; color: #15803d; }
-.admin-office-row__badge.office-accent--eng { border-left-color: var(--sf-blue); color: var(--sf-blue); }
-.admin-office-row__badge.office-accent--hr { border-left-color: #7c3aed; color: #7c3aed; }
-.admin-office-row__badge.office-accent--tre { border-left-color: #0f766e; color: #0f766e; }
-.admin-office-row__badge.office-accent--may { border-left-color: var(--sf-may); color: var(--sf-may); }
 .admin-office-row__body {
   flex: 1;
   min-width: 0;
@@ -2953,7 +2938,6 @@ body:has(.modal-root) { overflow: hidden; }
 }
 .timeline__item--returned .timeline__note {
   background: #fffbeb;
-  border-left: 3px solid #d97706;
 }
 
 .cam-stage {
@@ -3235,8 +3219,6 @@ body:has(.modal-root) { overflow: hidden; }
     background: var(--sf-blue);
     color: #fff;
     font-weight: 700;
-    /* A leading bar separates the current page from a hovered link without relying on colour alone. */
-    box-shadow: inset 3px 0 0 #fff;
   }
   .nav.nav--desktop a:focus-visible {
     outline: 2px solid #9ec0ea;

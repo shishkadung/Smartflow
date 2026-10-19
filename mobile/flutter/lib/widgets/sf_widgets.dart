@@ -1410,39 +1410,28 @@ class SfQuickAction extends StatelessWidget {
   }
 }
 
-/// White list row with optional left accent stripe + trailing widget.
+/// White list row with an optional trailing widget.
 class SfListTile extends StatelessWidget {
   const SfListTile({
     super.key,
     required this.title,
     required this.subtitle,
     this.trailing,
-    this.accent,
     this.onTap,
   });
 
   final String title;
   final String subtitle;
   final Widget? trailing;
-  final Color? accent;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final stripe = accent ?? const Color(0x140F172A);
-    final stripeWidth = accent != null ? 4.0 : 1.0;
-
     Widget card = SfFormCard(
       padding: EdgeInsets.zero,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          border: Border(
-            left: BorderSide(color: stripe, width: stripeWidth),
-          ),
-        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1492,7 +1481,7 @@ class SfListTile extends StatelessWidget {
   }
 }
 
-/// Department code pill (ENG / HR / BUD / ACC) coloured per office.
+/// Department identity uses one neutral color across offices.
 class SfDeptBadge extends StatelessWidget {
   const SfDeptBadge({super.key, required this.label, required this.officeCode});
 

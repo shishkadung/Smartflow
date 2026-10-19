@@ -97,7 +97,7 @@ export function AdminDashboardContent({ data, error, loading, onRetry }) {
                 <Link
                   key={o.office_id || code}
                   to={`/documents?office_id=${o.office_id}&${overdue > 0 ? 'overdue=1' : 'tray=in_office'}`}
-                  className={`admin-office-tile office-accent--${code.toLowerCase() || 'eng'}`}
+                  className="admin-office-tile"
                 >
                   <div className="admin-office-tile__main">
                     <strong>{o.office_name || code}</strong>

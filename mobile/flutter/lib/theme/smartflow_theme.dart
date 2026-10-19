@@ -34,22 +34,8 @@ class SfColors {
     return live;
   }
 
-  static Color dept(String code) {
-    switch (code.toUpperCase()) {
-      case 'ENG':
-        return eng;
-      case 'HR':
-        return hr;
-      case 'BUD':
-        return bud;
-      case 'TRE':
-        return tre;
-      case 'MAY':
-        return may;
-      default:
-        return acc;
-    }
-  }
+  /// Office identity stays neutral; status and actions own semantic colors.
+  static Color dept(String code) => navy;
 }
 
 class SfGradients {

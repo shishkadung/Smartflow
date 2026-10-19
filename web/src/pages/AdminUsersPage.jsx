@@ -174,7 +174,7 @@ export function UsersContent({ user, users, pending, loadError, error, ok, loadi
             <div key={req.id} className="pending-card">
               <strong>{req.full_name || req.name}</strong>
               <span className="muted">@{req.username} · {req.office_name || req.office_code}</span>
-              <StatusPill tone="warn">Requested role: {req.requested_role}</StatusPill>
+              <span className="muted">Requested role: {req.requested_role}</span>
               <div className="request-card__actions">
                 <button type="button" className="btn-danger" aria-label={`Decline sign-up for ${req.username}`} disabled={busy || loading || Boolean(loadError)} onClick={() => pick(req, 'reject')}>Decline</button>
                 <button type="button" className="btn" aria-label={`Approve sign-up for ${req.username}`} disabled={busy || loading || Boolean(loadError)} onClick={() => pick(req, 'approve')}>Approve</button>
@@ -196,7 +196,7 @@ export function UsersContent({ user, users, pending, loadError, error, ok, loadi
                   render: (r) => <span className="user-account">
                     <strong className="user-account__name">{r.name}</strong>
                     <span className="user-account__meta">@{r.username} · {r.email || 'email not set'}</span>
-                    {['staff', 'head'].includes(r.role) && emailNeedsCheck(r) ? <StatusPill tone="warn">Check email</StatusPill> : null}
+                    {['staff', 'head'].includes(r.role) && emailNeedsCheck(r) ? <span className="user-account__meta">Check email</span> : null}
                   </span>,
                 },
                 { key: 'office_code', label: 'Office' },

@@ -409,10 +409,6 @@ class SfHeadQueueRow extends StatelessWidget {
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border(left: BorderSide(color: accent, width: 4)),
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [

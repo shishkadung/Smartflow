@@ -62,7 +62,6 @@
 .app-shell .thresholds-page .threshold-rule-copy > span { color: var(--sf-muted); }
 .app-shell .thresholds-page .admin-threshold-list li { gap: 14px; }
 .app-shell .thresholds-page .admin-threshold-list li > .btn-secondary { align-self: center; width: auto; min-width: 72px; min-height: 44px; flex: 0 0 auto; }
-.app-shell .thresholds-page .admin-threshold-list .is-editing { border-left: 3px solid var(--sf-blue); padding-left: 12px; }
 .app-shell .thresholds-page .visually-hidden { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (max-width: 1000px) {
   .app-shell .thresholds-page .admin-grid { grid-template-columns: minmax(0, 1fr); }
