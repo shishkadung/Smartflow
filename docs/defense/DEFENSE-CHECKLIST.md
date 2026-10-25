@@ -1,6 +1,6 @@
 # SmartFlow: defense week checklist (1 week)
 
-Updated 25 October 2026. The September version told you to purge and reseed data and to open maintenance URLs; those steps no longer work and must not be used. Read [CORRECTIONS-2026-10-25.md](CORRECTIONS-2026-10-25.md) first. The presentation itself follows the [six-department projector script](../client/SIX-DEPARTMENT-PROJECTOR-DEMO-SCRIPT.md) and its [sample-data guide](../client/DEMO-DATA-2026-10-22.md).
+Updated 25 October 2026. The September version told you to purge and reseed data and to open maintenance URLs; those steps no longer work and must not be used. Read [CORRECTIONS-2026-10-25.md](CORRECTIONS-2026-10-25.md) first; the dated schedule to 12 November is in [FINAL-WEEKS-PLAN-2026-11-12.md](FINAL-WEEKS-PLAN-2026-11-12.md). The presentation itself follows the [six-department projector script](../client/SIX-DEPARTMENT-PROJECTOR-DEMO-SCRIPT.md) and its [sample-data guide](../client/DEMO-DATA-2026-10-22.md).
 
 ## Day 1–2: environment (changes no data)
 

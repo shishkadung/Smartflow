@@ -2,7 +2,7 @@
 
 **Project:** SMARTFLOW  
 **Start:** [Month Year]  
-**Target defense:** [Month Year]
+**Target defense:** 12 November 2026 (final-weeks schedule: [FINAL-WEEKS-PLAN-2026-11-12.md](../defense/FINAL-WEEKS-PLAN-2026-11-12.md))
 
 | # | Task | W1 | W2 | W3 | W4 | W5 | W6 | W7 | W8 | W9 | W10 | W11 | W12 | W13 | W14 | W15 | W16 |
 |---|------|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|

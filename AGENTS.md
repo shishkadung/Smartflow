@@ -32,7 +32,7 @@ The thesis proposal records academic scope; it is not the runtime database schem
 - `docs/`: the context bundle plus client evidence, product notes, thesis and handover materials.
 - `.runtime/`: local dated screenshots/reports and temporary verification evidence. Do not expose raw logs containing sessions, credentials or tokens.
 
-Do not assume this checkout has Git or that an old absolute path in a README is current. Inspect the workspace and current processes before choosing a launch or worktree strategy.
+A local Git repository (no remote) was created on 26 October 2026 with first commit `722fa45`; check `git status` before editing and commit scoped changes, but do not assume older reports refer to commits. Do not assume an old absolute path in a README is current. Inspect the workspace and current processes before choosing a launch or worktree strategy.
 
 ## Product invariants
 

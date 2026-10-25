@@ -251,7 +251,7 @@ Review restricted server logs privately and record sanitized outcomes. Do not pa
 
 For a PHP/application-code failure, restore the recorded prior runtime binding and reviewed code package, then verify the serving process and normal reads. Preserve the current database, private settings, QR key, uploads and sessions. A runtime rollback does not require a database restore.
 
-Use the workspace's actual version/backups; do not assume this checkout has Git or an existing release tag. The local XAMPP sync target is not a production rollback tool.
+A local Git repository exists since 26 October 2026 (no remote; secrets, backups, uploads and local evidence are ignored): tag the commit you build the release from and keep the system snapshot (`scripts\backup-system.ps1`) beside it. There is no earlier release tag. The local XAMPP sync target is not a production rollback tool.
 
 If separate data recovery is intentionally required, first verify an isolated full-system restore using the matching database, private configuration, QR key and uploads. Restoring an operational database is a distinct consequential action, not a routine deployment repair.
 

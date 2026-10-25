@@ -6,7 +6,7 @@ Paste into Capstone 2 after Chapter 4. Insert real screenshots where marked. **I
 
 ## 5.1 System Implementation
 
-This chapter presents the implemented SmartFlow system as deployed for pilot use in the Municipality of Urbiztondo, then discusses evaluation results for Specific Objective 7 (ISO/IEC 25010–based User Acceptance Testing). SmartFlow is a **hybrid** application: a **React (Vite)** web client for browser-based office work, a **Flutter** Android client for QR scanning and mobile role screens, a **PHP** REST API on Apache, and a **MySQL** database. Version 1 tracks **physical folder custody** (metadata and movement). It does **not** store scanned document images or produce COA financial statements.
+This chapter presents the implemented SmartFlow system as built for pilot use in the Municipality of Urbiztondo (a demonstration build; on-site deployment is planned after the Capstone), then discusses evaluation results for Specific Objective 7 (ISO/IEC 25010–based User Acceptance Testing). SmartFlow is a **hybrid** application: a **React (Vite)** web client for browser-based office work, a **Flutter** Android client for QR scanning and mobile role screens, a **PHP** REST API on Apache, and a **MySQL** database. Version 1 tracks **physical folder custody** (metadata and movement). It does **not** store scanned document images or produce COA financial statements.
 
 Pilot offices in the implemented system are **Engineering (ENG)**, **Human Resources (HR)**, **Budget (BUD)**, **Accounting (ACC)**, **Treasury (TRE)**, and **Mayor’s Office (MAY)**. Application roles are **`staff`** (clerk), **`head`** (department head), and **`admin`** (Municipal Accountant / system administrator).
 

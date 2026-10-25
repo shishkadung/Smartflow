@@ -9,7 +9,7 @@ Print one copy per respondent **or** copy into Google Forms (same items, 1–5 s
 ## How to run (team)
 
 1. **Who:** Municipal Accountant (`admin`), at least 1–2 department heads, and clerks from offices that will use the pilot (ENG / HR / BUD / ACC / TRE / MAY as available).
-2. **When:** After a short hands-on (login → register or scan → see dashboard / alerts). Use [docs/defense/START-HERE.md](../defense/START-HERE.md) DV trail if possible.
+2. **When:** After a short hands-on (login → register or scan → see dashboard / alerts). Use the DV trail from the [six-department projector script](../client/SIX-DEPARTMENT-PROJECTOR-DEMO-SCRIPT.md) and [sample-data guide](../client/DEMO-DATA-2026-10-22.md) if possible (the older START-HERE notes have retired commands; see [CORRECTIONS-2026-10-25.md](../defense/CORRECTIONS-2026-10-25.md)). Encode answers in [docs/testing/UAT-ISO25010-Encoding.xlsx](../testing/UAT-ISO25010-Encoding.xlsx).
 3. **Where (if client is far / not deployed yet):** use **Remote UAT** below — still valid for Capstone Objective 7 if you describe it honestly in Ch4/Ch5.
 4. **Time:** ~10–15 minutes for the form after the demo.
 5. **Consent:** Explain this is for school research / pilot evaluation; answers are for Capstone Objective 7; no financial data is collected.
