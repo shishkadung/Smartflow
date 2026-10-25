@@ -1,3 +1,6 @@
+/* Parts of the Custody reports page: the hidden ones stay mounted so their loaded data and filters survive a tab change. */
+.app-shell .report-section { display: contents; }
+.app-shell .report-section[hidden] { display: none; }
 .app-shell .report-register { min-width: 0; }
 .app-shell .report-register__heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
 .app-shell #custody-register-heading { scroll-margin-top: 80px; }
@@ -42,4 +45,7 @@
   .app-shell .report-register__controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
   .app-shell .report-register__controls > label:not(.report-register__search) { grid-column: 1 / -1; }
   .app-shell .report-register .segmented { max-width: 100%; flex-wrap: wrap; }
+  /* Four short tabs stay on one row on a phone; the exception count is never pushed out of sight. */
+  .app-shell .report-sections .segmented { width: 100%; flex-wrap: nowrap; gap: 2px; }
+  .app-shell .report-sections .segmented button { flex: 1 1 auto; min-width: 0; padding: 8px 6px; font-size: 13px; white-space: nowrap; }
 }

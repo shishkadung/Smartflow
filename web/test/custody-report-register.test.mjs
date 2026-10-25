@@ -10,7 +10,7 @@ import { formatWhen, reportPeriodBounds } from '../src/tracking.js'
 import { reportPeriodQuery, reportViewFromSearch, reportViewParams, custodyReportReturnPath } from '../src/report-navigation.js'
 
 // Run real effects with deferred synthetic reads, never the operational API.
-async function component(file, smartflow, initialView, apiText = async () => '') {
+async function component(file, smartflow, initialView, apiText = async () => '', user = { id: 1, role: 'admin', office_id: 4, office_code: 'ACC' }) {
   const source = await readFile(new URL(`../src/${file}`, import.meta.url), 'utf8')
   const slots = [], pending = []
   let cursor = 0, query = initialView, changes = []
@@ -41,7 +41,7 @@ async function component(file, smartflow, initialView, apiText = async () => '')
         pending.push(() => { slots[index].cleanup = effect() })
       }
     },
-    useAuth: () => ({ user: { id: 1, role: 'admin', office_id: 4, office_code: 'ACC' }, smartflow, apiText }),
+    useAuth: () => ({ user, smartflow, apiText }),
     useSearchParams: () => [reportViewParams(query), params => { query = reportViewFromSearch(params) }],
     ApiError: Error, reportPeriodBounds, formatWhen, reportPeriodQuery, reportViewFromSearch, reportViewParams,
     statTone: () => 'stat', window: { open() { return null } }, document: { getElementById() { return null } },
@@ -163,6 +163,84 @@ test('export errors preserve the verified report, while summary metrics expose c
   selected.props.onClick()
   assert.equal(instance.query.classification, 'delayed')
   assert.equal(instance.query.scope, 'activity')
+  assert.equal(instance.query.section, 'register', 'a summary tile opens the register part')
+})
+
+const pageSummary = { period: 'month', month: '2026-10', office_id: 4, export_allowed: true, period_start: '2026-10-01 00:00:00', period_end: '2026-10-23 12:00:00', as_of: '2026-10-23 12:00:00', movement_watermark: 44, correction_watermark: 0, totals: { documents_in_period: 4 }, compliance: { on_time: { count: 2, percent: 50 }, unforwarded: { count: 1, percent: 25 }, delayed: { count: 1, percent: 25 } }, office_totals: [{ office_id: 4, docs_processed: 4 }] }
+const exceptionRows = [{ document_id: 'DOC-2026-000001', exception_type: 'unforwarded' }, { document_id: 'DOC-2026-000002', exception_type: 'skipped_office' }]
+function parts(tree) {
+  const found = []
+  const visit = node => {
+    if (!node || typeof node !== 'object') return
+    if (node.props?.role === 'tabpanel') found.push(node)
+    for (const child of [node.props?.children].flat(Infinity)) visit(child)
+  }
+  visit(tree)
+  return found
+}
+const shown = tree => parts(tree).filter(node => !node.props.hidden).map(node => node.props['aria-label'])
+const partTabs = tree => walk(tree, node => node.type === 'Segmented' && node.props.options?.some(option => option.value === 'register'))
+
+test('Custody reports shows one part at a time, keeps the others loaded and counts the exceptions on their tab', async t => {
+  const instance = await component('pages/AdminReportsPage.jsx', { reportsSummary: async () => pageSummary, auditExceptions: async () => ({ exceptions: exceptionRows }) }, base)
+  t.after(() => instance.dispose())
+  instance.render(); await instance.effects(); await instance.effects()
+  let tree = instance.render()
+  assert.deepEqual(Array.from(partTabs(tree).props.options, option => [option.value, option.label, option.badge ?? null]),
+    [['overview', 'Overview', null], ['departments', 'Departments', null], ['register', 'Register', null], ['exceptions', 'Exceptions', 2]])
+  assert.deepEqual(shown(tree), ['Overview'], 'the page opens on the overview')
+  assert.deepEqual(parts(tree).map(node => node.props['aria-label']), ['Overview', 'Departments', 'Register', 'Exceptions'], 'hidden parts stay mounted')
+  assert.ok(walk(parts(tree)[0], named('ReportFlowMetrics')) && walk(parts(tree)[0], named('ReportOfficeTotals')), 'overview holds the completion figures and the office totals')
+  assert.ok(walk(parts(tree)[1], named('DepartmentPerformance')))
+  assert.ok(walk(parts(tree)[2], named('ReportRegister')))
+  assert.ok(walk(parts(tree)[3], named('ExceptionCard')))
+  instance.change({ page: 3, office_id: '4', q: 'schedules' })
+  partTabs(instance.render()).props.onChange('register')
+  assert.equal(instance.query.section, 'register')
+  assert.equal(instance.query.page, 3, 'changing the part keeps the register page')
+  assert.equal(instance.query.q, 'schedules')
+  assert.equal(instance.query.office_id, '4')
+  assert.deepEqual(shown(instance.render()), ['Register'])
+  instance.change({ section: 'departments' })
+  assert.deepEqual(shown(instance.render()), ['Departments'])
+  instance.change({ section: 'exceptions' })
+  assert.deepEqual(shown(instance.render()), ['Exceptions'])
+})
+
+test('without Accounting authority there is no exceptions part, and a stale link to it falls back to the overview', async t => {
+  const instance = await component('pages/AdminReportsPage.jsx', { reportsSummary: async () => pageSummary }, { ...base, section: 'exceptions' }, async () => '', { id: 2, role: 'admin', office_id: 3, office_code: 'BUD' })
+  t.after(() => instance.dispose())
+  instance.render(); await instance.effects(); await instance.effects()
+  const tree = instance.render()
+  assert.deepEqual(Array.from(partTabs(tree).props.options, option => option.value), ['overview', 'departments', 'register'])
+  assert.deepEqual(parts(tree).map(node => node.props['aria-label']), ['Overview', 'Departments', 'Register'])
+  assert.deepEqual(shown(tree), ['Overview'])
+})
+
+test('the report part is part of the address only when it is not the overview', () => {
+  assert.equal(reportViewFromSearch('month=2026-10').section, 'overview')
+  assert.equal(reportViewFromSearch('section=register').section, 'register')
+  assert.equal(reportViewFromSearch('section=departments').section, 'departments')
+  assert.equal(reportViewFromSearch('section=bogus').section, 'overview')
+  assert.doesNotMatch(String(reportViewParams(base)), /section/)
+  assert.match(String(reportViewParams({ ...base, section: 'departments' })), /section=departments/)
+  assert.match(custodyReportReturnPath('/admin/reports?month=2026-10&section=register&page=2'), /section=register/)
+  assert.doesNotMatch(custodyReportReturnPath('/admin/reports?month=2026-10&section=overview'), /section/)
+  const view = reportViewFromSearch('period=quarter&quarter=2026-Q3&section=exceptions')
+  assert.deepEqual(reportViewFromSearch(reportViewParams(view)), view)
+})
+
+test('the register lists 10 folders a page and a folder opened from it returns to the register, not the overview', async t => {
+  const calls = []
+  const instance = await component('components/ReportRegister.jsx', { reportsRegister: async query => { calls.push(query); return response([{ document_id: 'DOC-2026-000001', title: 'Signed schedules' }], 23, 2) } }, { ...base, page: 2, section: 'overview' })
+  t.after(() => instance.dispose())
+  instance.render(); await instance.effects()
+  const tree = instance.render()
+  assert.equal(calls[0].page_size, 10)
+  assert.equal(calls[0].page, 2)
+  const returnTo = walk(tree, named('ReportRegisterRows')).props.returnTo
+  assert.match(returnTo, /section=register/)
+  assert.match(returnTo, /page=2/)
 })
 
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })

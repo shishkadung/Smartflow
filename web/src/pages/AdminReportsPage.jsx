@@ -25,18 +25,26 @@ function monthDisplay(ym) {
   }
 }
 
+function focusRegisterHeading() {
+  const heading = document.getElementById('custody-register-heading')
+  heading?.focus({ preventScroll: true })
+  heading?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+}
+
 export default function AdminReportsPage() {
   const { user, smartflow, apiText } = useAuth()
   const [params, setParams] = useSearchParams()
   const view = reportViewFromSearch(params)
   const { period, month, year, quarter } = view
   const reportKey = JSON.stringify(reportPeriodQuery(view))
+  const registerFocus = useRef(false)
   function changeView(changes) { setParams(reportViewParams({ ...view, ...changes, page: changes.page ?? 1 })) }
+  // Moving between parts keeps the register page and filters the user already chose.
+  function changeSection(section) { setParams(reportViewParams({ ...view, section })) }
   function showClassification(classification) {
-    changeView({ scope: 'activity', classification, office_id: '', q: '' })
-    const heading = document.getElementById('custody-register-heading')
-    heading?.focus({ preventScroll: true })
-    heading?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    changeView({ section: 'register', scope: 'activity', classification, office_id: '', q: '' })
+    if (section === 'register') focusRegisterHeading()
+    else registerFocus.current = true
   }
   const setPeriod = period => changeView({ period })
   const setMonth = month => changeView({ month })
@@ -54,6 +62,19 @@ export default function AdminReportsPage() {
   const [revision, setRevision] = useState(0)
   const request = useRef(0)
   const isAccounting = String(user.office_code || '').toUpperCase() === 'ACC'
+  const sectionOptions = [
+    { value: 'overview', label: 'Overview' },
+    { value: 'departments', label: 'Departments' },
+    { value: 'register', label: 'Register' },
+    ...(isAccounting ? [{ value: 'exceptions', label: 'Exceptions', badge: exceptions?.length }] : []),
+  ]
+  const section = sectionOptions.some(option => option.value === view.section) ? view.section : 'overview'
+  useEffect(() => {
+    // A summary tile opened the register from another part; focus its heading once the part is visible.
+    if (!registerFocus.current || section !== 'register') return
+    registerFocus.current = false
+    focusRegisterHeading()
+  }, [section])
 
   const isYear = period === 'year'
   const isQuarter = period === 'quarter'
@@ -193,27 +214,36 @@ export default function AdminReportsPage() {
       {exportError ? <div className="error" role="alert">Export could not be prepared. {exportError} The loaded report remains available.</div> : null}
       {data ? <p className="muted">Generated {data.generated_at} ({data.timezone}) · {data.scope} · Prepared by {data.prepared_by}</p> : null}
       {data?.outstanding_transfers != null ? <p className="muted">{data.outstanding_transfers} outstanding transfers at cutoff · {data.carried_forward_transfers ?? '—'} sent before this period</p> : null}
-      <ReportFlowMetrics data={data} />
-      <ReportRegister view={view} onChange={changeView} offices={data?.office_totals || []} revision={revision} enabled={!error && !!data} asOf={data?.as_of || data?.period_end} movementWatermark={data?.movement_watermark} correctionWatermark={data?.correction_watermark} />
-      <ReportOfficeTotals data={data} loading={loading} periodNoun={periodNoun} />
-      <DepartmentPerformance />
+      <div className="toolbar report-sections"><Segmented value={section} onChange={changeSection} options={sectionOptions} /></div>
+      <div className="report-section" role="tabpanel" aria-label="Overview" hidden={section !== 'overview'}>
+        <ReportFlowMetrics data={data} />
+        <ReportOfficeTotals data={data} loading={loading} periodNoun={periodNoun} />
+      </div>
+      <div className="report-section" role="tabpanel" aria-label="Departments" hidden={section !== 'departments'}>
+        <DepartmentPerformance />
+      </div>
+      <div className="report-section" role="tabpanel" aria-label="Register" hidden={section !== 'register'}>
+        <ReportRegister view={view} onChange={changeView} offices={data?.office_totals || []} revision={revision} enabled={!error && !!data} asOf={data?.as_of || data?.period_end} movementWatermark={data?.movement_watermark} correctionWatermark={data?.correction_watermark} />
+      </div>
       {isAccounting ? (
-        <div className="card sf-life__panel">
-          <h3 className="section-title">Audit exceptions · {periodLabel}</h3>
-          <p className="muted" style={{ marginTop: 0 }}>
-            Missing receipt records after 24 hours, receiver mismatches, route gaps and incomplete DV contents. Review the full history; permitted route exceptions may need context.
-          </p>
-          {loading ? (
-            <LifeSkeleton rows={2} label="Loading exceptions" />
-          ) : exceptionError ? <div className="error" role="alert">Audit exceptions could not be verified. {exceptionError}<button type="button" className="btn-secondary" onClick={() => setRevision(value => value + 1)}>Retry exceptions</button></div>
-            : exceptions === null ? <p className="muted">Audit exceptions have not been verified for this period.</p>
-            : exceptions.length === 0 ? (
-            <LifeEmpty icon="coaSupport" tone="ok">{`No exceptions this ${periodNoun}.`}</LifeEmpty>
-          ) : (
-            exceptions.map((ex, i) => (
-              <ExceptionCard key={`${ex.document_id}-${ex.exception_type}-${i}`} exception={ex} />
-            ))
-          )}
+        <div className="report-section" role="tabpanel" aria-label="Exceptions" hidden={section !== 'exceptions'}>
+          <div className="card sf-life__panel">
+            <h3 className="section-title">Audit exceptions · {periodLabel}</h3>
+            <p className="muted" style={{ marginTop: 0 }}>
+              Missing receipt records after 24 hours, receiver mismatches, route gaps and incomplete DV contents. Review the full history; permitted route exceptions may need context.
+            </p>
+            {loading ? (
+              <LifeSkeleton rows={2} label="Loading exceptions" />
+            ) : exceptionError ? <div className="error" role="alert">Audit exceptions could not be verified. {exceptionError}<button type="button" className="btn-secondary" onClick={() => setRevision(value => value + 1)}>Retry exceptions</button></div>
+              : exceptions === null ? <p className="muted">Audit exceptions have not been verified for this period.</p>
+              : exceptions.length === 0 ? (
+              <LifeEmpty icon="coaSupport" tone="ok">{`No exceptions this ${periodNoun}.`}</LifeEmpty>
+            ) : (
+              exceptions.map((ex, i) => (
+                <ExceptionCard key={`${ex.document_id}-${ex.exception_type}-${i}`} exception={ex} />
+              ))
+            )}
+          </div>
         </div>
       ) : null}
     </div>

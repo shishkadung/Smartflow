@@ -1,6 +1,8 @@
 import { reportPeriodBounds } from './tracking.js'
 
 const classifications = ['all', 'on_time', 'unforwarded', 'delayed']
+// Parts of the Custody reports page; Overview is the default and is left out of the address.
+export const reportSections = ['overview', 'departments', 'register', 'exceptions']
 const positive = (value, fallback = 1) => /^\d+$/.test(String(value || '')) && Number.isSafeInteger(Number(value)) && Number(value) > 0 ? Number(value) : fallback
 
 export function reportViewFromSearch(value, now = new Date()) {
@@ -16,12 +18,14 @@ export function reportViewFromSearch(value, now = new Date()) {
     office_id: params.has('office_id') ? String(positive(params.get('office_id'), '')) : '',
     q: (params.get('q') || '').trim().slice(0, 200),
     page: positive(params.get('page')),
+    section: reportSections.includes(params.get('section')) ? params.get('section') : 'overview',
   }
 }
 
 export function reportViewParams(view) {
   const params = new URLSearchParams()
-  for (const key of ['period', 'month', 'year', 'quarter', 'scope', 'classification', 'office_id', 'q', 'page']) {
+  for (const key of ['period', 'month', 'year', 'quarter', 'scope', 'classification', 'office_id', 'q', 'page', 'section']) {
+    if (key === 'section' && view[key] === 'overview') continue
     if (view[key] !== '' && view[key] != null) params.set(key, String(view[key]))
   }
   return params

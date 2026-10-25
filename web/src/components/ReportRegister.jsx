@@ -7,6 +7,7 @@ import { LifeEmpty, LifeSkeleton, Segmented } from './ui.jsx'
 import './report-register.css'
 
 const labels = { on_time: 'On time / in process', unforwarded: 'Awaiting receipt', delayed: 'Late receipt' }
+const PAGE_SIZE = 10
 
 export default function ReportRegister({ view, onChange, offices = [], revision, enabled = true, asOf, movementWatermark, correctionWatermark }) {
   const { smartflow } = useAuth()
@@ -15,10 +16,11 @@ export default function ReportRegister({ view, onChange, offices = [], revision,
   const [error, setError] = useState('')
   const [retry, setRetry] = useState(0)
   const [search, setSearch] = useState(view.q)
-  const query = { ...reportPeriodQuery(view), ...(asOf ? { as_of: asOf } : {}), ...(movementWatermark != null ? { movement_watermark: movementWatermark } : {}), ...(correctionWatermark != null ? { correction_watermark: correctionWatermark } : {}), scope: view.scope, classification: view.classification, ...(view.office_id ? { office_id: view.office_id } : {}), q: view.q, page: view.page, page_size: 25 }
+  const query = { ...reportPeriodQuery(view), ...(asOf ? { as_of: asOf } : {}), ...(movementWatermark != null ? { movement_watermark: movementWatermark } : {}), ...(correctionWatermark != null ? { correction_watermark: correctionWatermark } : {}), scope: view.scope, classification: view.classification, ...(view.office_id ? { office_id: view.office_id } : {}), q: view.q, page: view.page, page_size: PAGE_SIZE }
   const key = JSON.stringify(query)
   const data = snapshot?.key === key ? snapshot.data : null
-  const returnTo = `/admin/reports?${reportViewParams(view)}`
+  // Coming back from a folder lands on this register page, not on the overview.
+  const returnTo = `/admin/reports?${reportViewParams({ ...view, section: 'register' })}`
 
   useEffect(() => {
     // oxlint-disable-next-line react/set-state-in-effect -- Back/forward navigation restores the committed search.
