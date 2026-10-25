@@ -21,9 +21,24 @@ export function trendLabel(trend) {
   return `Steady (${span})`
 }
 
-/** Slowest office first; offices without a forwarded folder go last. */
+/** Short number printed on a bar: one decimal below 10 h, whole hours from 10 h up. */
+export function barValueLabel(hours) {
+  if (hours == null || Number.isNaN(Number(hours))) return ''
+  const value = Number(hours)
+  return String(value < 10 ? Math.round(value * 10) / 10 : Math.round(value))
+}
+
+/** Share of the plot height a month's average fills; a forwarded month keeps a visible minimum, a month without one is empty. */
+export function barFraction(hours, scale) {
+  if (hours == null || Number.isNaN(Number(hours)) || !(Number(scale) > 0)) return 0
+  return Math.min(1, Math.max(0.06, Number(hours) / Number(scale)))
+}
+
+/** Offices with a recurring bottleneck first, then slowest first; offices without a forwarded folder go last. */
 export function sortPerformanceOffices(offices) {
   return [...(offices || [])].sort((a, b) => {
+    const flagged = Number(Boolean(b.bottleneck?.recurring)) - Number(Boolean(a.bottleneck?.recurring))
+    if (flagged) return flagged
     const left = a.totals?.avg_hours
     const right = b.totals?.avg_hours
     if (left == null && right != null) return 1

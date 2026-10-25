@@ -6,13 +6,21 @@
 .app-shell .department-performance__list { list-style: none; margin: 14px 0 0; padding: 0; }
 .app-shell .department-performance__row { padding: 14px 0; border-top: 1px solid var(--sf-border, #dce3ec); min-width: 0; }
 .app-shell .department-performance__row p { margin: 4px 0; overflow-wrap: anywhere; }
+.app-shell .department-performance__summary { min-width: 0; }
 .app-shell .department-performance__title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .app-shell .department-performance__code { color: var(--sf-navy, #0b1f3a); font-size: 12px; font-weight: 700; letter-spacing: 0.04em; }
-.app-shell .department-performance__bars { display: flex; align-items: flex-end; gap: 6px; height: 64px; margin: 10px 0 4px; max-width: 420px; }
-.app-shell .department-performance__bar { flex: 1 1 0; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; }
-.app-shell .department-performance__bar i { display: block; background: #8aa0bd; border-radius: 3px 3px 0 0; min-height: 0; }
-.app-shell .department-performance__bar i.is-slow { background: #b45309; }
-.app-shell .department-performance__bar small { display: block; margin-top: 3px; text-align: center; font-size: 11px; color: var(--sf-muted, #526176); }
+/* Plot: label row at the bottom, headroom at the top for the number above the tallest bar. */
+.app-shell .department-performance__bars { --label-h: 18px; --top-pad: 16px; position: relative; display: flex; align-items: stretch; gap: 6px; height: 112px; margin: 10px 0 4px; min-width: 0; max-width: 560px; }
+.app-shell .department-performance__bars.has-limit { padding-right: 38px; }
+.app-shell .department-performance__bar { flex: 1 1 0; min-width: 0; max-width: 64px; display: flex; flex-direction: column; }
+.app-shell .department-performance__track { position: relative; flex: 1 1 auto; }
+.app-shell .department-performance__track i { position: absolute; left: 0; right: 0; bottom: 0; display: block; height: calc((100% - var(--top-pad)) * var(--v, 0)); background: #8aa0bd; border-radius: 3px 3px 0 0; }
+.app-shell .department-performance__track i.is-slow { background: #b45309; }
+.app-shell .department-performance__track b { position: absolute; left: -4px; right: -4px; bottom: calc((100% - var(--top-pad)) * var(--v, 0) + 2px); text-align: center; font-size: 11px; line-height: 14px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--sf-muted, #526176); text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff; }
+.app-shell .department-performance__track b.is-slow { color: #92400e; }
+.app-shell .department-performance__bar small { flex: 0 0 var(--label-h); line-height: var(--label-h); text-align: center; font-size: 11px; color: var(--sf-muted, #526176); }
+.app-shell .department-performance__limit { position: absolute; left: 0; right: 0; bottom: calc(var(--label-h) + (100% - var(--label-h) - var(--top-pad)) * var(--limit, 0)); border-top: 1px dashed var(--sf-muted, #526176); pointer-events: none; }
+.app-shell .department-performance__limit em { position: absolute; right: 0; bottom: 2px; width: 34px; text-align: right; font-size: 10px; font-style: normal; font-weight: 600; color: var(--sf-muted, #526176); }
 .app-shell .department-performance details { margin-top: 8px; font-size: 14px; }
 .app-shell .department-performance summary { cursor: pointer; color: var(--sf-muted, #526176); min-height: 32px; }
 .app-shell .department-performance__scroll { overflow-x: auto; margin: 8px 0; }
@@ -21,3 +29,9 @@
 .app-shell .department-performance thead th { color: var(--sf-muted, #526176); font-weight: 600; }
 .app-shell .department-performance .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .app-shell .department-performance__legend { margin: 10px 0 6px; font-size: 13px; }
+/* Wide desktop: figures on the left, bars on the right, the month table across the full row. */
+@media (min-width: 1100px) {
+  .app-shell .department-performance__row { display: grid; grid-template-columns: minmax(250px, 340px) minmax(0, 1fr); column-gap: 28px; align-items: start; }
+  .app-shell .department-performance__row > .department-performance__bars { grid-column: 2; grid-row: 1; margin-top: 0; }
+  .app-shell .department-performance__row > details { grid-column: 1 / -1; }
+}

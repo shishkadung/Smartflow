@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import { LifeEmpty, LifeSkeleton, Segmented, StatusPill } from './ui.jsx'
-import { formatHours, monthLabel, sortPerformanceOffices, trendLabel } from '../report-metrics.js'
+import { barFraction, barValueLabel, formatHours, monthLabel, sortPerformanceOffices, trendLabel } from '../report-metrics.js'
 import { beginScopedRead, failScopedRead, scopedReadView } from '../scoped-read.js'
 import './department-performance.css'
 
@@ -35,9 +35,34 @@ export default function DepartmentPerformance() {
   return <DepartmentPerformanceContent data={data} error={error} loading={loading} months={months} onMonths={setMonths} onRetry={() => setRetry(value => value + 1)} />
 }
 
+function monthSummary(month) {
+  return `${monthLabel(month.month)}: ${month.avg_hours == null ? 'no forwarded folders' : formatHours(month.avg_hours)}${month.slow ? ', slow' : ''}`
+}
+
+/** Average hours per month with the number on each bar; the dashed line marks the default desk limit when the report provides it. */
+function MonthBars({ office, scale, limit }) {
+  const description = `Average hours per month. ${office.months.map(monthSummary).join('; ')}.${limit ? ` The dashed line is the ${limit} h default desk limit.` : ''}`
+  return <div className={`department-performance__bars${limit ? ' has-limit' : ''}`} role="img" aria-label={description} style={limit ? { '--limit': limit / scale } : undefined}>
+    {limit ? <span className="department-performance__limit"><em>{limit} h</em></span> : null}
+    {office.months.map(month => {
+      const fraction = barFraction(month.avg_hours, scale)
+      const slow = month.slow ? 'is-slow' : undefined
+      return <span key={month.month} className="department-performance__bar" title={`${monthSummary(month)}, ${month.late} of ${month.visits} visits late`}>
+        <span className="department-performance__track">
+          <i className={slow} style={{ '--v': fraction }} />
+          {month.avg_hours == null ? null : <b className={slow} style={{ '--v': fraction }}>{barValueLabel(month.avg_hours)}</b>}
+        </span>
+        <small>{monthLabel(month.month, 'short')}</small>
+      </span>
+    })}
+  </div>
+}
+
 export function DepartmentPerformanceContent({ data, error, loading, months, onMonths, onRetry }) {
   const offices = data ? sortPerformanceOffices(data.offices) : []
-  const scale = Math.max(1, ...offices.flatMap(office => office.months.map(month => Number(month.avg_hours) || 0)))
+  const configuredLimit = Number(data?.rules?.default_desk_limit_hours)
+  const limit = configuredLimit > 0 ? configuredLimit : null
+  const scale = Math.max(1, limit ?? 0, ...offices.flatMap(office => office.months.map(month => Number(month.avg_hours) || 0)))
   return <div className="card sf-life__panel department-performance">
     <div className="department-performance__head">
       <h3 className="section-title">Department performance</h3>
@@ -52,22 +77,19 @@ export function DepartmentPerformanceContent({ data, error, loading, months, onM
           <strong>{data.bottlenecks.length === 1 ? 'Recurring bottleneck' : 'Recurring bottlenecks'}</strong>
           <ul>{data.bottlenecks.map(item => <li key={item.office_id}><strong>{item.office_name} ({item.office_code})</strong>: slow in {item.slow_months} of {item.active_months} months · {item.late_percent}% of visits late</li>)}</ul>
         </div> : <p className="muted">No office was slow in {data.rules.recurring_slow_months} or more months in this window.</p>}
-        <p className="muted department-performance__legend">Bars show each month's average hours at the office (taller is slower); orange marks a slow month.</p>
+        <p className="muted department-performance__legend">Each bar is a month's average hours before forwarding, with the number on it; orange marks a slow month, meaning at least {data.rules?.slow_month_late_percent ?? 25}% of its visits ran past their limit.{limit ? ` The dashed line is the ${limit} h default desk limit; some folder types have their own limit.` : ''}</p>
         <div className="list-item list-item--static"><strong>All offices</strong><span className="muted">{visitsLine(data.municipal.totals)}</span></div>
         <ol className="department-performance__list">
           {offices.map(office => <li key={office.office_id} className="department-performance__row">
-            <div className="department-performance__title">
-              <strong>{office.office_name}</strong><span className="department-performance__code">{office.office_code}</span>
-              {office.bottleneck.recurring ? <StatusPill tone="warn">Recurring bottleneck</StatusPill> : null}
+            <div className="department-performance__summary">
+              <div className="department-performance__title">
+                <strong>{office.office_name}</strong><span className="department-performance__code">{office.office_code}</span>
+                {office.bottleneck.recurring ? <StatusPill tone="warn">Recurring bottleneck</StatusPill> : null}
+              </div>
+              <p className="muted">{visitsLine(office.totals)}</p>
+              <p className="muted">{trendLabel(office.trend)}</p>
             </div>
-            <p className="muted">{visitsLine(office.totals)}</p>
-            <p className="muted">{trendLabel(office.trend)}</p>
-            <div className="department-performance__bars" aria-hidden="true">
-              {office.months.map(month => <span key={month.month} className="department-performance__bar" title={`${monthLabel(month.month)}: ${month.avg_hours == null ? 'no forwarded folders' : formatHours(month.avg_hours)}, ${month.late} of ${month.visits} visits late`}>
-                <i className={month.slow ? 'is-slow' : undefined} style={{ height: `${month.avg_hours == null ? 0 : Math.max(6, Math.round(Number(month.avg_hours) / scale * 100))}%` }} />
-                <small>{monthLabel(month.month, 'short')}</small>
-              </span>)}
-            </div>
+            <MonthBars office={office} scale={scale} limit={limit} />
             <details>
               <summary>Month by month</summary>
               <div className="department-performance__scroll"><table>

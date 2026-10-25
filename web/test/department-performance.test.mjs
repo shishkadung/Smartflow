@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import React from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createServer } from 'vite'
-import { formatHours, monthLabel, sortPerformanceOffices, trendLabel } from '../src/report-metrics.js'
+import { barFraction, barValueLabel, formatHours, monthLabel, sortPerformanceOffices, trendLabel } from '../src/report-metrics.js'
 
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
 after(() => server.close())
@@ -48,6 +48,76 @@ test('offices are listed slowest first and offices without a forwarded folder la
   const sorted = sortPerformanceOffices([{ office_code: 'HR', totals: { avg_hours: null } }, { office_code: 'ENG', totals: { avg_hours: 12.5 } }, { office_code: 'TRE', totals: { avg_hours: 61.4 } }, { office_code: 'ACC', totals: { avg_hours: 12.5 } }])
   assert.deepEqual(sorted.map(item => item.office_code), ['TRE', 'ACC', 'ENG', 'HR'])
   assert.deepEqual(sortPerformanceOffices(null), [])
+})
+
+test('an office with a recurring bottleneck is listed first, then slowest first', () => {
+  const sorted = sortPerformanceOffices([
+    { office_code: 'BUD', totals: { avg_hours: 28.7 }, bottleneck: { recurring: false } },
+    { office_code: 'ACC', totals: { avg_hours: 21.1 }, bottleneck: { recurring: true } },
+    { office_code: 'TRE', totals: { avg_hours: 39.1 }, bottleneck: { recurring: true } },
+    { office_code: 'HR', totals: { avg_hours: null }, bottleneck: { recurring: false } },
+    { office_code: 'MAY', totals: { avg_hours: null } },
+  ])
+  assert.deepEqual(sorted.map(item => item.office_code), ['TRE', 'ACC', 'BUD', 'HR', 'MAY'])
+})
+
+test('bar numbers and heights are honest about small, empty and very tall months', () => {
+  assert.equal(barValueLabel(5.94), '5.9')
+  assert.equal(barValueLabel(6), '6')
+  assert.equal(barValueLabel(0), '0')
+  assert.equal(barValueLabel(22.4), '22')
+  assert.equal(barValueLabel(62.5), '63')
+  assert.equal(barValueLabel(null), '')
+  assert.equal(barValueLabel(undefined), '')
+  assert.equal(barFraction(null, 48), 0)
+  assert.equal(barFraction(24, 48), 0.5)
+  assert.equal(barFraction(0.5, 48), 0.06)
+  assert.equal(barFraction(96, 48), 1)
+  assert.equal(barFraction(10, 0), 0)
+})
+
+test('every bar carries its number, and months without a forwarded folder stay empty', () => {
+  const html = render({ data })
+  const heroes = html.match(/<b class="is-slow" style="--v:[^"]+">(\d+)<\/b>/g) || []
+  assert.deepEqual(heroes.map(item => item.replace(/<[^>]+>/g, '')), ['55', '62', '70'], 'slow months of the bottleneck show their hours')
+  assert.match(html, /<b style="--v:[0-9.]+">12<\/b>/, 'a normal month shows its hours without the slow colour')
+  assert.match(html, /<b style="--v:[0-9.]+">13<\/b>/)
+  assert.equal((html.match(/<b[ >]/g) || []).length, 6, 'the office without forwarded folders prints no numbers')
+  assert.match(html, /<small>May<\/small>/)
+})
+
+test('the bars describe themselves for assistive technology', () => {
+  const html = render({ data })
+  assert.match(html, /role="img" aria-label="Average hours per month\. May 2026: 55 h \(2\.3 days\), slow; June 2026: 62 h \(2\.6 days\), slow; July 2026: 70 h \(2\.9 days\), slow\."/)
+  assert.match(html, /aria-label="Average hours per month\. May 2026: no forwarded folders; June 2026: no forwarded folders/)
+})
+
+test('the default desk limit is a dashed line, scales the bars with it and is explained once', () => {
+  const html = render({ data: { ...data, rules: { ...data.rules, default_desk_limit_hours: 48 } } })
+  assert.equal((html.match(/department-performance__limit/g) || []).length, 3, 'one line for each of the three offices')
+  assert.match(html, /<span class="department-performance__limit"><em>48 h<\/em><\/span>/)
+  assert.match(html, /class="department-performance__bars has-limit"[^>]*--limit:0\.685714/, 'the line sits at 48 of the 70 h scale')
+  assert.match(html, /The dashed line is the 48 h default desk limit; some folder types have their own limit/)
+  assert.match(html, /The dashed line is the 48 h default desk limit\./, 'the bars also say so for screen readers')
+  assert.match(html, /<i class="is-slow" style="--v:1"><\/i>/, 'the tallest month fills the plot')
+  assert.match(html, /<i style="--v:0\.1714/, '12 h of a 70 h scale')
+  assert.doesNotMatch(html, /NaN|undefined|null/)
+})
+
+test('a response without the desk limit draws no line and no limit wording', () => {
+  const html = render({ data })
+  assert.doesNotMatch(html, /department-performance__limit|has-limit|dashed line|default desk limit/)
+  assert.match(html, /at least 25% of its visits ran past their limit/)
+})
+
+test('each office keeps its figures and its bars as separate parts so the desktop can place them side by side', () => {
+  const html = render({ data })
+  const first = html.slice(html.indexOf('<li class="department-performance__row">'))
+  const summary = first.indexOf('department-performance__summary')
+  const bars = first.indexOf('department-performance__bars')
+  const details = first.indexOf('<details>')
+  assert.ok(summary > -1 && summary < bars && bars < details, 'figures, then bars, then the month table')
+  assert.match(first, /<div class="department-performance__summary"><div class="department-performance__title"><strong>Treasury Office<\/strong>/)
 })
 
 test('the view shows the window, the recurring bottleneck, each office and a month by month table', () => {
