@@ -191,6 +191,7 @@ export default function AdminReportsPage() {
       {exportError ? <div className="error" role="alert">Export could not be prepared. {exportError} The loaded report remains available.</div> : null}
       {data ? <p className="muted">Generated {data.generated_at} ({data.timezone}) · {data.scope} · Prepared by {data.prepared_by}</p> : null}
       {data?.outstanding_transfers != null ? <p className="muted">{data.outstanding_transfers} outstanding transfers at cutoff · {data.carried_forward_transfers ?? '—'} sent before this period</p> : null}
+      <ReportFlowMetrics data={data} />
       <ReportRegister view={view} onChange={changeView} offices={data?.office_totals || []} revision={revision} enabled={!error && !!data} asOf={data?.as_of || data?.period_end} movementWatermark={data?.movement_watermark} correctionWatermark={data?.correction_watermark} />
       <ReportOfficeTotals data={data} loading={loading} periodNoun={periodNoun} />
       {isAccounting ? (
@@ -216,9 +217,27 @@ export default function AdminReportsPage() {
   )
 }
 
+export function formatHours(hours) {
+  const value = Number(hours)
+  return value >= 48 ? `${value} h (${(value / 24).toFixed(1)} days)` : `${value} h`
+}
+
+/** Completion rate and average time at an office; hidden for an older API that does not send them. */
+export function ReportFlowMetrics({ data }) {
+  const completion = data?.completion
+  const time = data?.processing_time
+  if (!completion && !time) return null
+  return <div className="card sf-life__panel report-flow-metrics">
+    <h3 className="section-title">Completion and time at offices</h3>
+    {completion ? <div className="list-item list-item--static"><strong>Trail completion</strong><span className="muted">{completion.percent == null ? 'No folders with activity in this period' : `${completion.completed} of ${completion.of} folders · ${completion.percent}%`}</span></div> : null}
+    {time ? <div className="list-item list-item--static"><strong>Average time at an office</strong><span className="muted">{time.average_hours == null ? 'No folders were forwarded in this period' : `${formatHours(time.average_hours)} before forwarding · ${time.forwarded_stays} forwarded, ${time.open_stays} still at the office`}</span></div> : null}
+    <details className="report-basis"><summary>How these are counted</summary>{completion?.basis ? <p>{completion.basis}</p> : null}{time?.basis ? <p>{time.basis}</p> : null}</details>
+  </div>
+}
+
 export function ReportOfficeTotals({ data, loading, periodNoun }) {
   return <div className="card sf-life__panel">
     <h3 className="section-title">By office</h3>
-    {loading && !data ? <LifeSkeleton rows={3} label="Loading office totals" /> : !data ? <p className="muted">Office totals are unavailable until the report loads.</p> : (data.office_totals || []).length === 0 ? <LifeEmpty icon="coa">{`No office totals for this ${periodNoun}.`}</LifeEmpty> : <><p className="muted">Distinct folders with activity at each office. A folder can appear under several offices; these counts do not mean completed work.</p>{data.office_totals.map(row => <div key={row.office_id || row.office_code} className="list-item list-item--static"><strong>{row.office_name || row.office_code}</strong><span className="muted">{row.docs_processed ?? row.processed ?? '—'} folders with activity</span></div>)}</>}
+    {loading && !data ? <LifeSkeleton rows={3} label="Loading office totals" /> : !data ? <p className="muted">Office totals are unavailable until the report loads.</p> : (data.office_totals || []).length === 0 ? <LifeEmpty icon="coa">{`No office totals for this ${periodNoun}.`}</LifeEmpty> : <><p className="muted">Distinct folders with activity at each office. A folder can appear under several offices; these counts do not mean completed work.</p>{data.office_totals.map(row => <div key={row.office_id || row.office_code} className="list-item list-item--static"><strong>{row.office_name || row.office_code}</strong><span className="muted">{row.docs_processed ?? row.processed ?? '—'} folders with activity{row.forwarded_stays == null ? '' : row.avg_hours_at_office == null ? ' · none forwarded' : ` · avg ${formatHours(row.avg_hours_at_office)} before forwarding`}</span></div>)}</>}
   </div>
 }

@@ -12,6 +12,7 @@ require __DIR__ . '/config.php';
 require_once __DIR__ . '/report-period-helper.php';
 require_once __DIR__ . '/report-export-helper.php';
 require_once __DIR__ . '/report-register-helper.php';
+require_once __DIR__ . '/report-metrics-helper.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
     json_response([
@@ -58,6 +59,9 @@ $year = $range['year'];
 $monthStart = $range['start'];
 $monthEnd = smartflow_report_as_of($_GET, $range);
 $periodLabel = $range['label'];
+
+// Schema checks run before the snapshot transaction because DDL commits implicitly.
+smartflow_ensure_documents_filed_columns($pdo);
 
 // Total documents that had any activity this month.
 $pdo->exec('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ');
@@ -108,6 +112,10 @@ foreach ($docIds as $docId) {
     };
 }
 
+// Completion at the cutoff for the same folders (additive: the classification above is unchanged).
+$completedFolders = smartflow_report_completed_count($pdo, $docIds, $monthEnd, $movementWatermark);
+$completionPercent = $totalDocs > 0 ? round($completedFolders * 100 / $totalDocs, 1) : null;
+
 // Allocate rounding remainders so non-empty reports always total 100%.
 $counts = [$onTime, $unforwarded, $delayed];
 $percentages = [0, 0, 0];
@@ -139,14 +147,20 @@ $stmtOffices = $pdo->prepare('
     ORDER BY o.name ASC
 ');
 $stmtOffices->execute([':start' => $monthStart, ':end' => $monthEnd, ':watermark' => $movementWatermark]);
-$offices = array_map(function ($r) {
+$officeStays = smartflow_report_office_stays($pdo, $monthStart, $monthEnd, $movementWatermark);
+$offices = array_map(function ($r) use ($officeStays) {
+    $stay = $officeStays[(int)$r['id']] ?? ['closed' => 0, 'open' => 0, 'seconds' => 0.0];
     return [
         'office_id'      => (int)$r['id'],
         'office_name'    => $r['name'],
         'office_code'    => $r['code'],
         'docs_processed' => (int)$r['docs_processed'],
+        'forwarded_stays' => $stay['closed'],
+        'open_stays'      => $stay['open'],
+        'avg_hours_at_office' => smartflow_report_average_hours($stay['closed'], $stay['seconds']),
     ];
 }, $stmtOffices->fetchAll());
+$closedStaysTotal = array_sum(array_column($officeStays, 'closed'));
 
 // Spotlight: the requesting office's headline number.
 $stmtThis = $pdo->prepare('
@@ -213,6 +227,18 @@ $report = [
             'count'   => $delayed,
             'percent' => $percentages[2],
         ],
+    ],
+    'completion' => [
+        'completed' => $completedFolders,
+        'of'        => $totalDocs,
+        'percent'   => $completionPercent,
+        'basis'     => smartflow_report_completion_note(),
+    ],
+    'processing_time' => [
+        'average_hours'   => smartflow_report_average_hours($closedStaysTotal, (float)array_sum(array_column($officeStays, 'seconds'))),
+        'forwarded_stays' => $closedStaysTotal,
+        'open_stays'      => array_sum(array_column($officeStays, 'open')),
+        'basis'           => smartflow_report_processing_note(),
     ],
     'office_totals' => $offices,
     ...$registers,
