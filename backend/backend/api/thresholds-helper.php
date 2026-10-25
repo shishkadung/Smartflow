@@ -3,8 +3,34 @@
 
 declare(strict_types=1);
 
+/** Per-request memory for one connection: schema checks and threshold rules are read once, not once per queue row. */
+function smartflow_request_memory(PDO $pdo): ArrayObject
+{
+    static $memory = null;
+    $memory ??= new WeakMap();
+    if (!isset($memory[$pdo])) {
+        $memory[$pdo] = new ArrayObject();
+    }
+    return $memory[$pdo];
+}
+
+/** Drop remembered rules after thresholds are written so later reads in the same request see the saved values. */
+function smartflow_forget_threshold_cache(PDO $pdo): void
+{
+    $memory = smartflow_request_memory($pdo);
+    foreach (array_keys($memory->getArrayCopy()) as $key) {
+        if (str_starts_with((string)$key, 'threshold:')) {
+            unset($memory[$key]);
+        }
+    }
+}
+
 function smartflow_ensure_processing_thresholds(PDO $pdo): void
 {
+    $memory = smartflow_request_memory($pdo);
+    if (isset($memory['thresholds_ready'])) {
+        return;
+    }
     $pdo->exec("
         CREATE TABLE IF NOT EXISTS processing_thresholds (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -48,6 +74,7 @@ function smartflow_ensure_processing_thresholds(PDO $pdo): void
             ]);
         }
     }
+    $memory['thresholds_ready'] = true;
 }
 
 function smartflow_threshold_defaults(): array
@@ -59,6 +86,12 @@ function smartflow_get_threshold(PDO $pdo, int $officeId, string $documentType):
 {
     smartflow_ensure_processing_thresholds($pdo);
 
+    $memory = smartflow_request_memory($pdo);
+    $key = 'threshold:' . $officeId . ':' . $documentType;
+    if (isset($memory[$key])) {
+        return $memory[$key];
+    }
+
     $stmt = $pdo->prepare('
         SELECT max_hours, out_unconfirmed_hours
         FROM processing_thresholds
@@ -67,14 +100,12 @@ function smartflow_get_threshold(PDO $pdo, int $officeId, string $documentType):
     ');
     $stmt->execute([':oid' => $officeId, ':type' => $documentType]);
     $row = $stmt->fetch();
-    if (!$row) {
-        return smartflow_threshold_defaults();
-    }
+    $threshold = $row
+        ? ['max_hours' => (int)$row['max_hours'], 'out_unconfirmed_hours' => (int)$row['out_unconfirmed_hours']]
+        : smartflow_threshold_defaults();
+    $memory[$key] = $threshold;
 
-    return [
-        'max_hours'             => (int)$row['max_hours'],
-        'out_unconfirmed_hours' => (int)$row['out_unconfirmed_hours'],
-    ];
+    return $threshold;
 }
 
 function smartflow_due_at(string $scannedAt, int $hours): string
@@ -106,6 +137,10 @@ function smartflow_hours_until_due(string $dueAt): int
 
 function smartflow_ensure_documents_due_column(PDO $pdo): void
 {
+    $memory = smartflow_request_memory($pdo);
+    if (isset($memory['due_column_ready'])) {
+        return;
+    }
     $stmt = $pdo->query("
         SELECT COUNT(*) FROM information_schema.COLUMNS
         WHERE TABLE_SCHEMA = DATABASE()
@@ -115,6 +150,7 @@ function smartflow_ensure_documents_due_column(PDO $pdo): void
     if ((int)$stmt->fetchColumn() === 0) {
         $pdo->exec('ALTER TABLE documents ADD COLUMN due_at DATETIME NULL DEFAULT NULL AFTER description');
     }
+    $memory['due_column_ready'] = true;
 }
 
 /**

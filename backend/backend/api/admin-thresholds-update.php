@@ -80,6 +80,7 @@ $stmt->execute([
     ':maxh' => $maxHours,
     ':outh' => $outHours,
 ]);
+smartflow_forget_threshold_cache($pdo);
 
 smartflow_audit_action(
     $pdo,
