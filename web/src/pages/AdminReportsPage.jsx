@@ -6,6 +6,8 @@ import { CoaSummaryHero, ExceptionCard, LifeEmpty, LifeSkeleton, Overview, Segme
 import { reportPeriodBounds } from '../tracking.js'
 import { reportPeriodQuery, reportViewFromSearch, reportViewParams } from '../report-navigation.js'
 import ReportRegister from '../components/ReportRegister.jsx'
+import DepartmentPerformance from '../components/DepartmentPerformance.jsx'
+import { formatHours } from '../report-metrics.js'
 
 function pct(bucket) {
   if (bucket == null) return '—'
@@ -194,6 +196,7 @@ export default function AdminReportsPage() {
       <ReportFlowMetrics data={data} />
       <ReportRegister view={view} onChange={changeView} offices={data?.office_totals || []} revision={revision} enabled={!error && !!data} asOf={data?.as_of || data?.period_end} movementWatermark={data?.movement_watermark} correctionWatermark={data?.correction_watermark} />
       <ReportOfficeTotals data={data} loading={loading} periodNoun={periodNoun} />
+      <DepartmentPerformance />
       {isAccounting ? (
         <div className="card sf-life__panel">
           <h3 className="section-title">Audit exceptions · {periodLabel}</h3>
@@ -215,11 +218,6 @@ export default function AdminReportsPage() {
       ) : null}
     </div>
   )
-}
-
-export function formatHours(hours) {
-  const value = Number(hours)
-  return value >= 48 ? `${value} h (${(value / 24).toFixed(1)} days)` : `${value} h`
 }
 
 /** Completion rate and average time at an office; hidden for an older API that does not send them. */

@@ -215,6 +215,7 @@ function smartflowClient(api, apiUpload, assertSession = () => {}) { return {
   reportsSummaryAnnual: (officeId, year) =>
     api('reports-summary.php', { query: { office_id: officeId, period: 'year', year } }),
   reportsRegister: (filters = {}) => api('reports-register.php', { query: filters }),
+  departmentPerformance: (months = 6) => api('department-performance.php', { query: { months } }),
 
   documentRequestsList: (view, status, filters = {}) =>
     api('document-requests-list.php', { query: { view, ...(status ? { status } : {}), ...filters } }),

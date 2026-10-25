@@ -507,6 +507,35 @@ window.fetch = async (url, options = {}) => {
     if (parsed.searchParams.get('format') === 'print') return new Response(reportPrint, {headers:{'Content-Type':'text/html;charset=utf-8'}})
     data = emptyReview ? {...report, as_of:report.generated_at, outstanding_transfers:0, carried_forward_transfers:0, totals:{documents_in_period:0}, completion:{completed:0, of:0, percent:null, basis:report.completion.basis}, processing_time:{average_hours:null, forwarded_stays:0, open_stays:0, basis:report.processing_time.basis}, office_totals:[], compliance:{on_time:{count:0,percent:0},unforwarded:{count:0,percent:0},delayed:{count:0,percent:0}}} : {...report, as_of:report.generated_at, period_end:report.generated_at, outstanding_transfers:8, carried_forward_transfers:2}
   }
+  else if (endpoint === 'department-performance.php') {
+    const count = Number(parsed.searchParams.get('months')) || 6
+    const monthKey = back => { const d = new Date(2026, 9 - back, 1); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` }
+    const list = Array.from({ length: count }, (_, i) => monthKey(count - 1 - i))
+    // sample profile per office: visits, average hours and late visits for the six most recent months
+    const profile = { ENG: [[8, 9, 7, 9, 8, 10], [12.5, 13.1, 11.8, 12.9, 12.2, 13.4], [0, 1, 0, 1, 1, 1]], BUD: [[9, 8, 10, 9, 7, 8], [18.2, 21.4, 25.9, 31.2, 36.8, 41.5], [1, 1, 2, 2, 3, 3]],
+      ACC: [[14, 15, 13, 16, 15, 17], [20.1, 22.4, 19.8, 21.3, 20.7, 22], [3, 4, 3, 4, 5, 6]], TRE: [[6, 7, 5, 8, 6, 7], [9.4, 8.8, 9.9, 8.1, 8.6, 7.9], [0, 0, 1, 0, 0, 0]], MAY: [[4, 3, 5, 4, 3, 4], [5.2, 6.1, 4.8, 5.5, 5.9, 5.3], [0, 0, 0, 0, 0, 0]] }
+    const cell = (visits, avg, late) => ({ visits, forwarded: visits, open: 0, completed: 0, avg_hours: visits ? avg : null, late, late_percent: visits ? Math.round(late * 1000 / visits) / 10 : null, slow: visits >= 3 && late * 4 >= visits })
+    const rowsFor = ([code, name, id]) => {
+      const [v, a, l] = emptyReview ? [[], [], []] : profile[code]
+      const months = list.map((month, i) => { const k = i - (count - 6); return { month, ...(k >= 0 && v[k] ? cell(v[k], a[k], l[k]) : cell(0, 0, 0)) } })
+      const visits = months.reduce((n, m) => n + m.visits, 0); const late = months.reduce((n, m) => n + m.late, 0)
+      const avg = visits ? Math.round(months.reduce((n, m) => n + m.visits * (m.avg_hours || 0), 0) / visits * 10) / 10 : null
+      const half = Math.floor(count / 2); const mean = part => { const n = part.reduce((s, m) => s + m.visits, 0); return n ? part.reduce((s, m) => s + m.visits * (m.avg_hours || 0), 0) / n : null }
+      const before = mean(months.slice(0, half)); const after = mean(months.slice(half)); const change = before != null && after != null ? Math.round((after - before) * 10) / 10 : null
+      const direction = change == null ? 'insufficient' : Math.abs(change) >= 2 && Math.abs(change) * 100 >= before * 10 ? (change > 0 ? 'slower' : 'faster') : 'steady'
+      const slow = months.filter(m => m.slow).map(m => m.month)
+      return { office_id: id, office_code: code, office_name: name, months, totals: { visits, forwarded: visits, open: 0, completed: 0, avg_hours: avg, late, late_percent: visits ? Math.round(late * 1000 / visits) / 10 : null },
+        trend: { direction, earlier_avg_hours: before == null ? null : Math.round(before * 10) / 10, later_avg_hours: after == null ? null : Math.round(after * 10) / 10, change_hours: change },
+        bottleneck: { recurring: slow.length >= 3, slow_months: slow.length, active_months: months.filter(m => m.visits >= 3).length, slow_month_list: slow }, types: visits ? [{ type: 'Disbursement Voucher', visits, forwarded: visits, open: 0, completed: 0, avg_hours: avg, late, late_percent: Math.round(late * 1000 / visits) / 10 }] : [] }
+    }
+    const rows = offices.map(office => rowsFor([office.code, office.name, office.id]))
+    const total = rows.reduce((n, r) => n + r.totals.visits, 0)
+    data = { success: true, generated_at: report.generated_at, timezone: 'Asia/Manila', window: { months: count, start_month: list[0], end_month: list[count - 1], list, cutoff: report.generated_at },
+      rules: { min_visits_per_month: 3, slow_month_late_percent: 25, recurring_slow_months: 3, trend_min_forwarded: 3, trend_min_change_hours: 2, trend_min_change_percent: 10, default_desk_limit_hours: 48 },
+      basis: 'A visit is one IN at an office. Each month is measured at its own end. Average hours counts forwarded visits only. A month is slow when it has at least 3 visits and at least 25% of them were late.',
+      offices: rows, municipal: { months: list.map((month, i) => ({ month, ...cell(rows.reduce((n, r) => n + r.months[i].visits, 0), 10, rows.reduce((n, r) => n + r.months[i].late, 0)) })), totals: { visits: total, forwarded: total, open: 0, completed: 0, avg_hours: total ? 15.3 : null, late: rows.reduce((n, r) => n + r.totals.late, 0), late_percent: total ? Math.round(rows.reduce((n, r) => n + r.totals.late, 0) * 1000 / total) / 10 : null }, trend: { direction: 'steady', earlier_avg_hours: 15, later_avg_hours: 15.6, change_hours: 0.6 } },
+      bottlenecks: rows.filter(r => r.bottleneck.recurring).map(r => ({ office_id: r.office_id, office_code: r.office_code, office_name: r.office_name, slow_months: r.bottleneck.slow_months, active_months: r.bottleneck.active_months, late_percent: r.totals.late_percent })) }
+  }
   else if (endpoint === 'reports-register.php') {
     const scope = parsed.searchParams.get('scope') || 'activity'
     const classification = parsed.searchParams.get('classification') || 'all'

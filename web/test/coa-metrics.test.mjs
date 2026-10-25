@@ -6,7 +6,8 @@ import { createServer } from 'vite'
 
 const server = await createServer({ server: { middlewareMode: true, hmr: false, ws: false }, appType: 'custom' })
 after(() => server.close())
-const { ReportFlowMetrics, ReportOfficeTotals, formatHours } = await server.ssrLoadModule('/src/pages/AdminReportsPage.jsx')
+const { ReportFlowMetrics, ReportOfficeTotals } = await server.ssrLoadModule('/src/pages/AdminReportsPage.jsx')
+const { formatHours } = await server.ssrLoadModule('/src/report-metrics.js')
 const render = (Component, props) => renderToStaticMarkup(React.createElement(Component, props))
 
 const completion = { completed: 4, of: 12, percent: 33.3, basis: 'Completion counts folders whose trail was finished at the cutoff. It measures the physical trail, not financial approval or payment.' }
