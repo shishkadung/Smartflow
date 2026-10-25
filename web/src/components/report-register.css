@@ -1,0 +1,45 @@
+.app-shell .report-register { min-width: 0; }
+.app-shell .report-register__heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.app-shell #custody-register-heading { scroll-margin-top: 80px; }
+.app-shell .report-register__explanation { max-width: 80ch; margin: 12px 0; }
+.app-shell .report-register__controls { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin: 16px 0; }
+.app-shell .report-register__controls .field { margin: 0; flex: 1 1 180px; min-width: 0; }
+.app-shell .report-register__controls .report-register__search { flex: 2 1 240px; }
+.app-shell .report-register__controls :is(input, select) { width: 100%; min-width: 0; min-height: 44px; }
+.app-shell .report-register__controls button { min-height: 44px; }
+.app-shell .report-register__table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.app-shell .report-register__table :is(th, td) { padding: 14px 12px; text-align: left; vertical-align: top; overflow-wrap: anywhere; border-bottom: 1px solid var(--sf-border, #dce3ec); }
+.app-shell .report-register__table th { color: var(--sf-muted, #526176); font-size: 13px; font-weight: 600; }
+.app-shell .report-register__table th:first-child { width: 29%; }
+.app-shell .report-register__table th:nth-child(2) { width: 26%; }
+.app-shell .report-register__table th:last-child { width: 15%; }
+.app-shell .report-register__table td > :is(strong, span, a) { display: block; margin-bottom: 6px; }
+.app-shell .report-register__table details { margin-top: 8px; font-size: 13px; }
+.app-shell .report-register__table summary { cursor: pointer; color: var(--sf-muted, #526176); }
+.app-shell .report-register__table details p { margin: 8px 0; }
+.app-shell .report-register__carry { font-size: 12px; color: var(--sf-muted, #526176); }
+.app-shell .report-register__cutoff { font-size: 13px; }
+.app-shell .report-register__paging { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 16px; }
+.app-shell .report-register__paging > div { display: flex; gap: 8px; }
+.app-shell .report-classification { cursor: pointer; text-align: left; font: inherit; min-width: 0; }
+.app-shell .report-classification[aria-pressed="true"] { outline: 2px solid #1d4ed8; outline-offset: 2px; }
+.app-shell .report-classification:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 3px; }
+.app-shell .report-classification small { display: block; font-size: 13px; font-weight: 400; margin-top: 3px; }
+.app-shell .report-basis { margin: 14px 0 0; }
+.app-shell .report-basis summary { cursor: pointer; color: var(--sf-muted, #526176); }
+.app-shell .report-basis p { max-width: 85ch; }
+@media (max-width: 1000px) {
+  .app-shell .report-register__table :is(thead, tbody, tr, th, td) { display: block; }
+  .app-shell .report-register__table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .app-shell .report-register__table tr { padding: 14px 0; border-bottom: 1px solid var(--sf-border, #dce3ec); }
+  .app-shell .report-register__table td { width: auto; border: 0; padding: 6px 0; }
+  .app-shell .report-register__table td::before { content: attr(data-label); display: block; color: var(--sf-muted, #526176); font-size: 12px; margin-bottom: 5px; }
+  .app-shell .report-register__table td:last-child { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .app-shell .report-register__table td:last-child::before { width: 100%; }
+  .app-shell .report-register__table td:last-child a { display: inline-flex; align-items: center; min-height: 44px; margin: 0; }
+}
+@media (max-width: 767px) {
+  .app-shell .report-register__controls { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .app-shell .report-register__controls > label:not(.report-register__search) { grid-column: 1 / -1; }
+  .app-shell .report-register .segmented { max-width: 100%; flex-wrap: wrap; }
+}

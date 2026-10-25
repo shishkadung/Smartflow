@@ -1,0 +1,42 @@
+/* Phone list composition; desktop keeps its existing tables and workspaces.
+   Requests overrides include .main so its later lazy-loaded page CSS cannot undo them. */
+@media (max-width: 767px) {
+  .app-shell .users-page .admin-directory .table-wrap { overflow: visible; }
+  .app-shell .users-page .admin-directory .data-table { display: block; width: 100%; min-width: 0; }
+  .app-shell .users-page .admin-directory .data-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .app-shell .users-page .admin-directory .data-table tbody { display: block; }
+  .app-shell .users-page .admin-directory .data-table tbody > tr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; padding: 16px 0; border-bottom: 1px solid var(--sf-border); }
+  .app-shell .users-page .admin-directory .data-table tbody > tr:last-child { padding-bottom: 0; border-bottom: 0; }
+  .app-shell .users-page .admin-directory .data-table td { display: block; min-width: 0; padding: 0; border: 0; font-size: 14px; overflow-wrap: anywhere; }
+  .app-shell .users-page .admin-directory .data-table td:first-child { grid-column: 1 / -1; }
+  .app-shell .users-page .admin-directory .data-table td:nth-child(4) { align-self: end; }
+  .app-shell .users-page .admin-directory .data-table td:last-child { display: flex; align-items: end; justify-content: flex-end; }
+  .app-shell .users-page .admin-directory .phone-user-field-label { position: static; display: block; width: auto; height: auto; margin: 0 0 3px; overflow: visible; clip: auto; clip-path: none; white-space: normal; color: var(--sf-muted); font-size: 12px; }
+  .app-shell .users-page .admin-directory .user-account { gap: 4px; }
+  .app-shell .users-page .admin-directory .user-account__name { font-size: 15px; line-height: 1.4; }
+  .app-shell .users-page .admin-directory .user-account__meta { font-size: 13px; line-height: 1.5; }
+  .app-shell .users-page .admin-directory .data-table td > :is(.btn-secondary, .btn-ghost) { min-height: 44px; min-width: 0; margin: 0; }
+  .app-shell .users-page .admin-directory .data-table td:nth-child(4) > button { padding-inline: 0; }
+
+  .app-shell .main .requests-page.requests-page--clear { gap: 12px; }
+  .app-shell .main .requests-page.requests-page--clear .request-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: end; gap: 8px; padding-bottom: 12px; }
+  .app-shell .main .requests-page.requests-page--clear .request-toolbar__create { grid-column: 1 / -1; width: 100%; min-width: 0; }
+  .app-shell .main .requests-page.requests-page--clear .request-toolbar > .segmented { display: flex; flex-wrap: nowrap; width: 100%; min-width: 0; gap: 2px; padding: 0; }
+  .app-shell .main .requests-page.requests-page--clear .request-toolbar > .segmented button { flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 8px; font-size: 13px; line-height: 1.3; white-space: nowrap; }
+  .app-shell .main .requests-page.requests-page--clear .request-status-filter { display: block; width: 100%; min-width: 0; margin: 0; }
+  .app-shell .main .requests-page.requests-page--clear .request-status-filter__label,
+  .app-shell .main .requests-page.requests-page--clear .request-search label { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .app-shell .main .requests-page.requests-page--clear .request-status-filter select { width: 100%; min-width: 0; min-height: 44px; margin: 0; padding: 9px 24px 9px 8px; font-size: 16px; }
+  .app-shell .main .requests-page.requests-page--clear .request-view-explanation { font-size: 13px; line-height: 1.45; }
+  .app-shell .main .requests-page.requests-page--clear .request-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
+  .app-shell .main .requests-page.requests-page--clear .request-search > .field { min-width: 0; gap: 0; }
+  .app-shell .main .requests-page.requests-page--clear .request-search input { min-width: 0; min-height: 44px; font-size: 16px; }
+  .app-shell .main .requests-page.requests-page--clear .request-search > button { min-width: 0; padding-inline: 12px; }
+  .app-shell .main .requests-page.requests-page--clear .request-search > .btn-ghost { grid-column: 1 / -1; justify-self: start; }
+  .app-shell .main .requests-page.requests-page--clear .request-workspace__list-heading { min-height: 0; padding: 12px 14px; }
+  .app-shell .main .requests-page.requests-page--clear .request-workspace__list .request-card__open { padding: 14px; }
+  .app-shell .main .requests-page.requests-page--clear .request-card__top { flex-wrap: wrap; gap: 6px; }
+  .app-shell .main .requests-page.requests-page--clear .request-workspace__list-body > .row-btns { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; padding: 12px 14px; }
+  .app-shell .main .requests-page.requests-page--clear .request-workspace__list-body > .row-btns > button { min-width: 0; padding-inline: 8px; font-size: 13px; }
+  .app-shell .main .requests-page.requests-page--clear .request-workspace__list-body > .row-btns > .muted { font-size: 12px; text-align: center; }
+}

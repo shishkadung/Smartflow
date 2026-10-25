@@ -1,0 +1,84 @@
+﻿"SmartFlow custody support summary"
+Period,"October 2026"
+From,"2026-10-01 00:00:00"
+Through,"2026-10-03 14:00:00"
+Scope,"Municipal system (all offices)"
+"Prepared by","Sample Accountant · Accounting Office"
+"Generated at","2026-10-03 14:00:00"
+Timezone,Asia/Manila
+Source,"SmartFlow custody scan logs"
+"Documents in period",40
+
+"Custody classification",Documents,Percent
+"On time",30,75
+Unforwarded,6,15
+Delayed,4,10
+
+Office,Code,"Distinct documents processed"
+"Engineering Office",ENG,40
+"Budget Office",BUD,30
+"Accounting Office",ACC,24
+"Treasury Office",TRE,16
+"Mayor’s Office",MAY,8
+
+"Office counts can overlap when a document passes through several offices."
+"Classification basis","Receipt classifications use 72 calendar hours; they do not measure desk-deadline compliance."
+"Outstanding transfers at cutoff",8
+"Carried forward from before the period",2
+"Activity and outstanding registers overlap; do not add their counts. Outstanding includes earlier transfers with no activity in the selected period."
+"Custody evidence uses the report cutoff and recorded event watermarks. Folder titles and personnel/office names reflect current records."
+
+"Activity register"
+"Folder ID",Title,Type,"Receipt classification","Custody status","Current / sending office",Destination,"Latest movement at","Recorded by","Last received at","Received by","Last sent at","Sent by","Receipt wait (hours)","Movements through cutoff","Carried forward"
+DOC-2026-000001,"Sample custody folder 1","Others: Supporting schedules","On time / in custody","In office","Engineering Office (ENG)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000002,"Sample custody folder 2","Disbursement Voucher","On time / in custody","In office","Budget Office (BUD)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000003,"Sample custody folder 3","Others: Supporting schedules","On time / in custody","In office","Accounting Office (ACC)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000004,"Sample custody folder 4","Disbursement Voucher","On time / in custody","In office","Treasury Office (TRE)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000005,"Sample custody folder 5","Others: Supporting schedules","On time / in custody","In office","Mayor’s Office (MAY)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000006,"Sample custody folder 6","Disbursement Voucher","On time / in custody","In office","Engineering Office (ENG)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000007,"Sample custody folder 7","Others: Supporting schedules","On time / in custody","In office","Budget Office (BUD)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000008,"Sample custody folder 8","Disbursement Voucher","On time / in custody","In office","Accounting Office (ACC)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000009,"Sample custody folder 9","Others: Supporting schedules","On time / in custody","In office","Treasury Office (TRE)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000010,"Sample custody folder 10","Disbursement Voucher","On time / in custody","In office","Mayor’s Office (MAY)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000011,"Sample custody folder 11","Others: Supporting schedules","On time / in custody","In office","Engineering Office (ENG)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000012,"Sample custody folder 12","Disbursement Voucher","On time / in custody","In office","Budget Office (BUD)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000013,"Sample custody folder 13","Others: Supporting schedules","On time / in custody","In office","Accounting Office (ACC)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000014,"Sample custody folder 14","Disbursement Voucher","On time / in custody","In office","Treasury Office (TRE)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000015,"Sample custody folder 15","Others: Supporting schedules","On time / in custody","In office","Mayor’s Office (MAY)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000016,"Sample custody folder 16","Disbursement Voucher","On time / in custody","In office","Engineering Office (ENG)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000017,"Sample custody folder 17","Others: Supporting schedules","On time / in custody","In office","Budget Office (BUD)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000018,"Sample custody folder 18","Disbursement Voucher","On time / in custody","In office","Accounting Office (ACC)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000019,"Sample custody folder 19","Others: Supporting schedules","On time / in custody","In office","Treasury Office (TRE)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000020,"Sample custody folder 20","Disbursement Voucher","On time / in custody","In office","Mayor’s Office (MAY)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000021,"Sample custody folder 21","Others: Supporting schedules","On time / in custody","In office","Engineering Office (ENG)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000022,"Sample custody folder 22","Disbursement Voucher","On time / in custody","In office","Budget Office (BUD)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000023,"Sample custody folder 23","Others: Supporting schedules","On time / in custody","In office","Accounting Office (ACC)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000024,"Sample custody folder 24","Disbursement Voucher","On time / in custody","In office","Treasury Office (TRE)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000025,"Sample custody folder 25","Others: Supporting schedules","On time / in custody","In office","Mayor’s Office (MAY)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000026,"Sample custody folder 26","Disbursement Voucher","On time / in custody","In office","Engineering Office (ENG)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000027,"Sample custody folder 27","Others: Supporting schedules","On time / in custody","In office","Budget Office (BUD)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000028,"Sample custody folder 28","Disbursement Voucher","On time / in custody","In office","Accounting Office (ACC)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000029,"Sample custody folder 29","Others: Supporting schedules","On time / in custody","In office","Treasury Office (TRE)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000030,"Sample custody folder 30","Disbursement Voucher","On time / in custody","In office","Mayor’s Office (MAY)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000031,"Sample custody folder 31","Others: Supporting schedules","Awaiting receipt (Unforwarded)","Awaiting receipt","Engineering Office (ENG)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",24,4,No
+DOC-2026-000032,"Sample custody folder 32","Disbursement Voucher","Awaiting receipt (Unforwarded)","Awaiting receipt","Budget Office (BUD)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",24,4,No
+DOC-2026-000033,"Sample custody folder 33","Others: Supporting schedules","Awaiting receipt (Unforwarded)","Awaiting receipt","Accounting Office (ACC)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",24,4,No
+DOC-2026-000034,"Sample custody folder 34","Disbursement Voucher","Awaiting receipt (Unforwarded)","Awaiting receipt","Treasury Office (TRE)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",24,4,No
+DOC-2026-000035,"Sample custody folder 35","Others: Supporting schedules","Awaiting receipt (Unforwarded)","Awaiting receipt","Mayor’s Office (MAY)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",24,4,No
+DOC-2026-000036,"Sample custody folder 36","Disbursement Voucher","Awaiting receipt (Unforwarded)","Awaiting receipt","Engineering Office (ENG)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",24,4,No
+DOC-2026-000037,"Sample custody folder 37","Others: Supporting schedules","Delayed receipt","In office","Budget Office (BUD)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000038,"Sample custody folder 38","Disbursement Voucher","Delayed receipt","In office","Accounting Office (ACC)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000039,"Sample custody folder 39","Others: Supporting schedules","Delayed receipt","In office","Treasury Office (TRE)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+DOC-2026-000040,"Sample custody folder 40","Disbursement Voucher","Delayed receipt","In office","Mayor’s Office (MAY)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",,4,No
+
+"Outstanding transfers at cutoff"
+"Folder ID",Title,Type,"Receipt classification","Custody status","Current / sending office",Destination,"Latest movement at","Recorded by","Last received at","Received by","Last sent at","Sent by","Receipt wait (hours)","Movements through cutoff","Carried forward"
+DOC-2026-000031,"Sample custody folder 31","Others: Supporting schedules","Awaiting receipt (Unforwarded)","Awaiting receipt","Engineering Office (ENG)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",24,4,No
+DOC-2026-000032,"Sample custody folder 32","Disbursement Voucher","Awaiting receipt (Unforwarded)","Awaiting receipt","Budget Office (BUD)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",24,4,No
+DOC-2026-000033,"Sample custody folder 33","Others: Supporting schedules","Awaiting receipt (Unforwarded)","Awaiting receipt","Accounting Office (ACC)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",24,4,No
+DOC-2026-000034,"Sample custody folder 34","Disbursement Voucher","Awaiting receipt (Unforwarded)","Awaiting receipt","Treasury Office (TRE)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",24,4,No
+DOC-2026-000035,"Sample custody folder 35","Others: Supporting schedules","Awaiting receipt (Unforwarded)","Awaiting receipt","Mayor’s Office (MAY)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",24,4,No
+DOC-2026-000036,"Sample custody folder 36","Disbursement Voucher","Awaiting receipt (Unforwarded)","Awaiting receipt","Engineering Office (ENG)","Accounting Office (ACC)","2026-10-02 09:00:00","Sample recording clerk","2026-10-01 08:00:00","Sample receiving clerk","2026-10-02 09:00:00","Sample sending clerk",24,4,No
+DOC-2026-000041,"Sample custody folder 41","Others: Supporting schedules","Awaiting receipt (Unforwarded)","Awaiting receipt","Engineering Office (ENG)","Accounting Office (ACC)","2026-09-28 09:00:00","Sample recording clerk","2026-09-27 08:00:00","Sample receiving clerk","2026-09-28 09:00:00","Sample sending clerk",121,4,Yes
+DOC-2026-000042,"Sample custody folder 42","Disbursement Voucher","Awaiting receipt (Unforwarded)","Awaiting receipt","Budget Office (BUD)","Accounting Office (ACC)","2026-09-28 09:00:00","Sample recording clerk","2026-09-27 08:00:00","Sample receiving clerk","2026-09-28 09:00:00","Sample sending clerk",121,4,Yes
+"Custody support only. Pair with the required financial reports."

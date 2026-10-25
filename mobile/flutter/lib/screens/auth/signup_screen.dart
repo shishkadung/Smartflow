@@ -1,0 +1,830 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+
+import '../../providers/auth_provider.dart';
+import '../../services/api_client.dart';
+import '../../theme/smartflow_theme.dart';
+import '../../widgets/sf_page.dart';
+import '../../widgets/sf_pdf_chrome.dart';
+import '../../widgets/sf_widgets.dart';
+import '../staff/clerk_widgets.dart';
+
+String roleLabel(String r) {
+  switch (r) {
+    case 'head':
+      return 'Head';
+    case 'admin':
+      return 'Accountant / Admin';
+    default:
+      return 'Employee (Clerk)';
+  }
+}
+
+class SignupScreen extends StatefulWidget {
+  const SignupScreen({super.key});
+
+  @override
+  State<SignupScreen> createState() => _SignupScreenState();
+}
+
+class _SignupScreenState extends State<SignupScreen> {
+  int _step = 0;
+  final _name = TextEditingController();
+  final _username = TextEditingController();
+  final _email = TextEditingController();
+  final _pass = TextEditingController();
+  final _confirm = TextEditingController();
+
+  String? _passError;
+  String? _confirmError;
+  bool _obscurePass = true;
+  bool _obscureConfirm = true;
+
+  List<Map<String, dynamic>> _offices = [];
+  int? _officeId;
+  String _role = 'staff';
+  bool _loading = false;
+  bool _loadingOffices = true;
+  String? _officesError;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOffices();
+    for (final c in [_name, _username, _email, _pass, _confirm]) {
+      c.addListener(_onAccountFieldsChanged);
+    }
+  }
+
+  void _onAccountFieldsChanged() {
+    if (!mounted) return;
+    setState(() {
+      final pass = _pass.text;
+      if (pass.isNotEmpty && pass.length < 8) {
+        _passError = 'At least 8 characters required';
+      } else {
+        _passError = null;
+      }
+      if (_confirm.text.isNotEmpty && _confirm.text != _pass.text) {
+        _confirmError = 'Passwords do not match';
+      } else {
+        _confirmError = null;
+      }
+    });
+  }
+
+  bool get _accountStepReady {
+    final email = _email.text.trim();
+    return _name.text.trim().isNotEmpty &&
+        _username.text.trim().isNotEmpty &&
+        email.isNotEmpty &&
+        email.contains('@') &&
+        _pass.text.length >= 8 &&
+        _confirm.text == _pass.text &&
+        _passError == null &&
+        _confirmError == null;
+  }
+
+  @override
+  void dispose() {
+    for (final c in [_name, _username, _email, _pass, _confirm]) {
+      c.removeListener(_onAccountFieldsChanged);
+    }
+    _name.dispose();
+    _username.dispose();
+    _email.dispose();
+    _pass.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadOffices() async {
+    setState(() {
+      _loadingOffices = true;
+      _officesError = null;
+    });
+    try {
+      final list = await context.read<AuthProvider>().api.offices();
+      if (!mounted) return;
+      setState(() {
+        _offices = list;
+        _loadingOffices = false;
+        if (list.isNotEmpty) {
+          _officeId = list.first['id'] as int;
+        }
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _officesError = e.message;
+        _loadingOffices = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _officesError =
+            'Could not load offices. Check that the server is running.';
+        _loadingOffices = false;
+      });
+    }
+  }
+
+  Future<void> _submit() async {
+    if (_pass.text != _confirm.text) {
+      setState(() => _error = 'Passwords do not match');
+      return;
+    }
+    if (_officeId == null) {
+      setState(() => _error = 'Please choose an office');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final data = await context.read<AuthProvider>().api.signup({
+        'full_name': _name.text.trim(),
+        'username': _username.text.trim(),
+        'email': _email.text.trim(),
+        'password': _pass.text,
+        'office_id': _officeId,
+        'requested_role': _role,
+      });
+      final req = data['request'] as Map<String, dynamic>;
+      if (!mounted) return;
+      final office = _offices.firstWhere(
+        (o) => o['id'] == _officeId,
+        orElse: () => {'name': '', 'code': ''},
+      );
+      context.go(
+        '/signup/pending',
+        extra: {
+          'code': req['request_code'],
+          'status_key': data['status_key'],
+          'username': req['username'],
+          'full_name': _name.text.trim(),
+          'office_name': office['name'],
+          'office_code': office['code'],
+          'requested_role': _role,
+        },
+      );
+    } on ApiException catch (e) {
+      setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final stepNum = _step + 1;
+    final strap = _step == 0
+        ? 'Step 1 of 2 · Account'
+        : 'Step 2 of 2 · Workplace';
+    final heroTitle = _step == 0
+        ? 'Create your account'
+        : 'Select office & role';
+    final heroBody = _step == 0
+        ? 'Admin approval required. Tell us who you are — your account stays pending until approved.'
+        : "Choose where you work and what you'll do. Admin will verify this during approval.";
+
+    return SfPage(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SfPageBackButton(
+            fallbackRoute: '/login',
+            hideOnRoleHome: false,
+          ),
+          const SizedBox(height: 6),
+          const SfSignupTopHeader(),
+          const SizedBox(height: 14),
+          SfPdfHeroCard(strap: strap, title: heroTitle, body: heroBody),
+          const SizedBox(height: 14),
+          SfSignupStepProgress(step: stepNum, totalSteps: 2),
+          const SizedBox(height: 14),
+          SfFormCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_step == 0)
+                  ..._buildAccountStep()
+                else
+                  ..._buildWorkplaceStep(),
+                if (_error != null) ...[
+                  const SizedBox(height: 12),
+                  SfErrorBanner(message: _error!),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          if (_step == 0)
+            SfSecondaryOutlineButton(
+              label: 'Back to sign in',
+              onPressed: () => context.go('/login'),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: SfSecondaryOutlineButton(
+                    label: '← Back',
+                    onPressed: () => setState(() => _step = 0),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: SfPrimaryButton(
+                    label: _loading ? 'Submitting…' : 'Submit for approval',
+                    loading: _loading,
+                    onPressed: _loading ? null : _submit,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  List<Widget> _buildAccountStep() {
+    return [
+      TextField(
+        controller: _name,
+        decoration: const InputDecoration(
+          labelText: 'Full name',
+          hintText: 'Full name',
+        ),
+      ),
+      const SizedBox(height: 12),
+      TextField(
+        controller: _username,
+        decoration: const InputDecoration(
+          labelText: 'Username',
+          hintText: 'Username',
+        ),
+      ),
+      const SizedBox(height: 12),
+      TextField(
+        controller: _email,
+        keyboardType: TextInputType.emailAddress,
+        decoration: const InputDecoration(
+          labelText: 'Email',
+          hintText: 'name@urbiztondo.gov.ph',
+        ),
+      ),
+      const SizedBox(height: 12),
+      TextField(
+        controller: _pass,
+        obscureText: _obscurePass,
+        decoration: InputDecoration(
+          labelText: 'Password (8+ chars)',
+          hintText: 'Enter your password',
+          errorText: _passError,
+          counterText: '${_pass.text.length}/8 min',
+          suffixIcon: IconButton(
+            onPressed: () => setState(() => _obscurePass = !_obscurePass),
+            icon: Icon(
+              _obscurePass
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined,
+              size: 20,
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: 12),
+      TextField(
+        controller: _confirm,
+        obscureText: _obscureConfirm,
+        decoration: InputDecoration(
+          labelText: 'Confirm password',
+          errorText: _confirmError,
+          suffixIcon: IconButton(
+            onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
+            icon: Icon(
+              _obscureConfirm
+                  ? Icons.visibility_outlined
+                  : Icons.visibility_off_outlined,
+              size: 20,
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: 18),
+      SfPrimaryButton(
+        label: 'Next →',
+        onPressed: _accountStepReady
+            ? () {
+                setState(() {
+                  _error = null;
+                  _step = 1;
+                });
+              }
+            : null,
+      ),
+    ];
+  }
+
+  List<Widget> _buildWorkplaceStep() {
+    if (_loadingOffices) {
+      return const [
+        SizedBox(height: 24),
+        Center(child: CircularProgressIndicator()),
+        SizedBox(height: 12),
+        Text(
+          'Loading offices…',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, color: SfColors.muted),
+        ),
+      ];
+    }
+    if (_officesError != null) {
+      return [
+        SfErrorBanner(message: _officesError!),
+        const SizedBox(height: 12),
+        SfSecondaryOutlineButton(label: 'Retry', onPressed: _loadOffices),
+      ];
+    }
+    if (_offices.isEmpty) {
+      return const [
+        SfErrorBanner(
+          message:
+              'No offices returned from the server. Contact your LGU IT admin.',
+        ),
+      ];
+    }
+    return [
+      DropdownButtonFormField<int>(
+        initialValue: _officeId,
+        decoration: const InputDecoration(labelText: 'Office'),
+        items: _offices
+            .map(
+              (o) => DropdownMenuItem(
+                value: o['id'] as int,
+                child: Text('${o['name']} (${o['code']})'),
+              ),
+            )
+            .toList(),
+        onChanged: (v) => setState(() => _officeId = v),
+      ),
+      const SizedBox(height: 10),
+      Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: SfColors.blue.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: const Text(
+          'Choose your municipal office from the list below.',
+          style: TextStyle(fontSize: 11, color: SfColors.blue),
+        ),
+      ),
+      const SizedBox(height: 14),
+      const Text(
+        'Requested role',
+        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+      ),
+      const SizedBox(height: 8),
+      SfRoleSelectGrid(
+        selected: _role,
+        onSelect: (v) => setState(() => _role = v),
+      ),
+    ];
+  }
+}
+
+class SignupPendingScreen extends StatefulWidget {
+  const SignupPendingScreen({
+    super.key,
+    required this.requestCode,
+    required this.username,
+    this.summary,
+  });
+
+  final String requestCode;
+  final String username;
+  final Map<String, dynamic>? summary;
+
+  @override
+  State<SignupPendingScreen> createState() => _SignupPendingScreenState();
+}
+
+class _SignupPendingScreenState extends State<SignupPendingScreen> {
+  late final _code = TextEditingController(text: widget.requestCode);
+  late final _username = TextEditingController(text: widget.username);
+  late final _statusKey = TextEditingController(
+    text: widget.summary?['status_key']?.toString() ?? '',
+  );
+  final _password = TextEditingController();
+  Map<String, dynamic>? _req;
+  String? _error;
+  bool _polling = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_statusKey.text.isNotEmpty) _poll();
+  }
+
+  @override
+  void dispose() {
+    _code.dispose();
+    _username.dispose();
+    _statusKey.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  Future<void> _poll() async {
+    if (_polling) return;
+    if ((_code.text.trim().isEmpty || _statusKey.text.isEmpty) &&
+        (_username.text.trim().isEmpty || _password.text.isEmpty)) {
+      setState(
+        () => _error =
+            'Enter your request code and private status key. Older requests can use username and password.',
+      );
+      return;
+    }
+    setState(() {
+      _polling = true;
+      _req = null;
+      _error = null;
+    });
+    try {
+      final data = await context.read<AuthProvider>().api.signupStatus(
+        code: _code.text.trim(),
+        username: _username.text.trim(),
+        statusKey: _statusKey.text,
+        password: _password.text,
+      );
+      final req = data['request'] as Map<String, dynamic>;
+      if (!mounted) return;
+      setState(() => _req = req);
+      setState(() => _error = null);
+      if (req['status'] == 'approved') {
+        context.go('/signup/approved', extra: req);
+      }
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) _password.clear();
+      if (mounted) setState(() => _polling = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final r = _req;
+    final s = widget.summary ?? {};
+    final name = (r?['full_name'] ?? s['full_name'] ?? '—').toString();
+    final officeName = r?['office_name'] ?? s['office_name'] ?? '';
+    final officeCode = r?['office_code'] ?? s['office_code'] ?? '';
+    final office =
+        (officeName.toString().isNotEmpty || officeCode.toString().isNotEmpty)
+        ? '$officeName ($officeCode)'
+        : '—';
+    // Opened from "Check access request" with nothing looked up yet: say nothing about a request.
+    final unchecked = r == null && s.isEmpty;
+    final role = unchecked
+        ? '—'
+        : roleLabel(
+            r?['requested_role']?.toString() ??
+                s['requested_role']?.toString() ??
+                'staff',
+          );
+    final status =
+        r?['status']?.toString() ?? (unchecked ? '—' : 'Pending');
+    final rejected = status == 'rejected';
+
+    return SfPage(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SfPageBackButton(
+            fallbackRoute: '/login',
+            hideOnRoleHome: false,
+          ),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ACCOUNT STATUS',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.9,
+                        color: SfColors.muted,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    SfSmartFlowWordmark(),
+                  ],
+                ),
+              ),
+              SfUserAvatar(initials: SfUserAvatar.fromName(name), size: 40),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SfPdfHeroCard(
+            strap: unchecked
+                ? 'Check status'
+                : rejected
+                ? 'After review · Request declined'
+                : 'After submission · Awaiting approval',
+            title: unchecked
+                ? 'Check your access request'
+                : rejected
+                ? 'Request declined'
+                : 'Pending admin approval',
+            body: unchecked
+                ? 'Enter your request code and private status key to see where your request stands.'
+                : rejected
+                ? 'Review your details with the Municipal Accountant, then reapply. You can use the same username.'
+                : 'Your sign-up request was received. A municipal admin must approve your account before you can sign in.',
+            centerBody: true,
+            leading: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: SfColors.gold.withValues(alpha: 0.15),
+              ),
+              child: Icon(
+                unchecked
+                    ? Icons.manage_search_rounded
+                    : rejected
+                    ? Icons.block_outlined
+                    : Icons.hourglass_top_rounded,
+                size: 28,
+                color: const Color(0xFFB45309),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          const SfInfoBanner(
+            text:
+                'Keep your request code and private status key. The code alone does not grant access.',
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _code,
+            decoration: const InputDecoration(labelText: 'Request code'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _statusKey,
+            obscureText: true,
+            autocorrect: false,
+            enableSuggestions: false,
+            decoration: const InputDecoration(labelText: 'Private status key'),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (_statusKey.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('There is no status key to copy yet.'),
+                  ),
+                );
+                return;
+              }
+              await Clipboard.setData(ClipboardData(text: _statusKey.text));
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Status key copied. Keep it private.'),
+                ),
+              );
+            },
+            child: const Text('Copy private status key'),
+          ),
+          ExpansionTile(
+            title: const Text('Check an older request without a status key'),
+            children: [
+              TextField(
+                controller: _username,
+                decoration: const InputDecoration(labelText: 'Username'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _password,
+                obscureText: true,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: const InputDecoration(
+                  labelText: 'Account password',
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'Use your submitted password before approval, or your current password after approval. It is cleared after each check.',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SfSummaryCard(
+            title: 'Request summary',
+            trailing: Text(
+              '#${_code.text}',
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                color: SfColors.muted,
+                fontSize: 12,
+              ),
+            ),
+            rows: [
+              MapEntry('Name', name),
+              MapEntry('Username', _username.text),
+              MapEntry('Office', office),
+              MapEntry('Role', role),
+              MapEntry('Status', status),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            children: unchecked
+                ? const [
+                    SfStatusPill(
+                      label: 'Not checked yet',
+                      tone: SfPillTone.neutral,
+                    ),
+                  ]
+                : [
+                    SfStatusPill(
+                      label: rejected ? 'Declined' : 'Awaiting admin',
+                      tone: SfPillTone.warning,
+                    ),
+                    const SfStatusPill(
+                      label: 'Request recorded',
+                      tone: SfPillTone.neutral,
+                    ),
+                  ],
+          ),
+          const SizedBox(height: 14),
+          SfInfoBanner(
+            text: unchecked
+                ? 'Enter your request code and private status key, then choose Refresh status.'
+                : rejected
+                ? 'Correct your account details before submitting another request.'
+                : 'Use Refresh status to check the decision. After approval, sign in normally.',
+          ),
+          if (rejected)
+            Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: SfPrimaryButton(
+                label: 'Review details and reapply',
+                onPressed: () => context.go('/signup'),
+              ),
+            ),
+          if (_error != null) ...[
+            const SizedBox(height: 10),
+            SfErrorBanner(message: _error!),
+          ],
+          const SizedBox(height: 14),
+          SfSecondaryOutlineButton(
+            label: 'Back to Login',
+            onPressed: () => context.go('/login'),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: _polling ? null : _poll,
+            child: Text(
+              _polling ? 'Checking…' : 'Refresh status',
+              style: const TextStyle(
+                color: SfColors.blue,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SignupApprovedScreen extends StatelessWidget {
+  const SignupApprovedScreen({super.key, required this.request});
+
+  final Map<String, dynamic> request;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = request['full_name']?.toString() ?? '';
+    final officeName = request['office_name']?.toString() ?? '';
+    final officeCode = request['office_code']?.toString() ?? '';
+    final role = roleLabel(request['requested_role']?.toString() ?? 'staff');
+
+    return SfPage(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SfPageBackButton(
+            fallbackRoute: '/login',
+            hideOnRoleHome: false,
+          ),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ACCOUNT APPROVED',
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.9,
+                        color: SfColors.muted,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    SfSmartFlowWordmark(),
+                  ],
+                ),
+              ),
+              SfUserAvatar(
+                initials: SfUserAvatar.fromName(name),
+                size: 40,
+                color: SfColors.green,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SfPdfHeroCard(
+            strap: 'Approved by Admin',
+            title: "You're all set!",
+            body:
+                'Your account is now active. Sign in to start using SmartFlow.',
+            centerBody: true,
+            leading: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: SfColors.green.withValues(alpha: 0.12),
+              ),
+              child: const Icon(
+                Icons.check_circle_rounded,
+                size: 32,
+                color: SfColors.green,
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          SfSummaryCard(
+            title: 'Assigned access',
+            trailing: const SfStatusPill(
+              label: 'Active',
+              tone: SfPillTone.success,
+            ),
+            rows: [
+              MapEntry('Username', request['username']?.toString() ?? ''),
+              MapEntry('Role', role),
+              MapEntry('Office', '$officeName ($officeCode)'),
+              if (request['approved_by'] != null)
+                MapEntry('Approved by', request['approved_by'].toString()),
+              if (request['approved_at'] != null)
+                MapEntry('Approved at', request['approved_at'].toString()),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            children: [
+              const SfStatusPill(label: 'Active', tone: SfPillTone.success),
+              SfStatusPill(
+                label: 'Clerk · $officeCode',
+                tone: SfPillTone.warning,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          SfPrimaryButton(
+            label: 'Sign In Now',
+            onPressed: () => context.go('/login'),
+          ),
+        ],
+      ),
+    );
+  }
+}

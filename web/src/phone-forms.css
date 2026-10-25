@@ -1,0 +1,68 @@
+/* Source order follows the phone tasks; desktop areas retain its two-column composition. */
+.app-shell .profile-page .profile-layout--ordered > .profile-photo-card { grid-area: photo; }
+.app-shell .profile-page .profile-layout--ordered > .profile-edit-card { grid-area: details; }
+.app-shell .profile-page .profile-layout--ordered > .profile-session { grid-area: session; }
+.app-shell .profile-page .profile-layout--ordered > .profile-logout { grid-area: logout; }
+.app-shell .register-page .register-layout--entry > .register-guidance-panel { grid-area: guidance; }
+.app-shell .register-page .register-layout--entry > form { grid-area: entry; }
+
+@media (min-width: 768px) {
+  .app-shell .profile-page .profile-layout--ordered {
+    grid-template-areas: "photo details" "session details" "logout details";
+    grid-template-rows: auto auto auto;
+    gap: 0 22px;
+  }
+  .app-shell .profile-page .profile-layout--ordered > .profile-photo-card { margin-bottom: 20px; }
+  .app-shell .profile-page .profile-layout--ordered > .profile-session { margin-bottom: 14px; }
+  .app-shell .profile-page .profile-layout--ordered > .profile-logout { align-self: start; }
+  .app-shell .register-page .register-layout--entry { grid-template-areas: "entry guidance"; }
+}
+
+@media (min-width: 768px) and (max-width: 1100px) {
+  .app-shell .profile-page .profile-layout--ordered {
+    grid-template-areas: "photo" "session" "logout" "details";
+    grid-template-rows: auto;
+  }
+  .app-shell .profile-page .profile-layout--ordered > .profile-logout { margin-bottom: 22px; }
+  .app-shell .register-page .register-layout--entry { grid-template-areas: "entry" "guidance"; }
+}
+
+@media (max-width: 767px) {
+  .app-shell .profile-page .profile-layout--ordered {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "photo" "details" "session" "logout";
+    gap: 14px;
+  }
+  .app-shell .profile-page .profile-layout--ordered > :is(.profile-photo-card, .profile-edit-card, .profile-session, .profile-logout) {
+    order: 0;
+    min-width: 0;
+    margin: 0;
+  }
+  .app-shell .profile-page .profile-layout--ordered > :is(.profile-photo-card, .profile-edit-card, .profile-session) { padding: 16px; }
+  .app-shell .profile-page .profile-layout--ordered > .profile-edit-card { gap: 14px; }
+  .app-shell .profile-page .profile-layout--ordered .profile-kv { margin-bottom: 0; }
+
+  .app-shell .register-page .register-layout--entry {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "guidance" "entry";
+    gap: 14px;
+  }
+  .app-shell .register-page .register-layout--entry > :is(form, .register-guidance-panel) { padding: 14px; }
+  .app-shell .register-page .register-layout--entry > .register-guidance-panel .section-title { margin-bottom: 10px; }
+  .app-shell .register-page .register-guidance-list { gap: 6px; margin: 12px 0; }
+  .app-shell .register-page .register-guidance-note { padding-top: 10px; margin-bottom: 10px; }
+  .app-shell .register-page .finishing-form-section { gap: 12px; padding-top: 14px; }
+  .app-shell .register-page .finishing-form-section .form-grid { gap: 12px; }
+  .app-shell .register-page .folder-contents { padding: 14px 0; }
+  .app-shell .register-page .folder-contents .folder-item {
+    display: grid;
+    gap: 10px;
+    margin: 0;
+    padding: 0 0 12px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .app-shell .register-page .folder-contents .folder-item + .folder-item { padding-top: 12px; border-top: 1px solid var(--sf-border); }
+  .app-shell .register-page .folder-contents .document-confirm { min-height: 44px; margin-top: 10px; }
+}

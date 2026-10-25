@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches SfColors.bg in smartflow_theme.dart -->
+    <color name="smartflow_splash_bg">#F4F7FF</color>
+</resources>

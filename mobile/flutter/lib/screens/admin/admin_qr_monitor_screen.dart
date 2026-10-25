@@ -1,0 +1,506 @@
+import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+
+import '../../providers/auth_provider.dart';
+import '../../services/api_client.dart';
+import '../../theme/sf_icons.dart';
+import '../../theme/smartflow_theme.dart';
+import '../../utils/api_error.dart';
+import '../../utils/format_time.dart';
+import '../../widgets/sf_pdf_chrome.dart';
+import '../../widgets/sf_widgets.dart';
+import 'admin_widgets.dart';
+import '../staff/clerk_widgets.dart';
+
+/// Municipal admin — QR scan audit monitor (accepted vs rejected).
+class AdminQrMonitorScreen extends StatefulWidget {
+  const AdminQrMonitorScreen({super.key});
+
+  @override
+  State<AdminQrMonitorScreen> createState() => _AdminQrMonitorScreenState();
+}
+
+class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
+  static const _hourOptions = [24, 48, 168];
+
+  int _hours = 48;
+  String _outcome = 'all';
+  bool _loading = true;
+  bool _exporting = false;
+  int _generation = 0;
+  int _exportGeneration = 0;
+  late Object _accountKey;
+  Object? _loadedQuery;
+  bool _fresh = false;
+  String? _error;
+  Map<String, dynamic>? _summary;
+  List<Map<String, dynamic>> _events = const [];
+  List<Map<String, dynamic>> _suspicious = const [];
+  List<Map<String, dynamic>> _topReasons = const [];
+  List<Map<String, dynamic>> _activity = const [];
+
+  Object get _identity {
+    final auth = context.read<AuthProvider>();
+    return (
+      auth,
+      auth.token,
+      auth.user?.id,
+      auth.user?.officeId,
+      auth.user?.role,
+    );
+  }
+
+  Object get _queryKey => (_identity, _hours, _outcome);
+
+  bool _isCurrent(int generation, Object query) =>
+      mounted && generation == _generation && query == _queryKey;
+
+  void _clearSnapshot() {
+    _summary = null;
+    _events = const [];
+    _suspicious = const [];
+    _topReasons = const [];
+    _activity = const [];
+    _loadedQuery = null;
+  }
+
+  static const _activityLabels = {
+    'signup.approve': 'Sign-up approved',
+    'signup.reject': 'Sign-up rejected',
+    'user.deactivate': 'User deactivated',
+    'user.reactivate': 'User reactivated',
+    'user.profile_update': 'Profile updated',
+    'user.password_change': 'Password changed',
+    'user.password_reset': 'Password reset',
+    'threshold.update': 'Threshold changed',
+    'request.approve': 'Request accepted',
+    'request.reject': 'Request declined',
+    'request.fulfill': 'Request fulfilled',
+    'request.cancel': 'Request cancelled',
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _accountKey = _identity;
+    _load();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final auth = Provider.of<AuthProvider>(context);
+    final identity = (
+      auth,
+      auth.token,
+      auth.user?.id,
+      auth.user?.officeId,
+      auth.user?.role,
+    );
+    if (_accountKey != identity) {
+      _accountKey = identity;
+      _exportGeneration++;
+      _exporting = false;
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    if (!mounted || _exporting) return;
+    final generation = ++_generation;
+    final query = _queryKey;
+    final auth = context.read<AuthProvider>();
+    setState(() {
+      _loading = true;
+      _error = null;
+      _fresh = false;
+      if (_loadedQuery != query) _clearSnapshot();
+    });
+    if (!auth.isAuthenticated) {
+      setState(() {
+        _clearSnapshot();
+        _error = 'Sign in again to load the QR monitor.';
+        _loading = false;
+      });
+      return;
+    }
+    try {
+      final api = auth.api;
+      final hours = _hours;
+      final outcome = _outcome;
+      final results = await Future.wait([
+        api.auditScans(hours: hours, outcome: outcome),
+        api.auditActivity(hours: 168, limit: 50),
+      ]);
+      final data = results[0];
+      final activity = results[1];
+      if (!_isCurrent(generation, query)) return;
+      setState(() {
+        _summary = data['summary'] as Map<String, dynamic>?;
+        _events = List<Map<String, dynamic>>.from(
+          data['events'] as List? ?? [],
+        );
+        _suspicious = List<Map<String, dynamic>>.from(
+          data['suspicious'] as List? ?? [],
+        );
+        _topReasons = List<Map<String, dynamic>>.from(
+          data['top_reject_reasons'] as List? ?? [],
+        );
+        _activity = List<Map<String, dynamic>>.from(
+          activity['events'] as List? ?? [],
+        );
+        _loadedQuery = query;
+        _fresh = true;
+        _loading = false;
+      });
+    } on ApiException catch (e) {
+      if (!_isCurrent(generation, query)) return;
+      setState(() {
+        _error = e.message;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!_isCurrent(generation, query)) return;
+      setState(() {
+        _error = apiErrorMessage(e);
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _exportCsv() async {
+    if (_loading || _exporting || !_fresh || _loadedQuery != _queryKey) return;
+    final generation = _generation;
+    final query = _queryKey;
+    final exportGeneration = ++_exportGeneration;
+    final api = context.read<AuthProvider>().api;
+    final hours = _hours;
+    final outcome = _outcome;
+    setState(() => _exporting = true);
+    try {
+      final csv = await api.auditScansCsv(hours: hours, outcome: outcome);
+      if (!_isCurrent(generation, query) ||
+          !_fresh ||
+          exportGeneration != _exportGeneration) {
+        return;
+      }
+      final saved = await const MethodChannel('smartflow/report_export')
+          .invokeMethod<bool>('saveCsv', {
+            'filename':
+                'SmartFlow-scan-audit-${DateFormat('yyyyMMdd-HHmmss').format(DateTime.now())}.csv',
+            'bytes': Uint8List.fromList(
+              utf8.encode(csv.startsWith('\uFEFF') ? csv : '\uFEFF$csv'),
+            ),
+          });
+      if (saved != true) return;
+      if (!mounted ||
+          !_isCurrent(generation, query) ||
+          exportGeneration != _exportGeneration) {
+        return;
+      }
+      sfShowSuccessSnack(context, message: 'Scan audit CSV saved');
+    } catch (e) {
+      if (!mounted ||
+          !_isCurrent(generation, query) ||
+          exportGeneration != _exportGeneration) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(apiErrorMessage(e))));
+    } finally {
+      if (mounted && exportGeneration == _exportGeneration) {
+        setState(() => _exporting = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final accepted = (_summary?['accepted'] as int?) ?? 0;
+    final rejected = (_summary?['rejected'] as int?) ?? 0;
+    final windowLabel = _hours == 168 ? '7 days' : '$_hours hours';
+    final hasSnapshot = _loadedQuery == _queryKey;
+
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: SfColors.blue,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        children: [
+          const SfAuthenticatedPageHeader(),
+          const SizedBox(height: 12),
+          SfAdminPageOverviewCard(
+            screen: SfAdminScreen.qrMonitor,
+            compact: true,
+            bodyOverride: 'Accepted and rejected scans (last $windowLabel).',
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 12),
+            SfErrorBanner(
+              message: hasSnapshot
+                  ? '$_error\nShowing the last successful results for this filter; they may be stale.'
+                  : _error!,
+            ),
+            TextButton(
+              onPressed: _loading || _exporting ? null : _load,
+              child: const Text('Retry QR monitor'),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final h in _hourOptions)
+                ChoiceChip(
+                  label: Text(h == 168 ? '7 days' : '${h}h'),
+                  selected: _hours == h,
+                  onSelected: _loading || _exporting
+                      ? null
+                      : (_) {
+                          setState(() => _hours = h);
+                          _load();
+                        },
+                ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _outcomeChip('All', 'all'),
+              _outcomeChip('Accepted', 'success'),
+              _outcomeChip('Rejected', 'rejected'),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (_loading)
+            const SfLoadingCard()
+          else if (!hasSnapshot)
+            const Text(
+              'QR monitor unavailable. Retry to verify scan counts and account activity.',
+              style: TextStyle(color: SfColors.muted),
+            )
+          else ...[
+            SfStatStrip(
+              children: [
+                SfDashboardStatCell(
+                  value: '$accepted',
+                  label: 'Accepted',
+                  sublabel: '',
+                  color: SfColors.navy,
+                ),
+                SfDashboardStatCell(
+                  value: '$rejected',
+                  label: 'Rejected',
+                  sublabel: '',
+                  color: SfColors.countInk(rejected, live: SfColors.red),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SfSecondaryOutlineButton(
+              label: _exporting ? 'Exporting…' : 'Download scan CSV',
+              icon: Icons.table_chart_outlined,
+              onPressed: _exporting || !_fresh ? null : _exportCsv,
+            ),
+            if (_suspicious.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Needs review',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Staff with 3+ rejected scans in this window — training or mis-scans.',
+                style: TextStyle(fontSize: 12, color: SfColors.muted),
+              ),
+              const SizedBox(height: 8),
+              ..._suspicious.map(_suspiciousTile),
+            ],
+            if (_topReasons.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Top reject reasons',
+                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: _topReasons
+                    .map(
+                      (r) => SfStatusPill(
+                        label: '${r['code']} · ${r['count']}',
+                        tone: SfPillTone.warning,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+            const SizedBox(height: 16),
+            Text(
+              'Recent events (${_events.length})',
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+            ),
+            const SizedBox(height: 8),
+            if (_events.isEmpty)
+              const SfEmptyState(
+                icon: SfIcons.clerkScan,
+                title: 'No scan events',
+                subtitle: 'Try a longer time window to see earlier scans.',
+              )
+            else
+              ..._events.map(_eventTile),
+            const SizedBox(height: 16),
+            const Text(
+              'Admin & account activity · last 7 days',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Sign-up reviews, user changes, thresholds, and request decisions.',
+              style: TextStyle(fontSize: 12, color: SfColors.muted),
+            ),
+            const SizedBox(height: 8),
+            if (_activity.isEmpty)
+              const SfEmptyState(
+                icon: SfIcons.clerkScan,
+                title: 'No admin actions',
+                subtitle:
+                    'Nothing was approved, changed, or decided in the last 7 days.',
+              )
+            else
+              ..._activity.map(_activityTile),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _outcomeChip(String label, String value) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: _outcome == value,
+      onSelected: _loading || _exporting
+          ? null
+          : (_) {
+              setState(() => _outcome = value);
+              _load();
+            },
+    );
+  }
+
+  Widget _suspiciousTile(Map<String, dynamic> s) {
+    final name = s['user_name']?.toString() ?? s['username']?.toString() ?? '?';
+    final office = s['office_code']?.toString() ?? '';
+    final count = s['reject_count']?.toString() ?? '0';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SfListTile(
+        title: name,
+        subtitle: '$office · $count rejected scans',
+        trailing: const Icon(Icons.warning_amber_rounded, color: SfColors.gold),
+      ),
+    );
+  }
+
+  Widget _activityTile(Map<String, dynamic> ev) {
+    final type = ev['event_type']?.toString() ?? '';
+    final who = [
+      ev['username']?.toString() ?? '',
+      ev['office_code']?.toString() ?? '',
+    ].where((s) => s.isNotEmpty).join(' · ');
+    final when = formatMovementListTime(ev['created_at']?.toString());
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SfListTile(
+        title: _activityLabels[type] ?? type,
+        subtitle: [
+          ev['message']?.toString() ?? '',
+          [if (who.isNotEmpty) who, when].join(' · '),
+        ].where((s) => s.isNotEmpty).join('\n'),
+      ),
+    );
+  }
+
+  Widget _eventTile(Map<String, dynamic> ev) {
+    final ok = ev['outcome']?.toString() == 'success';
+    final docId = ev['document_id']?.toString() ?? '—';
+    final office = ev['office_code']?.toString() ?? '';
+    final user =
+        ev['user_name']?.toString() ?? ev['username']?.toString() ?? '';
+    final status = ev['status']?.toString();
+    final scanError = ev['scan_error']?.toString();
+    final when = formatMovementListTime(ev['created_at']?.toString());
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SfFormCard(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Outcome, folder, movement and time share one wrapping row instead of four lines.
+            Wrap(
+              spacing: 10,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                SfStatusPill(
+                  label: ok ? 'Accepted' : 'Rejected',
+                  tone: ok ? SfPillTone.success : SfPillTone.warning,
+                ),
+                Text(
+                  docId,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
+                ),
+                if (status != null && status.isNotEmpty)
+                  Text(
+                    status,
+                    style: const TextStyle(fontSize: 12, color: SfColors.blue),
+                  ),
+                Text(
+                  when,
+                  style: const TextStyle(fontSize: 12, color: SfColors.muted),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              [
+                if (office.isNotEmpty) office,
+                if (user.isNotEmpty) user,
+              ].join(' · '),
+              style: const TextStyle(fontSize: 12, color: SfColors.muted),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              ev['message']?.toString() ?? '',
+              style: const TextStyle(fontSize: 12, height: 1.35),
+            ),
+            if (scanError != null && scanError.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Code: $scanError',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: SfColors.gold.withValues(alpha: 0.95),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}

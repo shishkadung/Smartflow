@@ -1,0 +1,93 @@
+/* Phone-only overlay geometry. Desktop and native composition stay separate. */
+@media (max-width: 767px) {
+  .app-shell {
+    min-height: 100dvh;
+    padding-bottom: calc(var(--sf-phone-nav-height, 76px + env(safe-area-inset-bottom, 0px)) + 36px);
+  }
+
+  .app-shell .nav--phone {
+    z-index: 50;
+    padding-inline: max(6px, env(safe-area-inset-left, 0px)) max(6px, env(safe-area-inset-right, 0px));
+  }
+
+  .app-shell .nav--phone :is(.nav-tab, .nav-menu-btn) {
+    min-height: 48px;
+    min-width: 0;
+  }
+
+  .app-shell .menu-sheet {
+    top: var(--sf-phone-viewport-top, 0px);
+    bottom: auto;
+    height: var(--sf-phone-viewport-height, 100dvh);
+    z-index: 45;
+  }
+
+  .app-shell .menu-sheet__panel {
+    /* Reserve the actual bar plus the complete raised center-control clearance. */
+    bottom: calc(var(--sf-phone-nav-height, 76px + env(safe-area-inset-bottom, 0px)) + 30px);
+    max-height: calc(100% - var(--sf-phone-nav-height, 76px + env(safe-area-inset-bottom, 0px)) - 38px - env(safe-area-inset-top, 0px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-inline: max(14px, env(safe-area-inset-left, 0px)) max(14px, env(safe-area-inset-right, 0px));
+    scroll-padding-block: 12px;
+  }
+
+  .app-shell .menu-sheet__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .app-shell .menu-sheet__item {
+    min-height: 64px;
+    overflow-wrap: anywhere;
+  }
+
+  body:has(.app-shell .menu-sheet) {
+    overflow: hidden;
+  }
+
+  /* Page Help lives in the isolated header stacking context. Its dialog must
+     still cover the navigation, just like dialogs opened from page content. */
+  .app-shell .topbar:has(.modal-root) {
+    z-index: 80;
+  }
+
+  .modal-root {
+    top: var(--sf-phone-viewport-top, 0px);
+    bottom: auto;
+    height: var(--sf-phone-viewport-height, 100dvh);
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+    padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+  }
+
+  .modal-panel {
+    min-height: 0;
+    max-height: 100%;
+    padding: 16px;
+  }
+
+  .modal-panel__head {
+    min-width: 0;
+    align-items: flex-start;
+  }
+
+  .modal-panel__head h3 {
+    padding-top: 10px;
+    overflow-wrap: anywhere;
+  }
+
+  .modal-panel__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+    scroll-padding-block: 12px;
+  }
+
+  .modal-panel__foot {
+    flex-wrap: wrap;
+  }
+
+  .modal-panel :is(.modal-panel__head, .modal-panel__foot) :is(button, a) {
+    min-height: 44px;
+  }
+}

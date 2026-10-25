@@ -1,0 +1,38 @@
+# SmartFlow web portal (static React build). Vite copies this file into dist/ next to index.html.
+#
+# Layout assumed by the production guide: the portal is served from the site root (https://HOST/) and
+# the PHP API sits in the "api/" folder beside index.html (https://HOST/api/...) with its own .htaccess.
+# Needs mod_rewrite, and mod_headers for the headers below, with AllowOverride All (or FileInfo) for this folder.
+
+RewriteEngine On
+
+# Never serve dotfiles or dot-folders (for example .vite/manifest.json); keep .well-known for certificate renewal.
+RewriteRule (^|/)\.(?!well-known(/|$)) - [F,L]
+
+# The API is a separate application and certificate validation files are real files: neither gets the portal page.
+RewriteRule ^(api|\.well-known)/ - [L]
+
+# Single-page app: page refreshes and deep links (/documents, /requests?id=...) are routed by React Router.
+# Paths that look like files stay real 404s, so a stale tab asking for a removed chunk is not given HTML.
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !\.[A-Za-z0-9]{1,8}$
+RewriteRule ^ index.html [L]
+
+<IfModule mod_headers.c>
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    # The QR scanner needs the camera on this origin only.
+    Header always set Permissions-Policy "camera=(self), microphone=(), geolocation=()"
+    # Add Strict-Transport-Security here only after HTTPS works for every name that serves this site.
+
+    # Build output under assets/ has content hashes in its names and can be cached for a year.
+    <FilesMatch "\.(js|css|svg|woff2?)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+    # Files without a content hash must be revalidated so a new release is picked up.
+    <FilesMatch "^(index\.html|qr-generator\.js|qr-label-renderer\.js|favicon\.svg|icons\.svg)$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+</IfModule>

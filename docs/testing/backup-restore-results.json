@@ -1,0 +1,17 @@
+{
+    "at": "2026-10-26T00:17:38+08:00",
+    "snapshot": "smartflow-system-20261026-001736-2a1619",
+    "passed": true,
+    "isolated_database": true,
+    "tables_verified": 15,
+    "rows_verified": 530,
+    "users_verified": true,
+    "documents_verified": true,
+    "signing_key_preserved": true,
+    "original_qr_applicable": true,
+    "original_qr_signature_verified": true,
+    "original_qr_currently_valid": true,
+    "uploaded_files_verified": 3,
+    "live_database_restored": false,
+    "temporary_database_removed": true
+}

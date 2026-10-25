@@ -1,0 +1,71 @@
+# Secrets
+/backups/
+**/.qr-secret
+**/cache/rate_limit/
+**/logs/
+.env
+**/.env
+!.env.example
+!**/.env.example
+**/keystore.properties
+*.jks
+*.keystore
+
+# IDE / editor
+.idea/
+.vscode/
+.cursor/
+*.iml
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Flutter / Android build
+**/build/
+**/.dart_tool/
+**/android/.gradle/
+**/ios/Pods/
+**/ios/.symlinks/
+**/Flutter/ephemeral/
+
+# Node
+**/node_modules/
+**/dist/
+
+# Local dumps / screenshots
+sf-screen*.png
+sf-screen*.jpg
+# Local manifest for temporary controlled-overdue fixtures (no tokens).
+scripts/overdue-test-fixture.json
+scripts/head-test-fixture.json
+
+# Paper PDFs / Word files (kept locally, not in git)
+docs/thesis/files/
+
+# Figma import scratch output (regenerate with node mobile-mock/_build-batch.js)
+mobile-mock/_figma-batch/
+_archive/mobile-mock-figma-batch/
+
+# Web mock capture scratch (regenerate with node web-mock/scripts/capture.mjs)
+web-mock/_previews/
+web-mock/harness/.vite/
+scripts/mobile-qr-fixture.json
+scripts/digital-transfer-fixture.json
+scripts/partial-coverage-fixture.json
+web/.vite-cache/
+scripts/ui-followup-fixture.json
+backups-qr-contents/
+
+# Local evidence, temporary fixtures and agent state (large; never commit)
+/.runtime/
+/.run/
+/.claude/
+
+# Runtime data inside the API folder: avatars are personal data, cache is local state
+**/api/uploads/
+**/api/cache/
+
+# 84 MB Figma export; keep it on disk, outside Git history
+docs/design/Capstone SmartFlow.pdf

@@ -1,0 +1,23 @@
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
+import { AuthProvider } from './auth.jsx'
+import App from './App.jsx'
+import './index.css'
+import './sf-life.css'
+import './page-layout.css'
+import './finishing-polish.css'
+import './phone-pages.css'
+import './phone-forms.css'
+import './phone-lists.css'
+import './phone-shell.css'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <BrowserRouter>
+      <AuthProvider>
+        <App />
+      </AuthProvider>
+    </BrowserRouter>
+  </StrictMode>,
+)
