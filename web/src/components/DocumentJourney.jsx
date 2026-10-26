@@ -28,7 +28,7 @@ export default function DocumentJourney({ document: doc }) {
   return <section className="document-journey" aria-label="Document journey">
     <h3 className="section-title">Document journey</h3>
     <p className="muted">{doc.tray === 'completed' ? `Completed at ${doc.current_office_name}.` : doc.current_status === 'OUT' ? `Awaiting receipt at ${doc.destination_office_name || 'the receiving office'}. Last sent by ${doc.current_office_name}.` : `Currently held by ${doc.current_office_name}.`}</p>
-    {steps.length ? <ol className="journey-steps">{steps.map(step => <li key={step.id} className={step.is_current ? 'is-current' : ''}>
+    {steps.length ? <ol className="journey-steps">{steps.map((step, index) => <li key={step.id} className={step.is_current ? 'is-current' : ''} style={{ '--i': Math.min(index, 8) }}>
       <div className="journey-steps__head"><strong>{step.status === 'IN' ? `Received at ${step.office_name}` : `Sent from ${step.office_name}`}</strong>{step.is_current ? <span className="status-pill">Latest</span> : null}</div>
       {step.status === 'OUT' ? <p>To {step.destination_office_name || 'Unspecified office'}</p> : null}
       <p className="muted">{formatWhen(step.scanned_at)} · {step.user_name}</p>

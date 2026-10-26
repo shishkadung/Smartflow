@@ -44,10 +44,10 @@ function MonthBars({ office, scale, limit }) {
   const description = `Average hours per month. ${office.months.map(monthSummary).join('; ')}.${limit ? ` The dashed line is the ${limit} h default desk limit.` : ''}`
   return <div className={`department-performance__bars${limit ? ' has-limit' : ''}`} role="img" aria-label={description} style={limit ? { '--limit': limit / scale } : undefined}>
     {limit ? <span className="department-performance__limit"><em>{limit} h</em></span> : null}
-    {office.months.map(month => {
+    {office.months.map((month, index) => {
       const fraction = barFraction(month.avg_hours, scale)
       const slow = month.slow ? 'is-slow' : undefined
-      return <span key={month.month} className="department-performance__bar" title={`${monthSummary(month)}, ${month.late} of ${month.visits} visits late`}>
+      return <span key={month.month} className="department-performance__bar" style={{ '--n': index }} title={`${monthSummary(month)}, ${month.late} of ${month.visits} visits late`}>
         <span className="department-performance__track">
           <i className={slow} style={{ '--v': fraction }} />
           {month.avg_hours == null ? null : <b className={slow} style={{ '--v': fraction }}>{barValueLabel(month.avg_hours)}</b>}

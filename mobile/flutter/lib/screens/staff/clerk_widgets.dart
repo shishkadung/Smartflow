@@ -11,6 +11,7 @@ import '../../theme/smartflow_theme.dart';
 import '../../utils/format_time.dart';
 import '../../utils/recent_docs.dart';
 import '../../widgets/sf_help.dart';
+import '../../widgets/sf_motion.dart';
 import '../../widgets/sf_page.dart';
 import '../../widgets/sf_pdf_chrome.dart';
 import '../../widgets/sf_widgets.dart';
@@ -1036,20 +1037,25 @@ class SfDashboardStatCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Only a loaded whole number counts up; a dash or any other text is shown as it is.
+    final count = RegExp(r'^\d{1,6}$').hasMatch(value)
+        ? int.parse(value)
+        : null;
+    final valueStyle = TextStyle(
+      fontSize: 22,
+      fontWeight: FontWeight.w700,
+      height: 1,
+      color: color,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
     final cell = Padding(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
       child: Column(
         children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              height: 1,
-              color: color,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
+          if (count != null)
+            SfCountUp(id: '$label/$sublabel', value: count, style: valueStyle)
+          else
+            Text(value, style: valueStyle),
           const SizedBox(height: 4),
           Text(
             label,
@@ -2795,6 +2801,7 @@ class SfTrailStop extends StatelessWidget {
     required this.when,
     required this.dotColor,
     required this.isLast,
+    this.index = 0,
     this.avatarUrl,
     this.personDetail,
     this.note,
@@ -2805,6 +2812,9 @@ class SfTrailStop extends StatelessWidget {
   final String when;
   final Color dotColor;
   final bool isLast;
+
+  /// Position in the trail; later stops appear a moment after earlier ones.
+  final int index;
   final String? avatarUrl;
   final String? personDetail;
   final String? note;
@@ -2814,96 +2824,105 @@ class SfTrailStop extends StatelessWidget {
     final detail = personDetail?.trim() ?? '';
     final personLine = detail.isEmpty ? personName : '$personName · $detail';
     final remark = note?.trim() ?? '';
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SizedBox(
-            width: 22,
-            child: Column(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  margin: const EdgeInsets.only(top: 4),
-                  decoration: BoxDecoration(
-                    color: dotColor,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                if (!isLast)
-                  Expanded(
-                    child: Container(width: 2, color: const Color(0xFFD5DCE6)),
-                  ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+    return SfEntrance(
+      index: index,
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              width: 22,
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 14,
-                            height: 1.3,
-                            color: SfColors.ink,
-                          ),
+                  Container(
+                    width: 10,
+                    height: 10,
+                    margin: const EdgeInsets.only(top: 4),
+                    decoration: BoxDecoration(
+                      color: dotColor,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  if (!isLast)
+                    Expanded(
+                      child: SfGrowDown(
+                        index: index,
+                        child: Container(
+                          width: 2,
+                          color: const Color(0xFFD5DCE6),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: isLast ? 0 : 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              height: 1.3,
+                              color: SfColors.ink,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          when,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: SfColors.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        SfPersonAvatar(name: personName, avatarUrl: avatarUrl),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            personLine,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: SfColors.ink,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (remark.isNotEmpty) ...[
+                      const SizedBox(height: 4),
                       Text(
-                        when,
+                        remark,
                         style: const TextStyle(
                           fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          height: 1.35,
                           color: SfColors.muted,
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      SfPersonAvatar(name: personName, avatarUrl: avatarUrl),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          personLine,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: SfColors.ink,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (remark.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      remark,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        height: 1.35,
-                        color: SfColors.muted,
-                      ),
-                    ),
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

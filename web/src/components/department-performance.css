@@ -16,6 +16,11 @@
 .app-shell .department-performance__track { position: relative; flex: 1 1 auto; }
 .app-shell .department-performance__track i { position: absolute; left: 0; right: 0; bottom: 0; display: block; height: calc((100% - var(--top-pad)) * var(--v, 0)); background: #8aa0bd; border-radius: 3px 3px 0 0; }
 .app-shell .department-performance__track i.is-slow { background: #b45309; }
+/* Bars grow from the baseline once, left to right; the numbers fade in as each bar settles. */
+.app-shell .department-performance__track i { transform-origin: bottom; animation: sf-bar-grow 480ms cubic-bezier(0.2, 0.7, 0.2, 1) both; animation-delay: calc(var(--n, 0) * 40ms); }
+.app-shell .department-performance__track b { animation: sf-bar-label 240ms ease-out both; animation-delay: calc(var(--n, 0) * 40ms + 300ms); }
+@keyframes sf-bar-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes sf-bar-label { from { opacity: 0; } to { opacity: 1; } }
 .app-shell .department-performance__track b { position: absolute; left: -4px; right: -4px; bottom: calc((100% - var(--top-pad)) * var(--v, 0) + 2px); text-align: center; font-size: 11px; line-height: 14px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--sf-muted, #526176); text-shadow: 0 0 2px #fff, 0 0 2px #fff, 0 0 3px #fff; }
 .app-shell .department-performance__track b.is-slow { color: #92400e; }
 .app-shell .department-performance__bar small { flex: 0 0 var(--label-h); line-height: var(--label-h); text-align: center; font-size: 11px; color: var(--sf-muted, #526176); }

@@ -1577,6 +1577,7 @@ class _StaffHistoryScreenState extends State<StaffHistoryScreen> {
               note: event.note,
               dotColor: event.dotColor,
               isLast: i == events.length - 1,
+              index: i,
             ),
             if (event.showReceipt)
               Padding(

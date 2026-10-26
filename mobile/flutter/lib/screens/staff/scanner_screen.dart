@@ -20,6 +20,7 @@ import '../../widgets/folder_contents.dart';
 import '../../widgets/document_summary.dart';
 import '../../widgets/document_filing.dart';
 import '../../widgets/destination_correction.dart';
+import '../../widgets/sf_motion.dart';
 import '../../widgets/sf_pdf_chrome.dart';
 import '../../widgets/sf_widgets.dart';
 import 'clerk_widgets.dart';
@@ -49,6 +50,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
   bool _scanPaused = false;
   bool _cameraRetired = false;
   bool _readingImage = false;
+
+  /// True only for the folder shown right after the server confirmed a saved handoff or filing. It decides whether the
+  /// "Saved" cue is drawn; a failed, conflicting or uncertain save never sets it.
+  bool _justSaved = false;
   int _cameraGeneration = 0;
   int _imageRequest = 0;
   StreamSubscription<BarcodeCapture>? _cameraSubscription;
@@ -202,6 +207,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     bool fromCamera = false,
     int? imageRequest,
     bool afterSavedAction = false,
+    bool saved = false,
   }) async {
     if (!mounted) return;
     final auth = context.read<AuthProvider>();
@@ -220,6 +226,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     // A new lookup invalidates the previous success state, including its actions.
     setState(() {
       _doc = null;
+      _justSaved = saved;
       _scanPaused = false;
       _loading = true;
       _scanStartedAt = null;
@@ -410,6 +417,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
     _lookupRequest++;
     setState(() {
       _doc = null;
+      _justSaved = false;
       _error = null;
       _scanPaused = false;
       _cameraRetired = false;
@@ -528,7 +536,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
             : 'Forwarded from ${user.officeName} → ${destination.code}',
       );
       if (!mounted || !current()) return;
-      await _lookup(doc['id'] as String, afterSavedAction: true);
+      await _lookup(doc['id'] as String, afterSavedAction: true, saved: true);
       if (!mounted || !current()) return;
 
       final msg =
@@ -593,7 +601,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         expectedMovementId: expectedMovementId,
       );
       if (!mounted || !current()) return;
-      await _lookup(doc['id'] as String, afterSavedAction: true);
+      await _lookup(doc['id'] as String, afterSavedAction: true, saved: true);
       if (!mounted || !current()) return;
       sfShowSuccessSnack(
         context,
@@ -903,13 +911,39 @@ class _ScannerScreenState extends State<ScannerScreen> {
         ),
         const SizedBox(height: 14),
         if (doc != null)
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: _loading ? null : _clearDocument,
-              icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
-              label: const Text('Look up another'),
-            ),
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              TextButton.icon(
+                onPressed: _loading ? null : _clearDocument,
+                icon: const Icon(Icons.qr_code_scanner_rounded, size: 20),
+                label: const Text('Look up another'),
+              ),
+              // Only after the server confirmed a saved handoff or filing and the new state was read back.
+              if (_justSaved)
+                const SfPop(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.check_circle_rounded,
+                        color: SfColors.green,
+                        size: 20,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'Saved',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: SfColors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           )
         else
           const SizedBox.shrink(),
