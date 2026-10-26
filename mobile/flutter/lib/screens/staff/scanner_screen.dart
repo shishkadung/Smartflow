@@ -24,6 +24,10 @@ import '../../widgets/sf_pdf_chrome.dart';
 import '../../widgets/sf_widgets.dart';
 import 'clerk_widgets.dart';
 
+/// Camera preview height. A phone-sized screen gets a shorter preview so the tracking-ID lookup clears the raised Scan control without scrolling.
+double scanPreviewHeight(double screenHeight) =>
+    (screenHeight * 0.22).clamp(176.0, 240.0).toDouble();
+
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
 
@@ -742,7 +746,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
               alignment: Alignment.center,
               children: [
                 SizedBox(
-                  height: 240,
+                  height: scanPreviewHeight(MediaQuery.sizeOf(context).height),
                   width: double.infinity,
                   child: Stack(
                     fit: StackFit.expand,
