@@ -1438,39 +1438,45 @@ class AdminSystemScreen extends StatefulWidget {
 }
 
 class _AdminSystemScreenState extends State<AdminSystemScreen> {
+  late final AuthProvider _auth;
+  late final Object _identity;
+  late final SmartflowApi _api;
   Map<String, dynamic>? _data;
   String? _error;
   bool _loading = true;
   DateTime? _lastLoaded;
+  int _request = 0;
+  bool _testing = false;
+  Map<String, dynamic>? _testResult;
+  String _testError = '';
+
+  bool get _current => mounted && _auth.sessionIdentity == _identity;
 
   @override
   void initState() {
     super.initState();
+    _auth = context.read<AuthProvider>();
+    _identity = _auth.sessionIdentity;
+    _api = _auth.api;
     _load();
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (!_current) return;
+    final request = ++_request;
+    // The earlier answer stays on screen while this check runs, and is marked as unverified until it succeeds.
+    setState(() => _loading = true);
     try {
-      final data = await context.read<AuthProvider>().api.systemStatus();
-      if (!mounted) return;
+      final data = await _api.systemStatus();
+      if (!_current || request != _request) return;
       setState(() {
         _data = data;
         _loading = false;
+        _error = null;
         _lastLoaded = DateTime.now();
       });
-    } on ApiException catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.message;
-          _loading = false;
-        });
-      }
     } catch (e) {
-      if (mounted) {
+      if (_current && request == _request) {
         setState(() {
           _error = apiErrorMessage(e);
           _loading = false;
@@ -1479,17 +1485,81 @@ class _AdminSystemScreenState extends State<AdminSystemScreen> {
     }
   }
 
+  Future<void> _sendTestEmail() async {
+    if (!_current || _testing) return;
+    setState(() {
+      _testing = true;
+      _testResult = null;
+      _testError = '';
+    });
+    try {
+      final result = await _api.systemEmailTest();
+      if (!_current) return;
+      setState(() {
+        _testResult = result;
+        final email = result['email'];
+        if (email is Map && _data != null) {
+          _data = {..._data!, 'email': email};
+        }
+      });
+    } catch (e) {
+      if (_current) {
+        setState(() {
+          final message = apiErrorMessage(e);
+          _testError = message.isEmpty
+              ? 'Could not send the test email. Check the connection and try again.'
+              : message;
+        });
+      }
+    } finally {
+      if (_current) setState(() => _testing = false);
+    }
+  }
+
+  Widget _row(String title, String body, {Widget? pill}) => SfFormCard(
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: SfColors.navy,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                body,
+                style: const TextStyle(fontSize: 12, color: SfColors.muted),
+              ),
+            ],
+          ),
+        ),
+        if (pill != null) ...[const SizedBox(width: 8), pill],
+      ],
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
-    final st = _data?['status'] as Map<String, dynamic>?;
-    final ops = _data?['operations'] as Map<String, dynamic>?;
-    final users = _data?['users'] as Map<String, dynamic>?;
+    final data = _data;
+    final st = data?['status'] as Map?;
+    final ops = data?['operations'] as Map?;
+    final users = data?['users'] as Map?;
+    final roles = data?['role_counts'] as Map?;
     final apiOk = st?['api']?.toString().startsWith('On') == true;
+    // Health and counts from an earlier check are unverified while a new check runs or after it failed.
+    final stale = data != null && (_loading || _error != null);
 
     return RefreshIndicator(
       onRefresh: _load,
       color: SfColors.blue,
       child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
           const SfAuthenticatedPageHeader(),
@@ -1498,20 +1568,47 @@ class _AdminSystemScreenState extends State<AdminSystemScreen> {
             screen: SfAdminScreen.system,
             compact: true,
           ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _loading ? null : _load,
+              icon: const Icon(Icons.refresh),
+              label: Text(_loading ? 'Refreshing…' : 'Refresh status'),
+            ),
+          ),
           if (_error != null) ...[
-            const SizedBox(height: 12),
-            SfErrorBanner(message: _error!),
+            const SizedBox(height: 4),
+            SfErrorBanner(
+              message: data != null
+                  ? 'Status refresh failed. $_error Showing the last successful check; current health and counts are unverified.'
+                  : 'System status unavailable. $_error API and database health could not be checked. Retry with Refresh status.',
+            ),
+          ],
+          if (_loading && data != null && _error == null) ...[
+            const SizedBox(height: 4),
+            const SfInfoBanner(
+              text:
+                  'Checking current health. Showing the last successful check; health and counts are unverified.',
+            ),
           ],
           const SizedBox(height: 12),
-          if (_loading)
+          if (_loading && data == null)
             const SfLoadingCard()
-          else if (st != null) ...[
+          else if (data != null && st != null) ...[
             SfFormCard(
               child: Row(
                 children: [
                   Icon(
-                    apiOk ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
-                    color: apiOk ? SfColors.green : SfColors.red,
+                    stale
+                        ? Icons.cloud_sync_outlined
+                        : apiOk
+                        ? Icons.cloud_done_rounded
+                        : Icons.cloud_off_rounded,
+                    color: stale
+                        ? SfColors.muted
+                        : apiOk
+                        ? SfColors.green
+                        : SfColors.red,
                     size: 32,
                   ),
                   const SizedBox(width: 12),
@@ -1527,7 +1624,7 @@ class _AdminSystemScreenState extends State<AdminSystemScreen> {
                           ),
                         ),
                         Text(
-                          st['api']?.toString() ?? '',
+                          '${stale ? 'Last reported: ' : ''}${st['api'] ?? '—'}',
                           style: const TextStyle(
                             fontSize: 12,
                             color: SfColors.muted,
@@ -1544,55 +1641,30 @@ class _AdminSystemScreenState extends State<AdminSystemScreen> {
                     ),
                   ),
                   SfStatusPill(
-                    label: apiOk ? 'online' : 'offline',
-                    tone: apiOk ? SfPillTone.success : SfPillTone.warning,
+                    label: stale
+                        ? 'Unverified'
+                        : apiOk
+                        ? 'online'
+                        : 'offline',
+                    tone: stale
+                        ? SfPillTone.warning
+                        : apiOk
+                        ? SfPillTone.success
+                        : SfPillTone.danger,
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 10),
-            SfFormCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'MySQL',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: SfColors.navy,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${st['mysql_version'] ?? ''} · ${st['documents'] ?? 0} documents in DB',
-                    style: const TextStyle(fontSize: 12, color: SfColors.muted),
-                  ),
-                ],
-              ),
+            _row(
+              'MySQL',
+              '${st['mysql_version'] ?? '—'} · ${st['documents'] ?? 0} documents in DB',
             ),
             if (users != null) ...[
               const SizedBox(height: 10),
-              SfFormCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Accounts on duty',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        color: SfColors.navy,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${_data?['role_counts']?['staff'] ?? 0} clerks · ${_data?['role_counts']?['head'] ?? 0} heads · ${_data?['role_counts']?['admin'] ?? 0} admin',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: SfColors.muted,
-                      ),
-                    ),
-                  ],
-                ),
+              _row(
+                'Accounts by role',
+                '${roles?['staff'] ?? 0} clerks · ${roles?['head'] ?? 0} heads · ${roles?['admin'] ?? 0} admin',
               ),
             ],
             if (ops != null) ...[
@@ -1602,12 +1674,10 @@ class _AdminSystemScreenState extends State<AdminSystemScreen> {
                   Expanded(
                     child: SfStatCard(
                       value:
-                          '${_data?['users']?['active'] ?? ops['pending_signups'] ?? 0}',
+                          '${users?['active'] ?? ops['pending_signups'] ?? 0}',
                       label: 'Active users',
                       color: SfColors.countInk(
-                        _data?['users']?['active'] ??
-                            ops['pending_signups'] ??
-                            0,
+                        users?['active'] ?? ops['pending_signups'] ?? 0,
                         live: SfColors.blue,
                       ),
                     ),
@@ -1616,7 +1686,7 @@ class _AdminSystemScreenState extends State<AdminSystemScreen> {
                   Expanded(
                     child: SfStatCard(
                       value: '${ops['movements_today'] ?? 0}',
-                      label: 'Scans today',
+                      label: 'Movements today',
                       color: SfColors.countInk(
                         ops['movements_today'] ?? 0,
                         live: SfColors.green,
@@ -1626,38 +1696,30 @@ class _AdminSystemScreenState extends State<AdminSystemScreen> {
                 ],
               ),
               const SizedBox(height: 10),
-              SfFormCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Flagged documents',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        color: SfColors.navy,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${ops['flagged_total'] ?? 0} total in system',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: SfColors.muted,
-                      ),
-                    ),
-                  ],
-                ),
+              _row(
+                'Flagged documents',
+                '${ops['flagged_total'] ?? 0} total in system',
               ),
             ],
-            const SizedBox(height: 8),
-            Text(
-              sfAdminLastSyncLabel(_lastLoaded),
-              style: const TextStyle(
-                fontSize: 12,
-                color: SfColors.muted,
-                fontWeight: FontWeight.w600,
-              ),
+            const SizedBox(height: 10),
+            SfEmailChannelCard(
+              email: data['email'] as Map?,
+              testing: _testing,
+              result: _testResult,
+              testError: _testError,
+              onTest: _sendTestEmail,
+              stale: stale,
             ),
+            const SizedBox(height: 8),
+            if (_lastLoaded != null)
+              Text(
+                '${stale ? 'Last successful check' : 'Updated'} ${formatSmartflowTime(_lastLoaded!.toIso8601String())} · pull to refresh',
+                style: const TextStyle(
+                  fontSize: 12,
+                  color: SfColors.muted,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
           ] else if (!_loading && _error == null) ...[
             const SizedBox(height: 12),
             const SfEmptyState(

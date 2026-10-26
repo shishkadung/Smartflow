@@ -990,3 +990,189 @@ class SfCoaExportHero extends StatelessWidget {
     );
   }
 }
+
+/// How the password-reset mail channel is set up, as the server names it.
+const _emailModes = {
+  'gmail': 'Gmail (SMTP)',
+  'smtp': 'SMTP mail server',
+  'live': 'Live sending',
+  'sandbox': 'Sandbox (test inbox only)',
+  'custom': 'Custom provider address',
+  'not_configured': 'Not configured',
+};
+
+({String label, SfPillTone tone}) _emailHealth(Map email) {
+  if (email['configured'] != true) {
+    return (label: 'Not configured', tone: SfPillTone.danger);
+  }
+  final last = email['last_attempt'] as Map?;
+  if (last != null && last['accepted'] != true) {
+    return (label: 'Last attempt failed', tone: SfPillTone.danger);
+  }
+  return email['ready_for_real_delivery'] == true
+      ? (label: 'Ready', tone: SfPillTone.success)
+      : (label: 'Needs attention', tone: SfPillTone.warning);
+}
+
+/// What the last email attempt did, in the web wording.
+String sfEmailLastAttempt(Map? last) {
+  if (last == null) return 'No email has been sent since this check was added.';
+  final purpose = last['purpose'] == 'test' ? 'test email' : 'password reset';
+  final String outcome;
+  if (last['not_configured'] == true) {
+    outcome = 'not sent, no token configured';
+  } else if (last['accepted'] == true) {
+    outcome = 'accepted by the provider';
+  } else {
+    final http = last['http'];
+    final code = last['code'];
+    final detail = http != null && '$http' != '0' && '$http'.isNotEmpty
+        ? ' (HTTP $http)'
+        : code != null && '$code' != '0' && '$code'.isNotEmpty
+        ? ' (code $code)'
+        : '';
+    outcome = 'rejected$detail';
+  }
+  return 'Last attempt ($purpose): $outcome · ${last['at']}';
+}
+
+/// Secret-free health of the password-reset email channel, so a broken setup is found before a user is locked out.
+/// The phone twin of the web "Password reset email" card; [stale] means the status behind it could not be re-checked.
+class SfEmailChannelCard extends StatelessWidget {
+  const SfEmailChannelCard({
+    super.key,
+    required this.email,
+    this.testing = false,
+    this.result,
+    this.testError = '',
+    this.onTest,
+    this.stale = false,
+  });
+
+  final Map? email;
+  final bool testing;
+
+  /// The provider's answer to the last test: `accepted` and `message`.
+  final Map? result;
+  final String testError;
+  final VoidCallback? onTest;
+  final bool stale;
+
+  @override
+  Widget build(BuildContext context) {
+    final email = this.email;
+    if (email == null) return const SizedBox.shrink();
+    final health = _emailHealth(email);
+    final domain = '${email['sender_domain'] ?? ''}';
+    final problems = (email['problems'] as List? ?? const []).cast<Object?>();
+    return SfFormCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // A wrap, not a row: at large text the status moves under the title instead of overflowing.
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.start,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Password reset email',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: SfColors.navy,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${_emailModes['${email['mode']}'] ?? 'Unknown'}${domain.isEmpty ? '' : ' · sender domain $domain'}',
+                    style: const TextStyle(fontSize: 12, color: SfColors.muted),
+                  ),
+                ],
+              ),
+              SfStatusPill(
+                label: stale ? 'Unverified' : health.label,
+                tone: stale ? SfPillTone.warning : health.tone,
+              ),
+            ],
+          ),
+          if (problems.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            for (final problem in problems)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('•  ', style: TextStyle(color: SfColors.red)),
+                    Expanded(
+                      child: Text(
+                        '$problem',
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: SfColors.ink,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            sfEmailLastAttempt(email['last_attempt'] as Map?),
+            style: const TextStyle(
+              fontSize: 12,
+              color: SfColors.muted,
+              height: 1.4,
+            ),
+          ),
+          if (testError.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            SfErrorBanner(message: testError),
+          ],
+          if (result != null) ...[
+            const SizedBox(height: 10),
+            result!['accepted'] == true
+                ? Container(
+                    key: const Key('email-test-accepted'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: SfColors.green.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: SfColors.green.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Text(
+                      '${result!['message']}',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        color: SfColors.ink,
+                        height: 1.5,
+                      ),
+                    ),
+                  )
+                : SfErrorBanner(message: '${result!['message']}'),
+          ],
+          const SizedBox(height: 12),
+          SfSecondaryOutlineButton(
+            label: testing ? 'Sending test…' : 'Send test email to my address',
+            icon: Icons.outgoing_mail,
+            onPressed: testing ? null : onTest,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'The test goes to your own email address on file. A provider that accepts a message does not guarantee it reaches the inbox, so confirm it arrived.',
+            style: TextStyle(fontSize: 12, color: SfColors.muted, height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -397,6 +397,10 @@ class SmartflowApi {
   Future<Map<String, dynamic>> systemStatus() =>
       _client.get('system-status.php');
 
+  /// Administrator only: sends one test message to the signed-in administrator's own address on file.
+  Future<Map<String, dynamic>> systemEmailTest() =>
+      _client.post('system-email-test.php', body: {});
+
   Future<Map<String, dynamic>> adminOffices() =>
       _client.get('admin-offices.php');
 
