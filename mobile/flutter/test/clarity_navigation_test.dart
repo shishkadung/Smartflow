@@ -231,6 +231,13 @@ void main() {
       final api = _ClarityApi();
       await _mount(tester, const AdminThresholdsScreen(), api);
       expect(find.text('Alert time limits'), findsOneWidget);
+      // The saved rules are worded in full, so the form starts below the first screen.
+      await tester.scrollUntilVisible(
+        find.widgetWithText(TextField, 'Document type'),
+        240,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
       final fields = tester
           .widgetList<TextField>(find.byType(TextField))
           .toList();

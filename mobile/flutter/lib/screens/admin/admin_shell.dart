@@ -11,6 +11,8 @@ import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_client.dart';
 import '../../services/smartflow_api.dart';
+import '../../utils/format_time.dart';
+import '../../utils/office_rules.dart';
 import '../../utils/report_metrics.dart';
 import '../../theme/sf_icons.dart';
 import '../../theme/smartflow_theme.dart';
@@ -1188,39 +1190,45 @@ class AdminOfficesScreen extends StatefulWidget {
 }
 
 class _AdminOfficesScreenState extends State<AdminOfficesScreen> {
+  late final AuthProvider _auth;
+  late final Object _identity;
+  late final SmartflowApi _api;
   List<Map<String, dynamic>> _offices = [];
   String? _error;
   bool _loading = true;
+  DateTime? _updated;
+  int _request = 0;
+
+  bool get _current => mounted && _auth.sessionIdentity == _identity;
 
   @override
   void initState() {
     super.initState();
+    _auth = context.read<AuthProvider>();
+    _identity = _auth.sessionIdentity;
+    _api = _auth.api;
     _load();
   }
 
   Future<void> _load() async {
+    if (!_current) return;
+    final request = ++_request;
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final data = await context.read<AuthProvider>().api.adminOffices();
-      if (!mounted) return;
+      final data = await _api.adminOffices();
+      if (!_current || request != _request) return;
       setState(() {
         _offices = (data['offices'] as List<dynamic>? ?? [])
             .map((e) => Map<String, dynamic>.from(e as Map))
             .toList();
         _loading = false;
+        _updated = DateTime.now();
       });
-    } on ApiException catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.message;
-          _loading = false;
-        });
-      }
     } catch (e) {
-      if (mounted) {
+      if (_current && request == _request) {
         setState(() {
           _error = apiErrorMessage(e);
           _loading = false;
@@ -1229,94 +1237,77 @@ class _AdminOfficesScreenState extends State<AdminOfficesScreen> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return RefreshIndicator(
-      onRefresh: _load,
-      color: SfColors.blue,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-        children: [
-          const SfAuthenticatedPageHeader(),
-          const SizedBox(height: 12),
-          const SfPageTitle(
-            title: 'Offices',
-            subtitle: 'Municipal offices and their saved alert time limits.',
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            SfErrorBanner(message: _error!),
-          ],
-          const SizedBox(height: 12),
-          SfNavigationRow(
-            icon: Icons.schedule_outlined,
-            title: 'Alert time limits',
-            subtitle: 'Manage processing and receipt limits by office',
-            onTap: () => context.push('/admin/thresholds'),
-          ),
-          const SizedBox(height: 14),
-          if (_loading)
-            const SfLoadingCard()
-          else if (_offices.isEmpty)
-            const SfEmptyState(
-              icon: Icons.business_rounded,
-              title: 'No offices loaded',
-              subtitle: 'Check API connection and refresh.',
-            )
-          else
-            ..._offices.map((m) {
-              final code = m['office_code']?.toString() ?? '';
-              final name = m['office_name']?.toString() ?? '';
-              final thresholds = m['thresholds'] as List<dynamic>? ?? [];
-              final threshText = thresholds.isEmpty
-                  ? 'No alert time limits configured'
-                  : thresholds
-                        .map((t) {
-                          final th = t as Map<String, dynamic>;
-                          return '${th['document_type']}\n${th['max_hours']}h processing · ${th['out_unconfirmed_hours']}h awaiting receipt';
-                        })
-                        .join('\n\n');
-              final dept = SfColors.dept(code.isNotEmpty ? code : 'ENG');
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: SfFormCard(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          color: dept.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          code.isNotEmpty ? code : '?',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: dept,
-                          ),
-                        ),
+  /// One office: its name and code, its custom rules (or that it has none) and a way to change them.
+  Widget _officeCard(Map<String, dynamic> m) {
+    final code = m['office_code']?.toString() ?? '';
+    final name = m['office_name']?.toString() ?? '';
+    final id = m['office_id'];
+    final rules = (m['thresholds'] as List<dynamic>? ?? []).cast<Map>();
+    final dept = SfColors.dept(code.isNotEmpty ? code : 'ENG');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: SfFormCard(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: dept.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                code.isNotEmpty ? code : '?',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: dept,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                      color: SfColors.ink,
+                    ),
+                  ),
+                  // No status pill: every office used to show a fixed "Active" that no data backed.
+                  const SizedBox(height: 8),
+                  if (rules.isEmpty)
+                    const Text(
+                      'No custom alert rules configured.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: SfColors.muted,
+                        height: 1.35,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
+                    )
+                  else
+                    for (final rule in rules)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              name,
+                              '${rule['document_type']}',
                               style: const TextStyle(
+                                fontSize: 13,
                                 fontWeight: FontWeight.w700,
-                                fontSize: 16,
                                 color: SfColors.ink,
                               ),
                             ),
-                            // No status pill: every office used to show a fixed "Active" that no data backed.
-                            const SizedBox(height: 8),
                             Text(
-                              threshText,
+                              ruleSummary(rule),
                               style: const TextStyle(
                                 fontSize: 13,
                                 color: SfColors.muted,
@@ -1326,11 +1317,111 @@ class _AdminOfficesScreenState extends State<AdminOfficesScreen> {
                           ],
                         ),
                       ),
-                    ],
-                  ),
-                ),
-              );
-            }),
+                  if (id != null)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => context.push(
+                          '/admin/thresholds?office=${Uri.encodeQueryComponent('$id')}',
+                        ),
+                        child: Semantics(
+                          label:
+                              '${rules.isEmpty ? 'Add' : 'Edit'} limits for ${name.isEmpty ? code : name}',
+                          excludeSemantics: true,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  rules.isEmpty ? 'Add limits' : 'Edit limits',
+                                ),
+                              ),
+                              const Icon(Icons.chevron_right, size: 18),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final updated = _updated;
+    return RefreshIndicator(
+      onRefresh: _load,
+      color: SfColors.blue,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        children: [
+          const SfAuthenticatedPageHeader(),
+          const SizedBox(height: 12),
+          const SfPageTitle(
+            title: 'Offices',
+            subtitle: 'Municipal offices and their saved alert time limits.',
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _loading ? null : _load,
+              icon: const Icon(Icons.refresh),
+              label: Text(_loading ? 'Refreshing…' : 'Refresh offices'),
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 4),
+            SfErrorBanner(
+              message: updated != null
+                  ? 'Office refresh failed. $_error Previously loaded office rules may be out of date.'
+                  : 'Offices unavailable. $_error',
+            ),
+            TextButton(
+              onPressed: _loading ? null : _load,
+              child: Text(_loading ? 'Retrying…' : 'Retry offices'),
+            ),
+          ],
+          if (_loading && updated != null) ...[
+            const SizedBox(height: 4),
+            const Text(
+              'Refreshing offices. Previously loaded rules may be out of date.',
+              style: TextStyle(fontSize: 13, color: SfColors.muted),
+            ),
+          ],
+          if (updated != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              '${_loading || _error != null ? 'Last successful update' : 'Updated'} ${formatSmartflowTime(updated.toIso8601String())} · pull to refresh',
+              style: const TextStyle(fontSize: 12, color: SfColors.muted),
+            ),
+          ],
+          const SizedBox(height: 12),
+          SfNavigationRow(
+            icon: Icons.schedule_outlined,
+            title: 'Alert time limits',
+            subtitle: 'Manage processing and receipt limits by office',
+            onTap: () => context.push('/admin/thresholds'),
+          ),
+          const SizedBox(height: 14),
+          if (_loading && updated == null)
+            const SfLoadingCard()
+          else if (_offices.isEmpty)
+            if (!_loading && _error == null)
+              const SfEmptyState(
+                icon: Icons.business_rounded,
+                title: 'No offices configured',
+                subtitle: 'Pull to refresh or check the API connection.',
+              )
+            else
+              const SizedBox.shrink()
+          else
+            ..._offices.map(_officeCard),
         ],
       ),
     );
@@ -2374,7 +2465,10 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 // ─── Thresholds ─────────────────────────────────────────────────────────────
 
 class AdminThresholdsScreen extends StatefulWidget {
-  const AdminThresholdsScreen({super.key});
+  const AdminThresholdsScreen({super.key, this.initialOfficeId});
+
+  /// The Offices page opens this screen on one office, as the web does with ?office=.
+  final int? initialOfficeId;
 
   @override
   State<AdminThresholdsScreen> createState() => _AdminThresholdsScreenState();
@@ -2409,7 +2503,9 @@ class _AdminThresholdsScreenState extends State<AdminThresholdsScreen> {
   void _editRule(Map<String, dynamic>? rule) {
     _typeCtrl.text = rule?['document_type']?.toString() ?? '';
     _hoursCtrl.text = rule?['max_hours']?.toString() ?? '48';
-    _receiptHoursCtrl.text = rule?['out_unconfirmed_hours']?.toString() ?? '24';
+    _receiptHoursCtrl.text = rule == null
+        ? '$defaultReceiptHours'
+        : '${ruleReceiptHours(rule)}';
   }
 
   @override
@@ -2442,8 +2538,16 @@ class _AdminThresholdsScreenState extends State<AdminThresholdsScreen> {
       setState(() {
         _offices = data['offices'] as List<dynamic>? ?? [];
         if (_offices.isNotEmpty && _officeId == null) {
-          _officeId =
-              (_offices.first['office_id'] ?? _offices.first['id']) as int;
+          final requested = widget.initialOfficeId;
+          final match = requested == null
+              ? null
+              : _offices.cast<Map>().where(
+                  (o) => (o['office_id'] ?? o['id']) == requested,
+                );
+          final office = match != null && match.isNotEmpty
+              ? match.first
+              : _offices.first;
+          _officeId = (office['office_id'] ?? office['id']) as int;
         }
         final matches = _rules.where(
           (r) => r['document_type'] == _typeCtrl.text,
@@ -2588,7 +2692,9 @@ class _AdminThresholdsScreenState extends State<AdminThresholdsScreen> {
             ),
             const SizedBox(height: 8),
             if (_rules.isEmpty)
-              const Text('No saved rule for this office. Add one below.'),
+              const Text(
+                'No custom rules for this office. Default limits are 48 processing hours and 24 hours to record receipt. Add one below.',
+              ),
             for (final rule in _rules)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -2596,9 +2702,7 @@ class _AdminThresholdsScreenState extends State<AdminThresholdsScreen> {
                   padding: EdgeInsets.zero,
                   child: ListTile(
                     title: Text('${rule['document_type']}'),
-                    subtitle: Text(
-                      '${rule['max_hours']}h processing · ${rule['out_unconfirmed_hours']}h awaiting receipt',
-                    ),
+                    subtitle: Text(ruleSummary(rule)),
                     trailing: const Icon(Icons.edit_outlined),
                     onTap: _saving || !_limitsFresh
                         ? null

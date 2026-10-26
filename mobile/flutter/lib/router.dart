@@ -404,7 +404,14 @@ GoRouter createRouter(AuthProvider auth) {
           ),
           GoRoute(
             path: '/admin/thresholds',
-            builder: (_, _) => _sessionScreen(auth, AdminThresholdsScreen()),
+            builder: (_, state) => _sessionScreen(
+              auth,
+              AdminThresholdsScreen(
+                initialOfficeId: int.tryParse(
+                  state.uri.queryParameters['office'] ?? '',
+                ),
+              ),
+            ),
           ),
           GoRoute(
             path: '/admin/requests',
