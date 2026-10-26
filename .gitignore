@@ -69,3 +69,6 @@ backups-qr-contents/
 
 # 84 MB Figma export; keep it on disk, outside Git history
 docs/design/Capstone SmartFlow.pdf
+
+# Deployment packages built by scripts/package-release.ps1 (large build output; rebuild from a commit)
+/release/
