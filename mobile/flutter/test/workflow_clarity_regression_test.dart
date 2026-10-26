@@ -427,6 +427,43 @@ void main() {
     );
   }
 
+  testWidgets(
+    'a completed folder is a compact row: status, outcome and office share one line',
+    (tester) async {
+      final api = _Api()..folderTitle = 'Approved project allocation';
+      await _mount(
+        tester,
+        api,
+        const DocumentsScreen(initialTray: 'completed'),
+      );
+      final tile = find.byType(ListTile);
+      expect(
+        find.descendant(
+          of: tile,
+          matching: find.text('Approved project allocation'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: tile,
+          matching: find.text('$_first · Reference: —'),
+        ),
+        findsOneWidget,
+      );
+      final pill = tester.getRect(
+        find.descendant(of: tile, matching: find.text('Completed')),
+      );
+      final outcome = tester.getRect(find.text('Route complete'));
+      final office = tester.getRect(
+        find.descendant(of: tile, matching: find.text('Accounting Office')),
+      );
+      expect((pill.center.dy - outcome.center.dy).abs(), lessThan(8));
+      expect((outcome.center.dy - office.center.dy).abs(), lessThan(8));
+      expect(tester.getSize(tile.first).height, lessThan(110));
+    },
+  );
+
   testWidgets('empty completed tray does not imply every folder was filed', (
     tester,
   ) async {

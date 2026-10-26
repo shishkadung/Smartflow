@@ -1761,7 +1761,9 @@ class SfAlertsSummaryRow extends StatelessWidget {
 /// Alert list filter (Alerts tab).
 enum SfAlertFilter { all, delayed, dueSoon, unconfirmed }
 
-/// Filter chips for alert kinds.
+/// Filter chips for alert kinds. The counts live in the summary strip above
+/// and the list heading below, so the chips carry only the kind and wrap
+/// instead of hiding the last one off-screen.
 class SfAlertFilterChips extends StatelessWidget {
   const SfAlertFilterChips({
     super.key,
@@ -1780,33 +1782,29 @@ class SfAlertFilterChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          _chip('All', SfAlertFilter.all, delayed + dueSoon + unconfirmed),
-          _chip('Overdue', SfAlertFilter.delayed, delayed),
-          _chip('Due soon', SfAlertFilter.dueSoon, dueSoon),
-          _chip('Receipt not recorded', SfAlertFilter.unconfirmed, unconfirmed),
-        ],
-      ),
+    return Wrap(
+      spacing: 8,
+      runSpacing: 6,
+      children: [
+        _chip('All', SfAlertFilter.all),
+        _chip('Overdue', SfAlertFilter.delayed),
+        _chip('Due soon', SfAlertFilter.dueSoon),
+        _chip('Receipt not recorded', SfAlertFilter.unconfirmed),
+      ],
     );
   }
 
-  Widget _chip(String label, SfAlertFilter value, int count) {
+  Widget _chip(String label, SfAlertFilter value) {
     final isSelected = selected == value;
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: FilterChip(
-        label: Text('$label${count > 0 ? ' ($count)' : ''}'),
-        selected: isSelected,
-        onSelected: (_) => onSelected(value),
-        selectedColor: SfColors.blue.withValues(alpha: 0.15),
-        checkmarkColor: SfColors.blue,
-        labelStyle: TextStyle(
-          fontSize: 11,
-          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
-        ),
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onSelected(value),
+      selectedColor: SfColors.blue.withValues(alpha: 0.15),
+      checkmarkColor: SfColors.blue,
+      labelStyle: TextStyle(
+        fontSize: 11,
+        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
       ),
     );
   }

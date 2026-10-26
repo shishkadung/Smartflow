@@ -376,6 +376,45 @@ void main() {
     },
   );
 
+  for (final (width: width, scale: scale) in [
+    (width: 390.0, scale: 1.0),
+    (width: 320.0, scale: 2.0),
+  ]) {
+    testWidgets(
+      'alert filter chips carry no counts and none is pushed off a ${width.toInt()}px phone at ${scale}x text',
+      (tester) async {
+        await _mount(
+          tester,
+          const StaffAlertsScreen(municipal: true),
+          _ClarityApi(),
+          width: width,
+          scale: scale,
+        );
+        // Large text pushes the chips below the first screen of a lazy list.
+        await tester.scrollUntilVisible(
+          find.widgetWithText(FilterChip, 'Receipt not recorded'),
+          120,
+          scrollable: find.byType(Scrollable).first,
+        );
+        final chips = find.byType(FilterChip);
+        expect(chips, findsNWidgets(4));
+        final labels = <String>[];
+        for (var i = 0; i < 4; i++) {
+          final chip = tester.widget<FilterChip>(chips.at(i));
+          labels.add((chip.label as Text).data!);
+          final rect = tester.getRect(chips.at(i));
+          expect(rect.left, greaterThanOrEqualTo(0), reason: labels.last);
+          expect(rect.right, lessThanOrEqualTo(width), reason: labels.last);
+        }
+        expect(labels, ['All', 'Overdue', 'Due soon', 'Receipt not recorded']);
+        expect(labels.any((label) => label.contains('(')), isFalse);
+        // The per-kind counts remain in the summary strip.
+        expect(find.text('Receipt not recorded'), findsWidgets);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets(
     'OUT deadline alert describes sending and missing receipt, not a desk',
     (tester) async {

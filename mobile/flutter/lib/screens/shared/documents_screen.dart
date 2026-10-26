@@ -26,6 +26,55 @@ bool _hasFilingEvidence(Map<String, dynamic> row) {
   return at?.toString().trim().isNotEmpty ?? false;
 }
 
+/// A finished folder needs its identity and where it rests, not the full waiting card.
+class _CompletedFolderSummary extends StatelessWidget {
+  const _CompletedFolderSummary({required this.row});
+  final Map<String, dynamic> row;
+
+  @override
+  Widget build(BuildContext context) {
+    final overdue = row['is_overdue'] == true;
+    final office = row['current_office_name']?.toString();
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${row['id']} · Reference: ${row['reference_no'] ?? '—'}',
+            style: const TextStyle(
+              fontSize: 12,
+              color: SfColors.muted,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              DocumentStatus(document: row),
+              Text(
+                '${overdue ? 'Overdue · ' : ''}${_hasFilingEvidence(row) ? 'Filed' : 'Route complete'}',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: overdue ? SfColors.red : SfColors.muted,
+                ),
+              ),
+              if (office != null && office.isNotEmpty)
+                Text(
+                  office,
+                  style: const TextStyle(fontSize: 12, color: SfColors.muted),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class DocumentsScreen extends StatefulWidget {
   const DocumentsScreen({
     super.key,
@@ -663,7 +712,9 @@ class _DocumentsScreenState extends State<DocumentsScreen>
                 padding: const EdgeInsets.only(bottom: 10),
                 child: SfFormCard(
                   flat: true,
-                  padding: const EdgeInsets.all(14),
+                  padding: row['tray'] == 'completed'
+                      ? const EdgeInsets.symmetric(horizontal: 14, vertical: 8)
+                      : const EdgeInsets.all(14),
                   child: ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(
@@ -674,7 +725,9 @@ class _DocumentsScreenState extends State<DocumentsScreen>
                         height: 1.35,
                       ),
                     ),
-                    subtitle: Padding(
+                    subtitle: row['tray'] == 'completed'
+                        ? _CompletedFolderSummary(row: row)
+                        : Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
