@@ -166,6 +166,10 @@ class SmartflowApi {
         query: {'office_id': '$officeId', 'period': 'year', 'year': '$year'},
       );
 
+  /// Administrators only: how fast each office forwards folders over the last [months] months (3 to 12).
+  Future<Map<String, dynamic>> departmentPerformance({int months = 6}) =>
+      _client.get('department-performance.php', query: {'months': '$months'});
+
   Future<String> reportExport(Map<String, String> query, String format) =>
       _client.getText(
         'reports-summary.php',

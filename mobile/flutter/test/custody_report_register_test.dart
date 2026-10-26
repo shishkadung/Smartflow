@@ -409,11 +409,22 @@ void main() {
       expect(api.exportQueries.single['correction_watermark'], '3');
       expect(find.textContaining('Export failed.'), findsOneWidget);
       expect(find.textContaining('Custody report unavailable.'), findsNothing);
-      await _show(tester, find.text('Office totals'));
+      await _show(tester, find.text('By office'));
       expect(api.queries.last['as_of'], '2026-10-23 10:00:00');
       expect(api.queries.last['movement_watermark'], '77');
       expect(api.queries.last['correction_watermark'], '3');
-      expect(find.text('Office totals'), findsOneWidget);
+      expect(find.text('By office'), findsOneWidget);
+      // The Exceptions part is opened from its chip, as on the web.
+      final exceptionsChip = find.byWidgetPredicate(
+        (widget) =>
+            widget is ChoiceChip &&
+            widget.label is Text &&
+            ((widget.label as Text).data ?? '').startsWith('Exceptions'),
+      );
+      await _show(tester, exceptionsChip);
+      await tester.ensureVisible(exceptionsChip);
+      await tester.tap(exceptionsChip);
+      await tester.pumpAndSettle();
       await _show(tester, find.textContaining('Unreceived transfer evidence'));
       await tester.tap(find.textContaining('Unreceived transfer evidence'));
       await tester.pumpAndSettle();

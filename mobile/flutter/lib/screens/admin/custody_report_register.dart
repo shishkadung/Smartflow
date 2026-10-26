@@ -11,6 +11,15 @@ import '../../utils/api_error.dart';
 import '../staff/clerk_widgets.dart' show SfErrorBanner;
 import '../../widgets/sf_widgets.dart';
 
+/// A summary tile on the report asks the register to show one classification. A new [token] applies it once, the way the
+/// web register opens from a tile: period activity, all offices, no search.
+class ReportClassificationRequest {
+  const ReportClassificationRequest(this.classification, this.token);
+
+  final String classification;
+  final int token;
+}
+
 /// A server-paged report snapshot. Opening a record uses the existing live,
 /// authenticated detail/history routes; it does not grant a custody action.
 class CustodyReportRegister extends StatefulWidget {
@@ -24,6 +33,7 @@ class CustodyReportRegister extends StatefulWidget {
     this.movementWatermark,
     this.correctionWatermark,
     this.ready = true,
+    this.classificationRequest,
   });
 
   final Map<String, String> period;
@@ -34,6 +44,7 @@ class CustodyReportRegister extends StatefulWidget {
   final String? movementWatermark;
   final String? correctionWatermark;
   final bool ready;
+  final ReportClassificationRequest? classificationRequest;
 
   @override
   State<CustodyReportRegister> createState() => _CustodyReportRegisterState();
@@ -63,9 +74,9 @@ class _CustodyReportRegisterState extends State<CustodyReportRegister>
 
   static const _classifications = {
     'all': 'All classifications',
-    'on_time': 'On time',
+    'on_time': 'On time / in process',
     'unforwarded': 'Awaiting receipt',
-    'delayed': 'Delayed',
+    'delayed': 'Late receipt',
   };
 
   Map<String, String> get _params => {
@@ -95,6 +106,18 @@ class _CustodyReportRegisterState extends State<CustodyReportRegister>
   @override
   void didUpdateWidget(CustodyReportRegister oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final request = widget.classificationRequest;
+    if (request != null &&
+        request.token != oldWidget.classificationRequest?.token) {
+      _scope = 'activity';
+      _classification = request.classification;
+      _office = '';
+      _query = '';
+      _search.clear();
+      _page = 1;
+      _load();
+      return;
+    }
     final changedPeriod =
         jsonEncode(oldWidget.period) != jsonEncode(widget.period);
     if (changedPeriod ||
@@ -211,10 +234,15 @@ class _CustodyReportRegisterState extends State<CustodyReportRegister>
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'Activity lists folders with a recorded movement in the period. '
-          'Outstanding transfers includes earlier OUT records still awaiting receipt at the cutoff.',
-          style: TextStyle(color: SfColors.muted, fontSize: 13, height: 1.4),
+        Text(
+          _scope == 'outstanding'
+              ? 'Transfers still awaiting a recorded receipt at the reporting cutoff, including sends from earlier periods. These folders can also appear in Period activity.'
+              : 'Folders with a recorded handoff or registration in this period. Custody below is shown as of the reporting cutoff; open tracking for the latest status.',
+          style: const TextStyle(
+            color: SfColors.muted,
+            fontSize: 13,
+            height: 1.4,
+          ),
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(

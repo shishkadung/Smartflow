@@ -254,6 +254,20 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
+Future<void> _openExceptions(WidgetTester tester) async {
+  // The Exceptions part of Custody reports is opened from its chip, as on the web.
+  final chip = find.byWidgetPredicate(
+    (widget) =>
+        widget is ChoiceChip &&
+        widget.label is Text &&
+        ((widget.label as Text).data ?? '').startsWith('Exceptions'),
+  );
+  await _show(tester, chip);
+  await tester.ensureVisible(chip);
+  await tester.tap(chip);
+  await _settle(tester);
+}
+
 Future<void> _mount(
   WidgetTester tester,
   Widget screen,
@@ -571,6 +585,7 @@ void main() {
         ..failExceptions = true
         ..exceptionCount = 15;
       await _mount(tester, const AdminReportsScreen(), fixture, role: 'admin');
+      await _openExceptions(tester);
       await _show(tester, find.text('Retry exceptions'));
       expect(
         find.textContaining('Audit exceptions unavailable.'),
@@ -664,27 +679,32 @@ void main() {
         find.textContaining('Custody report unavailable.'),
         findsOneWidget,
       );
-      expect(find.text('No office data'), findsNothing);
+      await _show(
+        tester,
+        find.text('Office totals are unavailable until the report loads.'),
+      );
+      expect(find.text('No office totals'), findsNothing);
       expect(
-        find.textContaining('No movements recorded for this'),
+        find.textContaining('No office totals for this'),
         findsNothing,
       );
       fixture.failReport = false;
       await tester.tap(find.text('Retry report'));
       await _settle(tester);
-      await _show(tester, find.text('No office data'));
-      expect(
-        find.textContaining('No movements recorded for this'),
-        findsOneWidget,
-      );
+      await _show(tester, find.text('No office totals'));
+      expect(find.text('No office totals for this month.'), findsOneWidget);
       fixture.failReport = true;
       await tester
           .widget<RefreshIndicator>(find.byType(RefreshIndicator))
           .onRefresh();
       await _settle(tester);
-      expect(find.text('No office data'), findsNothing);
+      await _show(
+        tester,
+        find.text('Office totals are unavailable until the report loads.'),
+      );
+      expect(find.text('No office totals'), findsNothing);
       expect(
-        find.textContaining('No movements recorded for this'),
+        find.textContaining('No office totals for this'),
         findsNothing,
       );
       expect(tester.takeException(), isNull);
@@ -695,6 +715,7 @@ void main() {
   ) async {
     final fixture = _Fixture()..exceptionCount = 15;
     await _mount(tester, const AdminReportsScreen(), fixture, role: 'admin');
+    await _openExceptions(tester);
     await _show(tester, find.text('15 audit exceptions'));
     await _show(tester, find.text('EXCEPTION-15'));
     expect(

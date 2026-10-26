@@ -521,9 +521,8 @@ class SfTemporaryPasswordDialog extends StatefulWidget {
   final String password;
   final String? expires;
 
-  static String grouped(String value) => RegExp(
-    '.{1,4}',
-  ).allMatches(value).map((m) => m.group(0)).join(' ');
+  static String grouped(String value) =>
+      RegExp('.{1,4}').allMatches(value).map((m) => m.group(0)).join(' ');
 
   @override
   State<SfTemporaryPasswordDialog> createState() =>
@@ -554,7 +553,10 @@ class _SfTemporaryPasswordDialogState extends State<SfTemporaryPasswordDialog> {
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 14,
+                  horizontal: 12,
+                ),
                 decoration: BoxDecoration(
                   color: SfColors.bg2,
                   borderRadius: BorderRadius.circular(12),
@@ -585,7 +587,11 @@ class _SfTemporaryPasswordDialogState extends State<SfTemporaryPasswordDialog> {
               const Text(
                 'Share it privately (in person or by phone), never by chat or email. '
                 'It is shown only once, expires in 24 hours, and the user must choose a new password at their next sign-in.',
-                style: TextStyle(fontSize: 13, color: SfColors.muted, height: 1.4),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: SfColors.muted,
+                  height: 1.4,
+                ),
               ),
               if (widget.expires != null && widget.expires!.isNotEmpty) ...[
                 const SizedBox(height: 6),
@@ -597,7 +603,11 @@ class _SfTemporaryPasswordDialogState extends State<SfTemporaryPasswordDialog> {
               const SizedBox(height: 6),
               const Text(
                 'Their other sessions were signed out and the old password no longer works.',
-                style: TextStyle(fontSize: 13, color: SfColors.muted, height: 1.4),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: SfColors.muted,
+                  height: 1.4,
+                ),
               ),
             ],
           ),
@@ -713,69 +723,69 @@ class SfAdminUserCard extends StatelessWidget {
             button: onManage != null,
             hint: onManage != null ? 'Opens account management' : null,
             child: LayoutBuilder(
-          builder: (context, constraints) {
-            // Wide enough and normal text size: identity on the left, status and action stacked on the right.
-            // Narrow screens or enlarged text keep the stacked layout so nothing overflows.
-            final roomy =
-                constraints.maxWidth >= 330 &&
-                MediaQuery.textScalerOf(context).scale(14) <= 16;
-            if (roomy) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  avatar,
-                  const SizedBox(width: 12),
-                  Expanded(child: identity),
-                  const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisSize: MainAxisSize.min,
+              builder: (context, constraints) {
+                // Wide enough and normal text size: identity on the left, status and action stacked on the right.
+                // Narrow screens or enlarged text keep the stacked layout so nothing overflows.
+                final roomy =
+                    constraints.maxWidth >= 330 &&
+                    MediaQuery.textScalerOf(context).scale(14) <= 16;
+                if (roomy) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      pill,
-                      if (isSelf)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: action,
-                        )
-                      else
-                        action,
-                    ],
-                  ),
-                  if (onManage != null)
-                    const Icon(
-                      Icons.chevron_right_rounded,
-                      size: 20,
-                      color: SfColors.muted,
-                    ),
-                ],
-              );
-            }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    avatar,
-                    const SizedBox(width: 12),
-                    Expanded(child: identity),
-                    if (onManage != null)
-                      const Icon(
-                        Icons.chevron_right_rounded,
-                        size: 20,
-                        color: SfColors.muted,
+                      avatar,
+                      const SizedBox(width: 12),
+                      Expanded(child: identity),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          pill,
+                          if (isSelf)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: action,
+                            )
+                          else
+                            action,
+                        ],
                       ),
+                      if (onManage != null)
+                        const Icon(
+                          Icons.chevron_right_rounded,
+                          size: 20,
+                          color: SfColors.muted,
+                        ),
+                    ],
+                  );
+                }
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        avatar,
+                        const SizedBox(width: 12),
+                        Expanded(child: identity),
+                        if (onManage != null)
+                          const Icon(
+                            Icons.chevron_right_rounded,
+                            size: 20,
+                            color: SfColors.muted,
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [pill, action],
+                    ),
                   ],
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [pill, action],
-                ),
-              ],
-            );
-          },
+                );
+              },
             ),
           ),
         ),
@@ -893,7 +903,9 @@ class SfCoaExportHero extends StatelessWidget {
 
   final String monthLabel;
   final bool exportAllowed;
-  final int docsInPeriod;
+
+  /// Null when the report did not provide the count; it is shown as not verified, never as 0.
+  final int? docsInPeriod;
   final VoidCallback? onExport;
   final VoidCallback? onPrint;
   final String submissionNote;
@@ -937,7 +949,9 @@ class SfCoaExportHero extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                '$docsInPeriod documents with activity',
+                docsInPeriod == null
+                    ? 'Activity count not verified'
+                    : '$docsInPeriod documents with activity · municipal system',
                 style: const TextStyle(fontSize: 13, color: SfColors.muted),
               ),
               if (submissionNote.isNotEmpty) ...[

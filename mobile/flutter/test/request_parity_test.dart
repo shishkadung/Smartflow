@@ -609,6 +609,18 @@ void main() {
   ) async {
     final api = _Api()..failExceptions = true;
     await _mount(tester, const AdminReportsScreen(), api);
+    // The Exceptions part of Custody reports is opened from its chip, as on the web.
+    final chip = find.byWidgetPredicate(
+      (widget) =>
+          widget is ChoiceChip &&
+          widget.label is Text &&
+          ((widget.label as Text).data ?? '').startsWith('Exceptions'),
+    );
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -300));
+    await tester.pump();
+    await tester.tap(chip);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
     await tester.scrollUntilVisible(
       find.textContaining('Audit exceptions unavailable'),
       250,

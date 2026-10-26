@@ -11,6 +11,7 @@ import '../../models/user.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_client.dart';
 import '../../services/smartflow_api.dart';
+import '../../utils/report_metrics.dart';
 import '../../theme/sf_icons.dart';
 import '../../theme/smartflow_theme.dart';
 import '../shared/change_password_sheet.dart';
@@ -26,6 +27,7 @@ import '../../widgets/profile_snapshot_feedback.dart';
 import '../staff/clerk_widgets.dart';
 import 'admin_widgets.dart';
 import 'custody_report_register.dart';
+import 'department_performance.dart';
 
 // ─── Shell ───────────────────────────────────────────────────────────────────
 
@@ -798,7 +800,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       if (!mounted || !current()) return;
       final password = data['temporary_password']?.toString() ?? '';
       if (password.isEmpty) {
-        setState(() => _error = 'No temporary password was returned. Try again.');
+        setState(
+          () => _error = 'No temporary password was returned. Try again.',
+        );
         return;
       }
       final target = data['user'] is Map
@@ -1580,6 +1584,9 @@ class _AdminSystemScreenState extends State<AdminSystemScreen> {
 
 // ─── Reports ────────────────────────────────────────────────────────────────
 
+/// The parts of the Custody reports page, as on the web: Overview, Departments, Register and (Accounting only) Exceptions.
+enum _ReportSection { overview, departments, register, exceptions }
+
 class AdminReportsScreen extends StatefulWidget {
   const AdminReportsScreen({super.key});
 
@@ -1607,6 +1614,13 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
   bool _exporting = false;
   String? _exportError;
   int _request = 0;
+  _ReportSection _section = _ReportSection.overview;
+  bool _departmentsOpened = false;
+  int _departmentRefresh = 0;
+  ReportClassificationRequest? _classificationRequest;
+  int _classificationToken = 0;
+
+  bool get _isAccounting => _auth.user?.officeCode.toUpperCase() == 'ACC';
 
   Map<String, String> get _periodQuery => switch (_period) {
     'year' => {'period': 'year', 'year': '$_year'},
@@ -1687,10 +1701,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     });
     final period = _periodQuery;
     try {
-      final data = await _api.auditExceptions(
-        hours: 24,
-        period: period,
-      );
+      final data = await _api.auditExceptions(hours: 24, period: period);
       if (!_current || request != _request) return;
       setState(() {
         _exceptions = (data['exceptions'] as List<dynamic>? ?? [])
@@ -1813,7 +1824,9 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
 
   Future<void> _export(String format) async {
     final report = _report;
-    if (!_current || _auth.loggingOut || report == null ||
+    if (!_current ||
+        _auth.loggingOut ||
+        report == null ||
         report['export_allowed'] != true ||
         _loading ||
         _exporting) {
@@ -1869,21 +1882,291 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     context.push('/admin/history', extra: {'documentId': id});
   }
 
+  /// Refresh report: reads the summary again and, if it was opened, the department comparison too.
+  Future<void> _refresh() {
+    _departmentRefresh++;
+    return _load();
+  }
+
+  void _selectSection(_ReportSection section) {
+    if (!_current || section == _section) return;
+    setState(() {
+      _section = section;
+      if (section == _ReportSection.departments) _departmentsOpened = true;
+    });
+  }
+
+  /// A summary tile opens the folder register on that classification, the way the web tiles do.
+  void _showRegisterFor(String classification) {
+    if (!_current) return;
+    setState(() {
+      _section = _ReportSection.register;
+      _classificationRequest = ReportClassificationRequest(
+        classification,
+        ++_classificationToken,
+      );
+    });
+  }
+
+  String get _periodNoun => switch (_period) {
+    'year' => 'year',
+    'quarter' => 'quarter',
+    _ => 'month',
+  };
+
+  static const _basisCounted =
+      'Each folder with activity in the period is counted once. A receipt more than 72 calendar hours after sending takes priority as Late receipt; otherwise an OUT awaiting receipt is counted as Awaiting receipt. Remaining received folders are On time / in process, including folders still at an office. This does not establish that processing met its deadline or that a folder is complete. Alerts use the configured office limits.';
+  static const _basisExceptions =
+      'Audit exceptions separately flag missing receipts after 24 hours and route evidence for review. A flagged route is not proof of an unauthorized handoff. Outstanding transfers also includes earlier sends without a receipt at the cutoff.';
+
+  static const _sectionTitle = TextStyle(
+    fontWeight: FontWeight.w700,
+    fontSize: 16,
+    color: SfColors.navy,
+  );
+
+  /// Completion rate and average time at an office; hidden for an older API that does not send them.
+  Widget _flowMetrics() {
+    final completion = _report?['completion'] as Map?;
+    final time = _report?['processing_time'] as Map?;
+    if (completion == null && time == null) return const SizedBox.shrink();
+    Widget row(String title, String value) => Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              color: SfColors.muted,
+              height: 1.4,
+            ),
+          ),
+        ],
+      ),
+    );
+    final basis = [
+      '${completion?['basis'] ?? ''}',
+      '${time?['basis'] ?? ''}',
+    ].where((text) => text.isNotEmpty).toList();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: SfFormCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Completion and time at offices', style: _sectionTitle),
+            if (completion != null)
+              row(
+                'Trail completion',
+                completion['percent'] == null
+                    ? 'No folders with activity in this period'
+                    : '${completion['completed']} of ${completion['of']} folders · ${completion['percent']}%',
+              ),
+            if (time != null)
+              row(
+                'Average time at an office',
+                time['average_hours'] == null
+                    ? 'No folders were forwarded in this period'
+                    : '${formatHours(time['average_hours'])} before forwarding · ${time['forwarded_stays']} forwarded, ${time['open_stays']} still at the office',
+              ),
+            if (basis.isNotEmpty)
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                dense: true,
+                title: const Text(
+                  'How these are counted',
+                  style: TextStyle(fontSize: 13),
+                ),
+                childrenPadding: const EdgeInsets.only(bottom: 8),
+                expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final text in basis)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Text(
+                        text,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: SfColors.muted,
+                          height: 1.45,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _officeTotals(List<dynamic> offices) {
+    return [
+      const Text('By office', style: _sectionTitle),
+      const SizedBox(height: 8),
+      if (_report == null)
+        Text(
+          _loading
+              ? 'Loading office totals…'
+              : 'Office totals are unavailable until the report loads.',
+          style: const TextStyle(color: SfColors.muted, fontSize: 13),
+        )
+      else if (offices.isEmpty)
+        SfEmptyState(
+          icon: Icons.assessment_outlined,
+          title: 'No office totals',
+          subtitle: 'No office totals for this $_periodNoun.',
+        )
+      else ...[
+        const Text(
+          'Distinct folders with activity at each office. A folder can appear under several offices; these counts do not mean completed work.',
+          style: TextStyle(fontSize: 12, color: SfColors.muted, height: 1.35),
+        ),
+        const SizedBox(height: 8),
+        for (final office in offices) _officeTotalTile(office as Map),
+      ],
+    ];
+  }
+
+  Widget _officeTotalTile(Map row) {
+    final code = row['office_code']?.toString() ?? '';
+    final forwarded = row['forwarded_stays'];
+    final average = row['avg_hours_at_office'];
+    final count = row['docs_processed'] ?? row['processed'];
+    final time = forwarded == null
+        ? ''
+        : average == null
+        ? ' · none forwarded'
+        : ' · avg ${formatHours(average)} before forwarding';
+    return SfListTile(
+      title: row['office_name']?.toString() ?? code,
+      subtitle: '${count ?? '—'} folders with activity$time',
+    );
+  }
+
+  static ({String label, SfPillTone tone}) _exceptionKind(Object? type) =>
+      switch ('$type') {
+        'unforwarded' => (label: 'Unforwarded OUT', tone: SfPillTone.warning),
+        'wrong_receiver' => (label: 'Wrong receiver', tone: SfPillTone.danger),
+        'skipped_office' => (label: 'Skipped office', tone: SfPillTone.danger),
+        'incomplete_contents' => (
+          label: 'Incomplete contents',
+          tone: SfPillTone.warning,
+        ),
+        _ => (
+          label: type == null || '$type'.isEmpty ? 'Exception' : '$type',
+          tone: SfPillTone.neutral,
+        ),
+      };
+
+  List<Widget> _exceptionsSection() {
+    return [
+      Text('Audit exceptions · $_periodLabel', style: _sectionTitle),
+      const SizedBox(height: 4),
+      const Text(
+        'Missing receipt records after 24 hours, receiver mismatches, route gaps and incomplete DV contents. Review the full history; permitted route exceptions may need context.',
+        style: TextStyle(fontSize: 12, color: SfColors.muted, height: 1.4),
+      ),
+      const SizedBox(height: 8),
+      if (_exceptionsLoaded && _exceptions.isNotEmpty)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            '${_exceptions.length} audit exception${_exceptions.length == 1 ? '' : 's'}',
+            style: const TextStyle(color: SfColors.muted),
+          ),
+        ),
+      if (_loading || _loadingExceptions)
+        const Padding(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: LinearProgressIndicator(),
+        )
+      else if (_exceptionsError != null)
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SfErrorBanner(
+              message: 'Audit exceptions unavailable. $_exceptionsError',
+            ),
+            TextButton(
+              onPressed: () => _loadExceptions(_request),
+              child: const Text('Retry exceptions'),
+            ),
+          ],
+        )
+      else if (!_exceptionsLoaded)
+        const SfInfoBanner(
+          text:
+              'Audit exceptions have not been checked for this period. An empty report does not establish a complete custody trail.',
+        )
+      else if (_exceptions.isEmpty)
+        SfEmptyState(
+          icon: Icons.verified_outlined,
+          title: 'No exceptions this $_periodNoun',
+          subtitle:
+              'No missing receipts, receiver mismatches, route gaps or incomplete DV contents were flagged.',
+        )
+      else
+        ..._exceptions.map((ex) {
+          final kind = _exceptionKind(ex['exception_type']);
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: SfListTile(
+              title: ex['document_id']?.toString() ?? '',
+              subtitle: ex['detail']?.toString() ?? '',
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SfStatusPill(label: kind.label, tone: kind.tone),
+                  Tooltip(
+                    message: 'Open full history for ${ex['document_id'] ?? ''}',
+                    child: const Icon(
+                      Icons.chevron_right,
+                      color: SfColors.muted,
+                    ),
+                  ),
+                ],
+              ),
+              onTap: () =>
+                  _openReportHistory(ex['document_id']?.toString() ?? ''),
+            ),
+          );
+        }),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
-    final comp = _report?['compliance'] as Map<String, dynamic>?;
+    final comp = _report?['compliance'] as Map?;
     final offices = _report?['office_totals'] as List<dynamic>? ?? [];
-    final totals = _report?['totals'] as Map<String, dynamic>?;
+    final totals = _report?['totals'] as Map?;
+    final summary = _report?['summary'] as Map?;
     final monthLabel = _periodLabel;
-    final onTime = (comp?['on_time']?['percent'] as num?)?.round() ?? 0;
-    final unforwarded =
-        (comp?['unforwarded']?['percent'] as num?)?.round() ?? 0;
-    final delayed = (comp?['delayed']?['percent'] as num?)?.round() ?? 0;
+    int? percent(String key) =>
+        ((comp?[key] as Map?)?['percent'] as num?)?.round();
+    int? folders(String key) =>
+        ((comp?[key] as Map?)?['count'] as num?)?.toInt();
+    // Unknown stays unknown: a missing count or rate is a dash, never 0.
+    final docsInPeriod =
+        ((totals?['documents_in_period'] ?? summary?['documents_in_period'])
+                as num?)
+            ?.toInt();
     final exportAllowed = _report?['export_allowed'] == true;
     final submissionNote = _report?['submission_note']?.toString() ?? '';
+    final isAccounting = _isAccounting;
+    final section = _section == _ReportSection.exceptions && !isAccounting
+        ? _ReportSection.overview
+        : _section;
 
     return RefreshIndicator(
-      onRefresh: _load,
+      onRefresh: _refresh,
       color: SfColors.blue,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -1899,7 +2182,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           Align(
             alignment: Alignment.centerLeft,
             child: TextButton.icon(
-              onPressed: _loading ? null : _load,
+              onPressed: _loading ? null : _refresh,
               icon: const Icon(Icons.refresh),
               label: const Text('Refresh report'),
             ),
@@ -1907,7 +2190,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
           if (_error != null) ...[
             const SizedBox(height: 12),
             SfErrorBanner(message: 'Custody report unavailable. $_error'),
-            TextButton(onPressed: _load, child: const Text('Retry report')),
+            TextButton(onPressed: _refresh, child: const Text('Retry report')),
           ],
           const SizedBox(height: 12),
           Wrap(
@@ -1933,7 +2216,7 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
             SfCoaExportHero(
               monthLabel: monthLabel,
               exportAllowed: exportAllowed,
-              docsInPeriod: (totals?['documents_in_period'] as int?) ?? 0,
+              docsInPeriod: docsInPeriod,
               submissionNote: submissionNote,
               onChangeMonth: _pickPeriod,
               pickerLabel: _pickerLabel,
@@ -1952,30 +2235,57 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
             ),
             const SizedBox(height: 14),
             SfComplianceRates(
-              onTime: onTime,
-              unforwarded: unforwarded,
-              delayed: delayed,
+              onTime: percent('on_time'),
+              unforwarded: percent('unforwarded'),
+              delayed: percent('delayed'),
+              onTimeLabel: 'On time / in process',
               unforwardedLabel: 'Awaiting receipt',
+              delayedLabel: 'Late receipt',
               monthLabel: 'Municipal',
-              onTimeFolders: (comp['on_time']?['count'] as num?)?.toInt(),
-              unforwardedFolders: (comp['unforwarded']?['count'] as num?)?.toInt(),
-              delayedFolders: (comp['delayed']?['count'] as num?)?.toInt(),
+              onTimeFolders: folders('on_time'),
+              unforwardedFolders: folders('unforwarded'),
+              delayedFolders: folders('delayed'),
+              onTimeTap: () => _showRegisterFor('on_time'),
+              unforwardedTap: () => _showRegisterFor('unforwarded'),
+              delayedTap: () => _showRegisterFor('delayed'),
             ),
-            const SizedBox(height: 8),
-            Text(
-              _report?['classification_note']?.toString() ??
-                  'Transfer classifications use a fixed 72-hour rule. '
-                  'They are separate from configurable office alert limits and folder deadlines.',
-              style: const TextStyle(fontSize: 12, color: SfColors.muted, height: 1.4),
-            ),
-            if (_report?['outstanding_transfers'] != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                '${_report?['outstanding_transfers']} outstanding transfers at the cutoff '
-                '(${_report?['carried_forward_transfers'] ?? 0} carried forward from earlier periods).',
-                style: const TextStyle(fontSize: 13, color: SfColors.muted),
+            ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text(
+                'How these numbers are counted',
+                style: TextStyle(fontSize: 13),
               ),
-            ],
+              childrenPadding: const EdgeInsets.only(bottom: 8),
+              expandedCrossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  _basisCounted,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: SfColors.muted,
+                    height: 1.45,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  _basisExceptions,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    color: SfColors.muted,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+            if (_report?['outstanding_transfers'] != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '${_report?['outstanding_transfers']} outstanding transfers at cutoff · ${_report?['carried_forward_transfers'] ?? '—'} sent before this period',
+                  style: const TextStyle(fontSize: 13, color: SfColors.muted),
+                ),
+              ),
           ] else ...[
             SfNavigationRow(
               icon: Icons.calendar_month_outlined,
@@ -1984,125 +2294,77 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
               onTap: _pickPeriod,
             ),
           ],
-          const SizedBox(height: 20),
-          CustodyReportRegister(
-            period: _periodQuery,
-            periodLabel: _periodLabel,
-            reloadKey: _request,
-            offices: offices,
-            asOf: (_report?['as_of'] ?? _report?['period_end'])?.toString(),
-            movementWatermark: _report?['movement_watermark']?.toString(),
-            correctionWatermark: _report?['correction_watermark']?.toString(),
-            ready: _report != null,
-          ),
           const SizedBox(height: 16),
-          const Text(
-            'Audit exceptions (custody gaps)',
-            style: TextStyle(
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-              color: SfColors.navy,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Unforwarded OUT, wrong-office IN, or skipped Budget/Accounting — '
-            '$_periodLabel. Review before COA reporting. Tap an exception to open full history.',
-            style: const TextStyle(fontSize: 12, color: SfColors.muted),
-          ),
-          const SizedBox(height: 8),
-          if (_exceptionsLoaded && _exceptions.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                '${_exceptions.length} audit exception${_exceptions.length == 1 ? '' : 's'}',
-                style: const TextStyle(color: SfColors.muted),
-              ),
-            ),
-          if (_loading || _loadingExceptions)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: LinearProgressIndicator(),
-            )
-          else if (_exceptionsError != null)
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SfErrorBanner(
-                  message: 'Audit exceptions unavailable. $_exceptionsError',
-                ),
-                TextButton(
-                  onPressed: () => _loadExceptions(_request),
-                  child: const Text('Retry exceptions'),
-                ),
-              ],
-            )
-          else if (!_exceptionsLoaded)
-            const SfInfoBanner(
-              text:
-                  'Audit exceptions have not been checked for this period. An empty report does not establish a complete custody trail.',
-            )
-          else if (_exceptions.isEmpty)
-            SfEmptyState(
-              icon: Icons.verified_outlined,
-              title: 'No exceptions · $_periodLabel',
-              subtitle:
-                  'No unforwarded, wrong-receiver, skipped-office or incomplete-contents folders detected.',
-            )
-          else
-            ..._exceptions.map(
-              (ex) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: SfListTile(
-                  title: ex['document_id']?.toString() ?? '',
-                  subtitle: ex['detail']?.toString() ?? '',
-                  trailing: Tooltip(
-                    message: 'Open full history for ${ex['document_id'] ?? ''}',
-                    child: const Icon(Icons.chevron_right, color: SfColors.muted),
+          // The same parts as the web page. Register stays mounted while hidden, so its filters and page are kept.
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final entry in [
+                (_ReportSection.overview, 'Overview'),
+                (_ReportSection.departments, 'Departments'),
+                (_ReportSection.register, 'Register'),
+                if (isAccounting)
+                  (
+                    _ReportSection.exceptions,
+                    _exceptionsLoaded
+                        ? 'Exceptions (${_exceptions.length})'
+                        : 'Exceptions',
                   ),
-                  onTap: () => _openReportHistory(ex['document_id']?.toString() ?? ''),
+              ])
+                ChoiceChip(
+                  label: Text(entry.$2),
+                  selected: section == entry.$1,
+                  onSelected: (_) => _selectSection(entry.$1),
+                ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          // One child with a fixed set of slots, so Departments and Register keep their state while another part is shown.
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Offstage(
+                offstage: section != _ReportSection.overview,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [_flowMetrics(), ..._officeTotals(offices)],
                 ),
               ),
-            ),
-          if (!_loading && _error == null && _report != null) ...[
-            const SizedBox(height: 16),
-            const Text(
-              'Office totals',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-                color: SfColors.navy,
+              if (_departmentsOpened)
+                Offstage(
+                  offstage: section != _ReportSection.departments,
+                  child: DepartmentPerformanceSection(
+                    reloadKey: _departmentRefresh,
+                  ),
+                )
+              else
+                const SizedBox.shrink(),
+              Offstage(
+                offstage: section != _ReportSection.register,
+                child: CustodyReportRegister(
+                  period: _periodQuery,
+                  periodLabel: _periodLabel,
+                  reloadKey: _request,
+                  offices: offices,
+                  asOf: (_report?['as_of'] ?? _report?['period_end'])
+                      ?.toString(),
+                  movementWatermark: _report?['movement_watermark']?.toString(),
+                  correctionWatermark: _report?['correction_watermark']
+                      ?.toString(),
+                  ready: _report != null,
+                  classificationRequest: _classificationRequest,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Folders with activity per office. A folder can appear under more than one office; office totals do not add up to unique municipal folders.',
-              style: const TextStyle(
-                fontSize: 12,
-                color: SfColors.muted,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 8),
-            if (offices.isEmpty)
-              SfEmptyState(
-                icon: Icons.assessment_outlined,
-                title: 'No office data',
-                subtitle:
-                    'No movements recorded for this ${_pickerLabel.toLowerCase()} yet.',
-              )
-            else
-              ...offices.map((o) {
-                final m = o as Map<String, dynamic>;
-                final code = m['office_code']?.toString() ?? 'ENG';
-                final count = (m['docs_processed'] as int?) ?? 0;
-                return SfListTile(
-                  title: m['office_name']?.toString() ?? code,
-                  subtitle:
-                      '$count document${count == 1 ? '' : 's'} with movement this ${_pickerLabel.toLowerCase()}',
-                );
-              }),
-          ],
+              if (isAccounting && section == _ReportSection.exceptions)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: _exceptionsSection(),
+                )
+              else
+                const SizedBox.shrink(),
+            ],
+          ),
         ],
       ),
     );
@@ -2457,7 +2719,8 @@ class _AdminEditEmailDialogState extends State<_AdminEditEmailDialog> {
     final value = _controller.text.trim();
     if (value.length > 120 || !sfEmailPattern.hasMatch(value)) {
       setState(
-        () => _error = 'Enter a valid email address, for example name@example.com.',
+        () => _error =
+            'Enter a valid email address, for example name@example.com.',
       );
       return;
     }
@@ -2495,7 +2758,11 @@ class _AdminEditEmailDialogState extends State<_AdminEditEmailDialog> {
             ),
             const Text(
               'Use an address the person can open. Any unused reset code sent to the old address stops working.',
-              style: TextStyle(fontSize: 12, color: SfColors.muted, height: 1.4),
+              style: TextStyle(
+                fontSize: 12,
+                color: SfColors.muted,
+                height: 1.4,
+              ),
             ),
           ],
         ),

@@ -1816,11 +1816,17 @@ class SfComplianceRates extends StatelessWidget {
     this.unforwardedFolders,
     this.delayedFolders,
     this.unforwardedLabel = 'Unforwarded',
+    this.onTimeLabel = 'On time',
+    this.delayedLabel = 'Delayed',
+    this.onTimeTap,
+    this.unforwardedTap,
+    this.delayedTap,
   });
 
-  final int onTime;
-  final int unforwarded;
-  final int delayed;
+  /// A rate the report did not provide is null and shows a dash, never 0%.
+  final int? onTime;
+  final int? unforwarded;
+  final int? delayed;
   final String? monthLabel;
 
   /// Folder counts shown under each rate when the caller has them.
@@ -1828,6 +1834,15 @@ class SfComplianceRates extends StatelessWidget {
   final int? unforwardedFolders;
   final int? delayedFolders;
   final String unforwardedLabel;
+  final String onTimeLabel;
+  final String delayedLabel;
+
+  /// When set, the tile is a button (the report opens its folder register for that classification).
+  final VoidCallback? onTimeTap;
+  final VoidCallback? unforwardedTap;
+  final VoidCallback? delayedTap;
+
+  static String _rate(int? percent) => percent == null ? '—' : '$percent%';
 
   static String? _folders(int? count) =>
       count == null ? null : '$count folder${count == 1 ? '' : 's'}';
@@ -1854,74 +1869,101 @@ class SfComplianceRates extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 10),
-        Row(
-          children: [
-            _rateBox(
-              'On time',
-              '$onTime%',
-              SfColors.green,
-              _folders(onTimeFolders),
-            ),
-            const SizedBox(width: 8),
-            _rateBox(
-              unforwardedLabel,
-              '$unforwarded%',
-              SfColors.gold,
-              _folders(unforwardedFolders),
-            ),
-            const SizedBox(width: 8),
-            _rateBox(
-              'Delayed',
-              '$delayed%',
-              SfColors.red,
-              _folders(delayedFolders),
-            ),
-          ],
+        // Equal-height tiles, even when one label wraps onto a second line.
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _rateBox(
+                onTimeLabel,
+                _rate(onTime),
+                SfColors.green,
+                _folders(onTimeFolders),
+                onTimeTap,
+              ),
+              const SizedBox(width: 8),
+              _rateBox(
+                unforwardedLabel,
+                _rate(unforwarded),
+                SfColors.gold,
+                _folders(unforwardedFolders),
+                unforwardedTap,
+              ),
+              const SizedBox(width: 8),
+              _rateBox(
+                delayedLabel,
+                _rate(delayed),
+                SfColors.red,
+                _folders(delayedFolders),
+                delayedTap,
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  Widget _rateBox(String label, String value, Color color, [String? folders]) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-        decoration: BoxDecoration(
-          color: SfColors.paper,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0x140F172A)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.w800,
-                color: color,
-              ),
+  Widget _rateBox(
+    String label,
+    String value,
+    Color color, [
+    String? folders,
+    VoidCallback? onTap,
+  ]) {
+    final box = Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+      decoration: BoxDecoration(
+        color: SfColors.paper,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x140F172A)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: color,
             ),
-            const SizedBox(height: 4),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 12,
+              color: SfColors.muted,
+              fontWeight: FontWeight.w600,
+              height: 1.3,
+            ),
+          ),
+          if (folders != null) ...[
+            const SizedBox(height: 2),
             Text(
-              label,
+              folders,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 12,
-                color: SfColors.muted,
-                fontWeight: FontWeight.w600,
-                height: 1.3,
-              ),
+              style: const TextStyle(fontSize: 11, color: SfColors.muted),
             ),
-            if (folders != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                folders,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 11, color: SfColors.muted),
-              ),
-            ],
           ],
+        ],
+      ),
+    );
+    if (onTap == null) return Expanded(child: box);
+    return Expanded(
+      child: Semantics(
+        button: true,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: onTap,
+            child: box,
+          ),
         ),
       ),
     );

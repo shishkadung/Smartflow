@@ -102,6 +102,37 @@ class SfGrowDown extends StatelessWidget {
   }
 }
 
+/// Grows a bar up from its baseline, once, [index] bars after the first. Only the paint is scaled; the bar keeps its real
+/// height in the layout, so the value it stands for is never changed by the animation.
+class SfGrowUp extends StatelessWidget {
+  const SfGrowUp({super.key, required this.child, this.index = 0});
+
+  final Widget child;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    if (SfMotion.reduced(context)) return child;
+    final delay = const Duration(milliseconds: 40) * math.min(index, 12);
+    final total = delay + const Duration(milliseconds: 480);
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: total,
+      curve: Interval(
+        delay.inMilliseconds / total.inMilliseconds,
+        1,
+        curve: Curves.easeOutCubic,
+      ),
+      builder: (context, t, child) => Transform(
+        alignment: Alignment.bottomCenter,
+        transform: Matrix4.diagonal3Values(1, t, 1),
+        child: child,
+      ),
+      child: child,
+    );
+  }
+}
+
 /// A whole number that counts up to [value] the first time it appears and, later, from what it last showed. [id] names
 /// the number so reopening a page does not replay the count. Only pass a number that was actually loaded: an
 /// unavailable value must stay a dash, never a count that starts at zero.
