@@ -72,3 +72,6 @@ docs/design/Capstone SmartFlow.pdf
 
 # Deployment packages built by scripts/package-release.ps1 (large build output; rebuild from a commit)
 /release/
+
+# Items gathered for deletion at client handover (see its README)
+/_HANDOVER-DELETE/
