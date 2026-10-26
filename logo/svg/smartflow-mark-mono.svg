@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="94 65 330 381">
+  <title>SmartFlow</title>
+  <defs><mask id="m3" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512"><rect width="512" height="512" fill="#fff"/><path d="M335 115H377A12 12 0 0 1 389 127V169A12 12 0 0 1 377 181H335A12 12 0 0 1 323 169V127A12 12 0 0 1 335 115Z" fill="#000"/></mask></defs>
+  <path d="M356 148C302 98 168 100 168 186C168 262 344 248 344 326C344 412 210 414 156 364" fill="none" stroke="#0B1F3A" stroke-width="62" stroke-linecap="round" stroke-linejoin="round" mask="url(#m3)"/>
+  <circle cx="156" cy="364" r="46" fill="#0B1F3A"/>
+  <path d="M326 96H386A22 22 0 0 1 408 118V178A22 22 0 0 1 386 200H326A22 22 0 0 1 304 178V118A22 22 0 0 1 326 96ZM335 115H377A12 12 0 0 1 389 127V169A12 12 0 0 1 377 181H335A12 12 0 0 1 323 169V127A12 12 0 0 1 335 115Z" fill="#0B1F3A" fill-rule="evenodd"/>
+  <path d="M346 131H366A7 7 0 0 1 373 138V158A7 7 0 0 1 366 165H346A7 7 0 0 1 339 158V138A7 7 0 0 1 346 131Z" fill="#0B1F3A"/>
+</svg>
