@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../theme/smartflow_theme.dart';
 import '../../utils/format_time.dart';
+import '../../utils/head_queue.dart';
 import '../../widgets/sf_widgets.dart';
 import '../staff/clerk_widgets.dart';
 
@@ -109,10 +110,8 @@ class SfHeadPageOverviewCard extends StatelessWidget {
 
 /// Three stat tiles for head home dashboard (optional tap → filtered queue).
 /// Head queue: OUT from this office awaiting receive scan at destination.
-bool headQueueAwaitingReceive(Map<String, dynamic> item) {
-  final meta = item['meta']?.toString().toLowerCase() ?? '';
-  return item['last_status'] == 'OUT' && meta.contains('awaiting receive');
-}
+bool headQueueAwaitingReceive(Map<String, dynamic> item) =>
+    queueAwaitingReceive(item);
 
 class SfHeadStatRow extends StatelessWidget {
   const SfHeadStatRow({
@@ -159,23 +158,40 @@ class SfHeadStatRow extends StatelessWidget {
   }
 }
 
-enum SfHeadQueueFilter { all, inOffice, overdue, forwarded }
+/// The views of the head queue, in the order the web shows them. [forwarded] is "Awaiting receive".
+enum SfHeadQueueFilter { active, overdue, inOffice, forwarded, completed, all }
+
+extension SfHeadQueueFilterKey on SfHeadQueueFilter {
+  /// The name the shared queue logic (utils/head_queue.dart) uses for this view.
+  String get key => switch (this) {
+    SfHeadQueueFilter.active => 'active',
+    SfHeadQueueFilter.overdue => 'overdue',
+    SfHeadQueueFilter.inOffice => 'in_office',
+    SfHeadQueueFilter.forwarded => 'awaiting',
+    SfHeadQueueFilter.completed => 'completed',
+    SfHeadQueueFilter.all => 'all',
+  };
+
+  String get label => switch (this) {
+    SfHeadQueueFilter.active => 'Active',
+    SfHeadQueueFilter.overdue => 'Overdue',
+    SfHeadQueueFilter.inOffice => 'In office',
+    SfHeadQueueFilter.forwarded => 'Awaiting receive',
+    SfHeadQueueFilter.completed => 'Completed',
+    SfHeadQueueFilter.all => 'All',
+  };
+}
 
 class SfHeadQueueFilterChips extends StatelessWidget {
   const SfHeadQueueFilterChips({
     super.key,
-    required this.total,
-    required this.inOffice,
-    required this.overdue,
-    required this.forwarded,
+    required this.counts,
     required this.selected,
     required this.onSelected,
   });
 
-  final int total;
-  final int inOffice;
-  final int overdue;
-  final int forwarded;
+  /// Folders in each view, keyed by [SfHeadQueueFilterKey.key]. "All" shows no count, as on the web.
+  final Map<String, int> counts;
   final SfHeadQueueFilter selected;
   final ValueChanged<SfHeadQueueFilter> onSelected;
 
@@ -185,21 +201,23 @@ class SfHeadQueueFilterChips extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          _chip('All', SfHeadQueueFilter.all, total),
-          const SizedBox(width: 8),
-          _chip('In office', SfHeadQueueFilter.inOffice, inOffice),
-          const SizedBox(width: 8),
-          _chip('Overdue', SfHeadQueueFilter.overdue, overdue),
-          const SizedBox(width: 8),
-          _chip('Awaiting receive', SfHeadQueueFilter.forwarded, forwarded),
+          for (final filter in SfHeadQueueFilter.values) ...[
+            if (filter != SfHeadQueueFilter.active) const SizedBox(width: 8),
+            _chip(filter),
+          ],
         ],
       ),
     );
   }
 
-  Widget _chip(String label, SfHeadQueueFilter value, int count) {
+  Widget _chip(SfHeadQueueFilter value) {
+    final count = counts[value.key];
     return FilterChip(
-      label: Text('$label${count > 0 ? ' ($count)' : ''}'),
+      label: Text(
+        value == SfHeadQueueFilter.all || count == null
+            ? value.label
+            : '${value.label} ($count)',
+      ),
       selected: selected == value,
       onSelected: (_) => onSelected(value),
     );
@@ -378,6 +396,9 @@ class SfHeadQueueRow extends StatelessWidget {
     required this.hoursPending,
     required this.onTap,
     this.onCopyId,
+    this.waitLabel,
+    this.pillLabel,
+    this.pillTone,
   });
 
   final String documentId;
@@ -389,6 +410,13 @@ class SfHeadQueueRow extends StatelessWidget {
   final int hoursPending;
   final VoidCallback onTap;
   final VoidCallback? onCopyId;
+
+  /// How long the folder has waited ("4d waiting", "Completed 162d ago"). Without it the hours are shown as before.
+  final String? waitLabel;
+
+  /// The one state to show on the card; without them the server's pill is shown.
+  final String? pillLabel;
+  final SfPillTone? pillTone;
 
   @override
   Widget build(BuildContext context) {
@@ -469,14 +497,29 @@ class SfHeadQueueRow extends StatelessWidget {
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     SfStatusPill(
-                      label: statusPill.isNotEmpty ? statusPill : '—',
-                      tone: overdue
-                          ? SfPillTone.danger
-                          : (forwarded
-                                ? SfPillTone.warning
-                                : SfPillTone.success),
+                      label:
+                          pillLabel ??
+                          (statusPill.isNotEmpty ? statusPill : '—'),
+                      tone:
+                          pillTone ??
+                          (overdue
+                              ? SfPillTone.danger
+                              : (forwarded
+                                    ? SfPillTone.warning
+                                    : SfPillTone.success)),
                     ),
-                    if (hoursPending > 0)
+                    if (waitLabel != null)
+                      Text(
+                        waitLabel!,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: pillTone == SfPillTone.success
+                              ? SfColors.muted
+                              : accent,
+                        ),
+                      )
+                    else if (hoursPending > 0)
                       Text(
                         '${hoursPending}h',
                         style: TextStyle(

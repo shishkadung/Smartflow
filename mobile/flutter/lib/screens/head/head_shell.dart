@@ -11,6 +11,7 @@ import '../../utils/alert_actions.dart';
 import '../../theme/sf_icons.dart';
 import '../../theme/smartflow_theme.dart';
 import '../../utils/format_time.dart';
+import '../../utils/head_queue.dart';
 import '../../widgets/sf_help.dart';
 import '../../widgets/sf_page.dart';
 import '../../widgets/sf_pdf_chrome.dart';
@@ -327,7 +328,7 @@ class _HeadDashboardScreenState extends State<HeadDashboardScreen>
 
 // ─── Queue ──────────────────────────────────────────────────────────────────
 
-enum _HeadQueueSort { hoursDesc, hoursAsc, idAsc }
+enum _HeadQueueSort { attention, hoursDesc, hoursAsc, idAsc }
 
 class HeadQueueScreen extends StatefulWidget {
   const HeadQueueScreen({super.key, this.initialFilter});
@@ -336,12 +337,19 @@ class HeadQueueScreen extends StatefulWidget {
 
   static SfHeadQueueFilter? parseFilter(String? name) {
     switch (name) {
+      case 'active':
+        return SfHeadQueueFilter.active;
       case 'in_office':
         return SfHeadQueueFilter.inOffice;
       case 'overdue':
         return SfHeadQueueFilter.overdue;
       case 'forwarded':
+      case 'awaiting':
         return SfHeadQueueFilter.forwarded;
+      case 'completed':
+        return SfHeadQueueFilter.completed;
+      case 'all':
+        return SfHeadQueueFilter.all;
       default:
         return null;
     }
@@ -366,12 +374,38 @@ class _HeadQueueScreenState extends State<HeadQueueScreen>
   late final AuthProvider _auth;
   late final Object _identity;
   late SfHeadQueueFilter _filter;
-  _HeadQueueSort _sort = _HeadQueueSort.hoursDesc;
+  _HeadQueueSort _sort = _HeadQueueSort.attention;
+
+  /// How many folders of the chosen view are listed; "Show more" adds a page. A different view starts again at one page.
+  int _limit = headQueuePageSize;
 
   bool get _current => mounted && _auth.sessionIdentity == _identity;
 
-  String _normalizedStatus(Map<String, dynamic> item) =>
-      item['status_label']?.toString().trim().toLowerCase() ?? '';
+  String get _sortKey => switch (_sort) {
+    _HeadQueueSort.attention => 'attention',
+    _HeadQueueSort.hoursDesc => 'hoursDesc',
+    _HeadQueueSort.hoursAsc => 'hoursAsc',
+    _HeadQueueSort.idAsc => 'id',
+  };
+
+  String get _viewTitle => switch (_filter) {
+    SfHeadQueueFilter.active => 'Active documents',
+    SfHeadQueueFilter.overdue => 'Overdue documents',
+    SfHeadQueueFilter.inOffice => 'Documents in office',
+    SfHeadQueueFilter.forwarded => 'Awaiting receive',
+    SfHeadQueueFilter.completed => 'Completed documents',
+    SfHeadQueueFilter.all => 'All documents',
+  };
+
+  void _chooseFilter(SfHeadQueueFilter filter) => setState(() {
+    _filter = filter;
+    _limit = headQueuePageSize;
+  });
+
+  void _chooseSort(_HeadQueueSort sort) => setState(() {
+    _sort = sort;
+    _limit = headQueuePageSize;
+  });
 
   String _compactText(dynamic value) =>
       value?.toString().replaceAll(RegExp(r'\s+'), ' ').trim() ?? '';
@@ -389,6 +423,17 @@ class _HeadQueueScreenState extends State<HeadQueueScreen>
     final meta = _compactText(m['meta']);
     final statusLabel = _compactText(m['status_label']);
     final statusPill = _compactText(m['status_pill']);
+    // The one state shown on a card: the server's overdue or completed label wins over the physical position.
+    final (pill, tone) = switch (headQueueState(m)) {
+      HeadQueueState.overdue => ('Overdue', SfPillTone.danger),
+      HeadQueueState.awaiting => ('Awaiting receive', SfPillTone.warning),
+      HeadQueueState.completed => ('Completed', SfPillTone.success),
+      HeadQueueState.inOffice => ('In office', SfPillTone.neutral),
+      HeadQueueState.other => (
+        statusPill.isNotEmpty ? statusPill : 'On time',
+        SfPillTone.success,
+      ),
+    };
 
     return SfHeadQueueRow(
       documentId: id,
@@ -398,6 +443,9 @@ class _HeadQueueScreenState extends State<HeadQueueScreen>
       statusLabel: statusLabel,
       statusPill: statusPill,
       hoursPending: _asInt(m['hours_pending']),
+      waitLabel: queueWaitLabel(m),
+      pillLabel: pill,
+      pillTone: tone,
       onTap: () => _openHistory(id),
     );
   }
@@ -415,8 +463,9 @@ class _HeadQueueScreenState extends State<HeadQueueScreen>
     }
   }
 
-  /// Queue rows as direct [ListView] children (avoids nested scroll + flex issues).
-  List<Widget> _activeDocumentListChildren(List<Map<String, dynamic>> visible) {
+  /// Queue rows as direct [ListView] children (avoids nested scroll + flex issues). [matches] is every folder of the
+  /// chosen view; one page of it is listed.
+  List<Widget> _activeDocumentListChildren(List<Map<String, dynamic>> matches) {
     if (_loading) return [const SfLoadingCard()];
     if (_lastLoaded == null) return [];
     if (_queue.isEmpty) {
@@ -436,15 +485,35 @@ class _HeadQueueScreenState extends State<HeadQueueScreen>
         ),
       ];
     }
-    if (visible.isEmpty) {
-      if (_searchCtrl.text.trim().isNotEmpty) {
+    if (matches.isEmpty) {
+      final query = _searchCtrl.text.trim();
+      if (query.isNotEmpty) {
         return [
           SfEmptyState(
             icon: Icons.search_off_rounded,
             title: 'No matching documents',
-            subtitle: 'Clear the search to show folders in this view.',
+            subtitle: _filter == SfHeadQueueFilter.all
+                ? 'Clear the search to show folders in this view.'
+                : 'Nothing matches “$query” in this view.',
             actionLabel: 'Clear search',
             onAction: _searchCtrl.clear,
+            secondaryActionLabel: _filter == SfHeadQueueFilter.all
+                ? null
+                : 'Search all folders',
+            onSecondaryAction: _filter == SfHeadQueueFilter.all
+                ? null
+                : () => _chooseFilter(SfHeadQueueFilter.all),
+          ),
+        ];
+      }
+      if (_filter == SfHeadQueueFilter.active) {
+        return [
+          SfEmptyState(
+            icon: Icons.task_alt_outlined,
+            title: 'No active documents',
+            subtitle: 'Finished folders are under Completed.',
+            actionLabel: 'Show completed',
+            onAction: () => _chooseFilter(SfHeadQueueFilter.completed),
           ),
         ];
       }
@@ -454,11 +523,35 @@ class _HeadQueueScreenState extends State<HeadQueueScreen>
           title: 'No documents in this filter',
           subtitle: 'Try All to see every folder at your office.',
           actionLabel: 'Show all',
-          onAction: () => setState(() => _filter = SfHeadQueueFilter.all),
+          onAction: () => _chooseFilter(SfHeadQueueFilter.all),
         ),
       ];
     }
-    return visible.map(_buildQueueRowSafe).toList();
+    final shown = matches.take(_limit).toList();
+    final remaining = matches.length - shown.length;
+    return [
+      ...shown.map(_buildQueueRowSafe),
+      if (remaining > 0)
+        Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                'Showing ${shown.length} of ${matches.length}',
+                style: const TextStyle(fontSize: 12, color: SfColors.muted),
+              ),
+              const SizedBox(height: 6),
+              OutlinedButton(
+                onPressed: () => setState(() => _limit += headQueuePageSize),
+                child: Text(
+                  'Show ${remaining < headQueuePageSize ? remaining : headQueuePageSize} more',
+                ),
+              ),
+            ],
+          ),
+        ),
+    ];
   }
 
   @override
@@ -466,9 +559,11 @@ class _HeadQueueScreenState extends State<HeadQueueScreen>
     super.initState();
     _auth = context.read<AuthProvider>();
     _identity = _auth.sessionIdentity;
-    _filter = widget.initialFilter ?? SfHeadQueueFilter.all;
+    _filter = widget.initialFilter ?? SfHeadQueueFilter.active;
     _searchCtrl.addListener(() {
-      if (mounted) setState(() {});
+      if (mounted) {
+        setState(() => _limit = headQueuePageSize);
+      }
     });
     _load();
   }
@@ -479,56 +574,13 @@ class _HeadQueueScreenState extends State<HeadQueueScreen>
     super.dispose();
   }
 
-  int get _countInOffice =>
-      _queue.where((q) => _normalizedStatus(q) == 'in_office').length;
-
-  int get _countOverdue =>
-      _queue.where((q) => _normalizedStatus(q) == 'overdue').length;
-
-  int get _countForwarded => _queue.where(headQueueAwaitingReceive).length;
-
-  List<Map<String, dynamic>> get _visible {
-    final q = _searchCtrl.text.trim().toUpperCase();
-    var list = _queue.where((item) {
-      switch (_filter) {
-        case SfHeadQueueFilter.all:
-          break;
-        case SfHeadQueueFilter.inOffice:
-          if (_normalizedStatus(item) != 'in_office') return false;
-          break;
-        case SfHeadQueueFilter.overdue:
-          if (_normalizedStatus(item) != 'overdue') return false;
-          break;
-        case SfHeadQueueFilter.forwarded:
-          if (!headQueueAwaitingReceive(item)) return false;
-          break;
-      }
-      if (q.isNotEmpty) {
-        final id = item['document_id']?.toString().toUpperCase() ?? '';
-        final title = item['title']?.toString().toUpperCase() ?? '';
-        if (!id.contains(q) && !title.contains(q)) return false;
-      }
-      return true;
-    }).toList();
-
-    list.sort((a, b) {
-      switch (_sort) {
-        case _HeadQueueSort.hoursDesc:
-          final ha = _asInt(a['hours_pending']);
-          final hb = _asInt(b['hours_pending']);
-          return hb.compareTo(ha);
-        case _HeadQueueSort.hoursAsc:
-          final ha = _asInt(a['hours_pending']);
-          final hb = _asInt(b['hours_pending']);
-          return ha.compareTo(hb);
-        case _HeadQueueSort.idAsc:
-          return (a['document_id']?.toString() ?? '').compareTo(
-            b['document_id']?.toString() ?? '',
-          );
-      }
-    });
-    return list;
-  }
+  /// Every folder of the chosen view, in the chosen order, before paging.
+  List<Map<String, dynamic>> get _matches => filterQueue(
+    _queue,
+    filter: _filter.key,
+    query: _searchCtrl.text,
+    sort: _sortKey,
+  );
 
   Future<void> _load({bool silent = false}) async {
     if (!_current || !_auth.isAuthenticated || (silent && _loading)) {
@@ -584,7 +636,7 @@ class _HeadQueueScreenState extends State<HeadQueueScreen>
 
   @override
   Widget build(BuildContext context) {
-    final visible = _visible;
+    final matches = _matches;
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -641,22 +693,27 @@ class _HeadQueueScreenState extends State<HeadQueueScreen>
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
+                _sortChip('Needs attention first', _HeadQueueSort.attention),
+                const SizedBox(width: 8),
                 _sortChip('Longest wait', _HeadQueueSort.hoursDesc),
                 const SizedBox(width: 8),
                 _sortChip('Shortest wait', _HeadQueueSort.hoursAsc),
                 const SizedBox(width: 8),
-                _sortChip('ID A–Z', _HeadQueueSort.idAsc),
+                _sortChip('Tracking ID', _HeadQueueSort.idAsc),
               ],
             ),
           ),
           const SizedBox(height: 14),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 flex: 3,
                 child: Text(
-                  'Active documents',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                  _viewTitle,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -665,7 +722,7 @@ class _HeadQueueScreenState extends State<HeadQueueScreen>
                 Expanded(
                   flex: 2,
                   child: Text(
-                    '${visible.length} of ${_queue.length}${_error == null ? '' : ' · stale'}',
+                    '${matches.length} of ${_queue.length}${_error == null ? '' : ' · stale'}',
                     textAlign: TextAlign.right,
                     style: const TextStyle(
                       fontSize: 12,
@@ -679,16 +736,13 @@ class _HeadQueueScreenState extends State<HeadQueueScreen>
           if (_queue.isNotEmpty) ...[
             const SizedBox(height: 10),
             SfHeadQueueFilterChips(
-              total: _queue.length,
-              inOffice: _countInOffice,
-              overdue: _countOverdue,
-              forwarded: _countForwarded,
+              counts: queueCounts(_queue),
               selected: _filter,
-              onSelected: (f) => setState(() => _filter = f),
+              onSelected: _chooseFilter,
             ),
           ],
           const SizedBox(height: 12),
-          ..._activeDocumentListChildren(visible),
+          ..._activeDocumentListChildren(matches),
         ],
       ),
     );
@@ -699,7 +753,7 @@ class _HeadQueueScreenState extends State<HeadQueueScreen>
     return FilterChip(
       label: Text(label),
       selected: selected,
-      onSelected: (_) => setState(() => _sort = value),
+      onSelected: (_) => _chooseSort(value),
       selectedColor: SfColors.navy.withValues(alpha: 0.1),
       checkmarkColor: SfColors.navy,
       labelStyle: TextStyle(
