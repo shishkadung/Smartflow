@@ -1,6 +1,7 @@
-import { lazy } from 'react'
+import { lazy, useEffect } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './auth.jsx'
+import { pageTitle } from './page-title.js'
 import { homePath } from './tracking.js'
 import ForcedPasswordChange from './components/ForcedPasswordChange.jsx'
 import Layout from './components/Layout.jsx'
@@ -72,8 +73,16 @@ function RequireStaff({ children }) {
   return children
 }
 
+function PageTitle() {
+  const { pathname } = useLocation()
+  useEffect(() => { document.title = pageTitle(pathname) }, [pathname])
+  return null
+}
+
 export default function App() {
   return (
+    <>
+    <PageTitle />
     <Routes>
       <Route path="/" element={<LoginPage />} />
       <Route path="/login" element={<LoginPage />} />
@@ -159,5 +168,6 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   )
 }

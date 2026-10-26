@@ -51,6 +51,8 @@
   .app-shell .register-page .register-layout--entry > .register-guidance-panel .section-title { margin-bottom: 10px; }
   .app-shell .register-page .register-guidance-list { gap: 6px; margin: 12px 0; }
   .app-shell .register-page .register-guidance-note { padding-top: 10px; margin-bottom: 10px; }
+  /* Links inside the guidance sentences get a full finger-sized target without changing the line spacing. */
+  .app-shell .register-page :is(.register-guidance-note, .finishing-section-lead) a { display: inline-block; padding: 12px 4px; margin: -12px -4px; }
   .app-shell .register-page .finishing-form-section { gap: 12px; padding-top: 14px; }
   .app-shell .register-page .finishing-form-section .form-grid { gap: 12px; }
   .app-shell .register-page .folder-contents { padding: 14px 0; }

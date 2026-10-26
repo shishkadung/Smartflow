@@ -402,6 +402,7 @@ export default function ScanPage() {
               capture={undefined}
               className="sr-only"
               aria-hidden
+              aria-label="QR image file"
               tabIndex={-1}
               onChange={onQrFileChange}
             />
