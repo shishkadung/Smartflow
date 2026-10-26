@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { inventoryDirty } from './folder-checklists.js'
 
 // A half-filled registration form survives a reload, as it does on the phone. Same stored fields, no physical confirmation.
 
@@ -13,11 +14,6 @@ export const DRAFT_UNAVAILABLE = 'Draft saving unavailable. Keep this form open.
 
 export function registrationDraftKey(user, requestId = '') {
   return `${KEY_PREFIX}${user?.id}_${user?.office_id}${requestId ? `_request_${requestId}` : ''}`
-}
-
-function inventoryDirty(inventory) {
-  const items = inventory?.items || []
-  return items.length > 1 || String(items[0]?.pages ?? '') !== '' || Boolean(inventory?.count_confirmed)
 }
 
 /** True once anything differs from a blank form for this office. */

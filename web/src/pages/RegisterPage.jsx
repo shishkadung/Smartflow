@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import DocumentQr from '../components/DocumentQr.jsx'
 import DocumentSummary from '../components/DocumentSummary.jsx'
 import { emptyInventory, FolderInventoryEditor, readInventory } from '../components/FolderContents.jsx'
+import FolderChecklists from '../components/FolderChecklists.jsx'
 import { ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import { documentTypesForOffice, OTHER_DOCUMENT_TYPE } from '../tracking.js'
@@ -445,6 +446,7 @@ export default function RegisterPage() {
             </div>
           </div>
           </fieldset>
+          <FolderChecklists type={type} inventory={inventory} onApply={setInventory} disabled={loading} />
           <FolderInventoryEditor value={inventory} onChange={setInventory} disabled={loading} />
           <fieldset className="finishing-form-section">
             <legend>Notes and deadline</legend>

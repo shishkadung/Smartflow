@@ -42,6 +42,7 @@ const SHARED_NAV = [
   { to: '/scan', icon: 'scan', mobile: 'Scan', desktop: 'Scan', clerkOnly: true },
   { to: '/register', icon: 'register', mobile: 'New', desktop: 'Register', clerkOnly: true },
   { to: '/requests', icon: 'requests', mobile: 'Req', desktop: 'Requests' },
+  { to: '/checklists', icon: 'checklist', desktop: 'Office checklists', managerOnly: true },
   { to: '/history', icon: 'history', mobile: 'History', desktop: 'History' },
   { to: '/alerts', icon: 'alerts', mobile: 'Alerts', desktop: 'Alerts' },
 ]
@@ -61,6 +62,7 @@ const PHONE_ITEMS = {
   register: { to: '/register', icon: 'register', label: 'Register', short: 'New' },
   requests: { to: '/requests', icon: 'requests', label: 'Requests', short: 'Req' },
   history: { to: '/history', icon: 'history', label: 'History' },
+  checklists: { to: '/checklists', icon: 'checklist', label: 'Office checklists' },
   alerts: { to: '/alerts', icon: 'alerts', label: 'Alerts' },
   analytics: { to: '/head/analytics', icon: 'coa', label: 'Analytics', short: 'Stats' },
   users: { to: '/admin/users', icon: 'users', label: 'Users' },
@@ -96,8 +98,8 @@ const PHONE_TABS = {
 
 const PHONE_MENU = {
   staff: ['register', 'history', 'requests'],
-  head: ['analytics', 'history', 'documents', 'requests'],
-  admin: ['documents', 'requests', 'users', 'offices', 'thresholds', 'qrMonitor', 'system'],
+  head: ['analytics', 'history', 'documents', 'requests', 'checklists'],
+  admin: ['documents', 'requests', 'checklists', 'users', 'offices', 'thresholds', 'qrMonitor', 'system'],
 }
 
 function PhoneNav({ home, role, pendingSignups, pendingRequests, menuOpen, setMenuOpen }) {
@@ -306,7 +308,7 @@ export default function Layout() {
         </div>
       </header>
       <nav className="nav nav--desktop" aria-label="Primary">
-        {SHARED_NAV.filter((item) => (!item.adminOnly || isAdmin) && (item.to === '/scan' ? !isAdmin : !item.clerkOnly || user?.role === 'staff')).map((item) => {
+        {SHARED_NAV.filter((item) => (!item.adminOnly || isAdmin) && (!item.managerOnly || isAdmin || isHead) && (item.to === '/scan' ? !isAdmin : !item.clerkOnly || user?.role === 'staff')).map((item) => {
           const to = item.to ?? home
           return (
             <NavLink key={item.icon + to} to={to} end={item.end} className={({ isActive }) => (isActive ? 'active' : '')}>

@@ -18,6 +18,7 @@ const pageNames = {
   '/documents': 'Documents',
   '/register': 'Register folder',
   '/requests': 'Requests',
+  '/checklists': 'Office checklists',
   '/history': 'History',
   '/alerts': 'Alerts',
   '/profile': 'Profile',

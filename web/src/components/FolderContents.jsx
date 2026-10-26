@@ -15,17 +15,18 @@ export function readInventory(value) {
   if (!value.count_confirmed) throw new Error('Confirm you hold this folder and counted its contents.')
   return { count_confirmed: true, items }
 }
-export function FolderInventoryEditor({ value, onChange, disabled }) {
+/** `checklistOnly` edits an office checklist: attachment names and required flags, with no page counts or physical confirmation. */
+export function FolderInventoryEditor({ value, onChange, disabled, checklistOnly = false }) {
   function change(index, field, next) { onChange({ ...value, items: value.items.map((item, i) => i === index ? { ...item, [field]: next } : item) }) }
-  return <fieldset disabled={disabled} className="folder-contents"><legend>Folder contents</legend>
-    <p className="muted">Count physical pages. Include required items even when missing; enter 0. Your office decides which attachments are required.</p>
-    {value.items.map((item, i) => <div key={i} className="folder-item">
-      {i > 0 ? <label className="field">Attachment name<input maxLength={100} value={item.name} onChange={e => change(i, 'name', e.target.value)} /></label> : null}
-      <label className="field">{i === 0 ? 'Main document pages' : 'Attachment pages'}<input type="number" inputMode="numeric" min={i === 0 ? 1 : 0} max={999} step={1} required value={item.pages} onChange={e => change(i, 'pages', e.target.value)} /></label>
+  return <fieldset disabled={disabled} className="folder-contents"><legend>{checklistOnly ? 'Checklist attachments' : 'Folder contents'}</legend>
+    <p className="muted">{checklistOnly ? 'Define attachment names and which are required. Staff enter actual page counts when registering a physical folder.' : 'Count physical pages. Include required items even when missing; enter 0. Your office decides which attachments are required.'}</p>
+    {value.items.map((item, i) => (i === 0 && checklistOnly) ? null : <div key={i} className="folder-item">
+      {i > 0 ? <label className="field">Attachment name<input maxLength={100} placeholder="Name from your office checklist" value={item.name} onChange={e => change(i, 'name', e.target.value)} /></label> : null}
+      {checklistOnly ? null : <label className="field">{i === 0 ? 'Main document pages' : 'Attachment pages'}<input type="number" inputMode="numeric" min={i === 0 ? 1 : 0} max={999} step={1} required value={item.pages} onChange={e => change(i, 'pages', e.target.value)} /></label>}
       {i > 0 ? <><label className="document-confirm"><input type="checkbox" checked={item.required} onChange={e => change(i, 'required', e.target.checked)} />Required attachment</label><button type="button" className="btn-ghost" onClick={() => onChange({ ...value, items: value.items.filter((_, index) => i !== index) })}>Remove attachment</button></> : null}
     </div>)}
     {value.items.length < 21 ? <button type="button" className="btn-secondary" onClick={() => onChange({ ...value, items: [...value.items, { name: '', pages: '', required: true }] })}>Add attachment</button> : null}
-    <label className="document-confirm"><input type="checkbox" checked={value.count_confirmed} onChange={e => onChange({ ...value, count_confirmed: e.target.checked })} />I physically hold this folder and counted its contents.</label>
+    {checklistOnly ? null : <label className="document-confirm"><input type="checkbox" checked={value.count_confirmed} onChange={e => onChange({ ...value, count_confirmed: e.target.checked })} />I physically hold this folder and counted its contents.</label>}
   </fieldset>
 }
 export function FolderContentsSummary({ document: doc }) {

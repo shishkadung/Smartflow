@@ -8,6 +8,7 @@ import Layout from './components/Layout.jsx'
 import RoutePage from './components/RoutePage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 
+const OfficeChecklistsPage = lazy(() => import('./pages/OfficeChecklistsPage.jsx'))
 const AdminHomePage = lazy(() => import('./pages/AdminHomePage.jsx'))
 const AdminOfficesPage = lazy(() => import('./pages/AdminOfficesPage.jsx'))
 const AdminQrMonitorPage = lazy(() => import('./pages/AdminQrMonitorPage.jsx'))
@@ -51,6 +52,12 @@ function RequireAdmin({ children }) {
 function RequireHead({ children }) {
   const { user } = useAuth()
   if (user?.role !== 'head') return <Navigate to={homePath(user?.role)} replace />
+  return children
+}
+
+function RequireManager({ children }) {
+  const { user } = useAuth()
+  if (user?.role !== 'head' && user?.role !== 'admin') return <Navigate to={homePath(user?.role)} replace />
   return children
 }
 
@@ -114,6 +121,7 @@ export default function App() {
         <Route path="/documents" element={<RoutePage page={DocumentsPage} />} />
         <Route path="/register" element={<RequireStaff><RoutePage page={RegisterPage} /></RequireStaff>} />
         <Route path="/requests" element={<RoutePage page={RequestsPage} />} />
+        <Route path="/checklists" element={<RequireManager><RoutePage page={OfficeChecklistsPage} /></RequireManager>} />
         <Route path="/history" element={<RoutePage page={HistoryPage} />} />
         <Route path="/alerts" element={<RoutePage page={AlertsPage} />} />
         <Route path="/profile" element={<RoutePage page={ProfilePage} />} />

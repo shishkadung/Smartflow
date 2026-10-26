@@ -155,6 +155,15 @@ export const SF_ICON_PATHS = {
     'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
     'M9 12l2 2 4-4',
   ],
+  /** checklist — office attachment checklists */
+  checklist: [
+    'M9 6h11',
+    'M9 12h11',
+    'M9 18h11',
+    'M3.5 6l1.5 1.5L7.5 4.5',
+    'M3.5 12l1.5 1.5L7.5 10.5',
+    'M3.5 18l1.5 1.5L7.5 16.5',
+  ],
   /** apps grid — header Menu */
   menu: [
     'M5 5h5v5H5z',

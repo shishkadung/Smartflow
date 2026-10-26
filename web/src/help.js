@@ -57,6 +57,17 @@ export const HELP_PAGES = {
       'Disbursement tickets: Accounting Accepts; Treasury marks payment released when done.',
     ],
   },
+  officeChecklists: {
+    title: 'How to use Office checklists',
+    purpose:
+      'Publish the attachment names your office requires for a document type. Staff apply one when registering a folder.',
+    steps: [
+      'Choose the document type, then list each attachment and mark which are required.',
+      'Publish attachments as checklist. Staff then see it as Use … when they register that type.',
+      'A checklist holds names only. Staff still count and enter the actual pages.',
+      'Archive a checklist you no longer use. Folders already registered keep their contents.',
+    ],
+  },
   history: {
     title: 'How to use History',
     purpose: 'Review who registered, received or sent a folder, or open the complete daily log of your office.',
@@ -183,6 +194,8 @@ export function helpPageForPath(pathname) {
       return 'register'
     case '/requests':
       return 'requests'
+    case '/checklists':
+      return 'officeChecklists'
     case '/documents':
       return 'documents'
     case '/history':

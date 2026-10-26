@@ -237,6 +237,9 @@ function smartflowClient(api, apiUpload, assertSession = () => {}) { return {
   adminOffices: () => api('admin-offices.php'),
   updateThreshold: (body) =>
     api('admin-thresholds-update.php', { method: 'POST', body }),
+  folderChecklists: () => api('folder-checklists.php'),
+  saveFolderChecklist: (body) =>
+    api('folder-checklists.php', { method: 'POST', body }),
   systemStatus: () => api('system-status.php'),
   systemEmailTest: () => api('system-email-test.php', { method: 'POST', body: {} }),
   auditExceptions: (hours = 24, period = {}) =>

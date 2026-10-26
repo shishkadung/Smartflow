@@ -21,6 +21,7 @@ import StaffHomePage from '../src/pages/StaffHomePage.jsx'
 import HeadHomePage from '../src/pages/HeadHomePage.jsx'
 import HeadAnalyticsPage from '../src/pages/HeadAnalyticsPage.jsx'
 import AdminHomePage from '../src/pages/AdminHomePage.jsx'
+import OfficeChecklistsPage from '../src/pages/OfficeChecklistsPage.jsx'
 import { documentTypesForOffice } from '../src/tracking.js'
 import { reportConnection } from '../src/connection.js'
 import reportPrint from './report-preview.html?raw'
@@ -40,7 +41,7 @@ const reviewRole = ['staff', 'head'].includes(requestedRole) ? requestedRole : '
 const reviewHome = reviewRole === 'admin' ? '/admin' : reviewRole === 'head' ? '/head' : '/home'
 const reviewPages = {
   '/home': StaffHomePage, '/head': HeadHomePage, '/admin': AdminHomePage,
-  '/documents': DocumentsPage, '/requests': RequestsPage, '/register': RegisterPage,
+  '/documents': DocumentsPage, '/requests': RequestsPage, '/checklists': OfficeChecklistsPage, '/register': RegisterPage,
   '/scan': ScanPage, '/history': HistoryPage, '/alerts': AlertsPage, '/profile': ProfilePage,
   '/head/analytics': HeadAnalyticsPage, '/admin/reports': AdminReportsPage,
   '/admin/offices': AdminOfficesPage, '/admin/thresholds': AdminThresholdsPage,
@@ -260,7 +261,12 @@ const activityEvents = [
   {id:803, created_at:'2026-10-14 09:00:00', username:users[1].username, office_code:'ACC', event_type:'request.reject', message:requests[2].review_notes},
 ]
 // Only the existing local workflow simulations may change these synthetic arrays.
-const localWrites = new Set(['documents-create.php', 'documents-file.php', 'movements-create.php', 'movements-correct-destination.php', 'document-requests-update.php', 'document-requests-create.php', 'admin-thresholds-update.php'])
+let checklistRows = [
+  {id:1, name:'Standard DV packet', document_type:'Disbursement Voucher', items:[{name:'Obligation request', required:true}, {name:'Supporting receipts', required:true}, {name:'Travel order', required:false}]},
+  {id:2, name:'Budget packet', document_type:'Approved Budget', items:[{name:'Annual investment plan', required:true}]},
+]
+let nextChecklistId = 3
+const localWrites = new Set(['documents-create.php', 'documents-file.php', 'movements-create.php', 'movements-correct-destination.php', 'document-requests-update.php', 'document-requests-create.php', 'admin-thresholds-update.php', 'folder-checklists.php'])
 const movementResults = new Map()
 let officeFailurePending = reviewParams.get('state') === 'offices-retry'
 let detailFailurePending = reviewParams.get('state') === 'detail-retry'
@@ -552,6 +558,12 @@ window.fetch = async (url, options = {}) => {
     const storedUser = JSON.parse(fixtureStorage.get('sf_user') || 'null')
     if (!storedUser) return new Response(JSON.stringify({success:false,message:'Sample session ended'}), {status:401})
     data = {user:storedUser}
+  }
+  else if (endpoint === 'folder-checklists.php') {
+    if (String(options.method || 'GET').toUpperCase() === 'GET') data = {checklists:emptyReview ? [] : checklistRows}
+    else if (!['head', 'admin'].includes(reviewRole)) return new Response(JSON.stringify({success:false, message:'Only your office head or administrator can publish checklists'}), {status:403})
+    else if (body.action === 'archive') { checklistRows = checklistRows.filter(row => row.id !== Number(body.id)); data = {} }
+    else { const id = nextChecklistId++; checklistRows = [...checklistRows, {id, name:body.name, document_type:body.document_type, items:body.items}]; data = {id} }
   }
   else return new Response(JSON.stringify({success:false, message:'Sample preview: this action is disabled.'}), {status:400})
   if (sessionReview && options.method === 'POST') { sampleWriteCount++; window.dispatchEvent(new CustomEvent('sf-fixture-write')) }

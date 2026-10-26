@@ -68,8 +68,8 @@ for (const [role, labels, secondPath] of [
     assert.match(profile, /class="[^"]*\bactive\b/)
     assert.deepEqual(tabs.map(tab => tab.active), [false, false, false, false, false])
     const paths = role === 'admin'
-      ? ['/documents', '/requests', '/admin/users', '/admin/offices', '/admin/thresholds', '/admin/qr-monitor', '/admin/system']
-      : role === 'head' ? ['/head/analytics', '/history', '/documents', '/requests'] : ['/register', '/history', '/requests']
+      ? ['/documents', '/requests', '/checklists', '/admin/users', '/admin/offices', '/admin/thresholds', '/admin/qr-monitor', '/admin/system']
+      : role === 'head' ? ['/head/analytics', '/history', '/documents', '/requests', '/checklists'] : ['/register', '/history', '/requests']
     for (const path of paths) {
       const secondary = phoneNavigation(role, path)
       assert.deepEqual(secondary.tabs.map(tab => tab.active), [false, false, false, false, true], path)
