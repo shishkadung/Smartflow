@@ -258,6 +258,7 @@ export default function Layout() {
 
   return (
     <div ref={shell} className={isAdmin ? 'app-shell app-shell--admin' : 'app-shell'}>
+      <button type="button" className="skip-link" onClick={() => document.getElementById('main-content')?.focus()}>Skip to main content</button>
       <aside className="shell-brand desktop-only-flex" aria-label="SmartFlow brand">
         <BrandLockup variant="nav" />
       </aside>
@@ -268,6 +269,7 @@ export default function Layout() {
               officeTitle={isAdmin ? 'Municipal Admin' : (user?.office_name || 'SmartFlow')}
             />
           </div>
+          <h1 className="sr-only mobile-only">{isAdmin ? 'Municipal Admin' : user?.office_name}</h1>
           <div className="topbar__welcome desktop-only">
             <h1>{isAdmin ? 'Municipal Admin' : user?.office_name}</h1>
             {user?.name ? <p className="muted topbar__user">{user.name}</p> : null}
@@ -346,7 +348,7 @@ export default function Layout() {
         menuOpen={menuOpen}
         setMenuOpen={setMenuOpen}
       />
-      <main className="main">
+      <main className="main" id="main-content" tabIndex={-1}>
         <ConnectionBanner />
         <Outlet context={{ pendingRequests, overdueRequests, requestError }} />
       </main>

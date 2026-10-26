@@ -8,6 +8,7 @@ import { reportPeriodQuery, reportViewFromSearch, reportViewParams } from '../re
 import ReportRegister from '../components/ReportRegister.jsx'
 import DepartmentPerformance from '../components/DepartmentPerformance.jsx'
 import { formatHours } from '../report-metrics.js'
+import { scrollBehavior } from '../motion.js'
 
 function pct(bucket) {
   if (bucket == null) return '—'
@@ -28,7 +29,7 @@ function monthDisplay(ym) {
 function focusRegisterHeading() {
   const heading = document.getElementById('custody-register-heading')
   heading?.focus({ preventScroll: true })
-  heading?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+  heading?.scrollIntoView({ block: 'start', behavior: scrollBehavior() })
 }
 
 export default function AdminReportsPage() {

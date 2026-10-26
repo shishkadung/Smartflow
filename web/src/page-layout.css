@@ -4,6 +4,33 @@
   --sf-border-strong: #cbd5e1;
   background: #eef2f7;
 }
+
+/* Keyboard users can jump past the navigation. It stays out of sight, and out of the grid, until it has focus. */
+.app-shell .skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 1000;
+  transform: translateY(-200%);
+  padding: 10px 16px;
+  border: 2px solid #fff;
+  border-radius: 10px;
+  background: var(--sf-navy);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+.app-shell .skip-link:focus { transform: none; outline: 3px solid #9ec0ea; outline-offset: 2px; }
+.app-shell .main:focus { outline: none; }
+
+/* People who ask their system to reduce motion get no entrance animations or transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 .app-shell .main > .sf-life,
 .app-shell .main > .home-dashboard {
   width: 100%;
@@ -107,7 +134,7 @@
 .navigation-row__copy > span { font-size: 12px; line-height: 1.4; color: var(--sf-muted); }
 .navigation-row__copy > .navigation-row__status--overdue { color: var(--sf-red); }
 .navigation-row__chevron { transform: rotate(180deg); color: var(--sf-muted); }
-.navigation-row:focus-visible { outline: 3px solid #93b4ec; outline-offset: 3px; }
+.navigation-row:focus-visible { outline: 3px solid var(--sf-blue); outline-offset: 3px; }
 .app-shell .work-card { box-shadow: none; border-radius: 10px; }
 .app-shell .work-card__open { min-width: 0; overflow-wrap: anywhere; }
 .app-shell .request-card { box-shadow: none; background: #fff; border-color: var(--sf-border); }

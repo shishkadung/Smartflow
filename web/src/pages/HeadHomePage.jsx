@@ -6,6 +6,7 @@ import { useAuth } from '../auth.jsx'
 import { LifeEmpty, LifeSkeleton, Overview, Segmented, WorkCard } from '../components/ui.jsx'
 import { HomeMetrics, HomeTaskLinks } from '../components/HomeWorkspace.jsx'
 import { QUEUE_PAGE_SIZE, filterQueue, queueCounts, queueState, waitLabel } from '../head-queue.js'
+import { scrollBehavior } from '../motion.js'
 
 const emptyQueue = []
 
@@ -42,7 +43,7 @@ export function HeadDashboardContent({ data, error, loading, onRetry }) {
   useEffect(() => {
     if (hash !== '#office-queue') return undefined
     const node = document.getElementById('office-queue')
-    node?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    node?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
     return undefined
   }, [hash, data])
 
