@@ -4,6 +4,8 @@ import { ApiError } from '../api.js'
 import { UserAvatar } from '../components/UserAvatar.jsx'
 import { useAuth } from '../auth.jsx'
 import { formatWhen, movementNote, parseTrackingId } from '../tracking.js'
+import QuickOpen from '../components/QuickOpen.jsx'
+import { clearRecentDocs, loadRecentDocs, readClipboardText, rememberRecentDoc } from '../recent-docs.js'
 import { LifeEmpty, LifeSkeleton, Overview, Segmented } from '../components/ui.jsx'
 import { SfIcon } from '../icons.jsx'
 import { useLiveRefresh } from '../live-refresh.js'
@@ -95,6 +97,8 @@ export default function HistoryPage() {
   const presetId = params.get('id') || ''
   const reportReturnTo = custodyReportReturnPath(params.get('report_return'))
   const [id, setId] = useState(presetId)
+  const [recent, setRecent] = useState(() => loadRecentDocs(user.id))
+  const [pasteError, setPasteError] = useState('')
   const [rows, setRows] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -151,6 +155,7 @@ export default function HistoryPage() {
       if (version !== loadVersion.current) return
       setRows(data.movements || [])
       setDoc(shown?.document || null)
+      setRecent(rememberRecentDoc(user.id, code, shown?.document?.title))
       setSummaryError(shown?.summaryError || '')
       resultRef.current?.focus({ preventScroll: true })
     } catch (err) {
@@ -161,7 +166,7 @@ export default function HistoryPage() {
     } finally {
       if (version === loadVersion.current) setLoading(false)
     }
-  }, [smartflow])
+  }, [smartflow, user.id])
 
   useEffect(() => {
     if (presetId) {
@@ -178,6 +183,13 @@ export default function HistoryPage() {
     if (nextView === 'office') next.set('view', 'office')
     else next.delete('view')
     setParams(next, { replace: true })
+  }
+
+  async function pasteFolder() {
+    const clip = await readClipboardText()
+    if (clip.error) { setPasteError(clip.error); return }
+    setId(clip.text)
+    if (parseTrackingId(clip.text)) { setPasteError(''); openFolder(clip.text) } else setPasteError('That is not a tracking ID.')
   }
 
   function openFolder(code) {
@@ -205,18 +217,25 @@ export default function HistoryPage() {
           className="card sf-life__panel history-lookup"
           onSubmit={(e) => {
             e.preventDefault()
+            setPasteError('')
             openFolder(id)
           }}
         >
-          <label className="field">Tracking ID
-            <input value={id} onChange={(e) => setId(e.target.value)} placeholder="DOC-2026-000001" required />
-          </label>
+          <div className="field">
+            <div className="field-label-row">
+              <label htmlFor="history-tracking-id">Tracking ID</label>
+              <button type="button" className="btn-ghost" disabled={loading} onClick={pasteFolder}>Paste</button>
+            </div>
+            <input id="history-tracking-id" value={id} onChange={(e) => { setId(e.target.value); setPasteError('') }} placeholder="DOC-2026-000001" required />
+          </div>
           <button className="btn sf-life__cta" type="submit" disabled={loading}>
             <SfIcon name="history" size={18} />
             {loading ? 'Loading…' : 'View folder history'}
           </button>
         </form>
 
+        {pasteError ? <div className="error" role="alert">{pasteError}</div> : null}
+        <QuickOpen docs={recent} disabled={loading} onOpen={openFolder} onClear={() => setRecent(clearRecentDocs(user.id))} />
         <section className="card sf-life__panel history-result" ref={resultRef} tabIndex={-1} aria-label="Folder history">
           <h3 className="section-title">{doc?.title || 'Folder history'}</h3>
           {doc ? <div className="history-folder-summary">

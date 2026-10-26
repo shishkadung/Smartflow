@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises'
 import vm from 'node:vm'
 import { transformWithOxc } from 'vite'
 import { documentTypesForOffice, OTHER_DOCUMENT_TYPE } from '../src/tracking.js'
+import { draftIsDirty, registrationDraftKey } from '../src/registration-draft.js'
 
 // Exercise the actual recovery-to-success branch without HTTP or a registration write.
 async function registration() {
@@ -22,7 +23,8 @@ async function registration() {
     useMemo: create => create(), useEffect() {},
     useSearchParams: () => [new URLSearchParams(), () => {}],
     useAuth: () => ({ user: { id: 1, role: 'staff', office_id: 1, office_code: 'ENG', office_name: 'Engineering Office' }, smartflow: new Proxy({}, { get() { assert.fail('Reviewing registration guidance must not call the API') } }) }),
-    documentTypesForOffice, OTHER_DOCUMENT_TYPE,
+    documentTypesForOffice, OTHER_DOCUMENT_TYPE, draftIsDirty, registrationDraftKey,
+    useRegistrationDraft: () => ({ note: '', alert: false }),
     emptyInventory: () => ({ count_confirmed: false, items: [{ name: 'Main document', pages: '', required: true }] }),
   }
   for (const match of source.matchAll(/^import \{([^}]+)\} from /gm)) for (const name of match[1].split(',').map(value => value.trim())) if (!(name in context)) context[name] = name

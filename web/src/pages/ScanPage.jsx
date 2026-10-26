@@ -5,6 +5,8 @@ import { ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import { clerkScanActions, isSignedQrPayload, parseTrackingId, movementDestination } from '../tracking.js'
 import { Overview } from '../components/ui.jsx'
+import QuickOpen from '../components/QuickOpen.jsx'
+import { clearRecentDocs, loadRecentDocs, readClipboardText, rememberRecentDoc } from '../recent-docs.js'
 import { SfIcon } from '../icons.jsx'
 import { useFolderReceipt, FolderContentsSummary } from '../components/FolderContents.jsx'
 import DestinationCorrection from '../components/DestinationCorrection.jsx'
@@ -63,6 +65,7 @@ export default function ScanPage() {
   const { user, smartflow } = useAuth()
   const [params] = useSearchParams()
   const [raw, setRaw] = useState(params.get('id') || '')
+  const [recent, setRecent] = useState(() => loadRecentDocs(user.id))
   const [doc, setDoc] = useState(null)
   const [detailFresh, setDetailFresh] = useState(false)
   const [detailError, setDetailError] = useState('')
@@ -189,6 +192,7 @@ export default function ScanPage() {
       const shown = await smartflow.documentShow(id)
       setDoc(shown.document)
       setDetailFresh(true)
+      setRecent(rememberRecentDoc(user.id, id, shown.document?.title))
       setRaw(id)
       setQrPayload(payload)
       setScanStartedAt(new Date().toISOString())
@@ -199,6 +203,15 @@ export default function ScanPage() {
       setLoading(false)
       lookingUp.current = false
     }
+  }
+
+  async function pasteLookup() {
+    if (lookingUp.current || readingFile.current) return
+    const clip = await readClipboardText()
+    if (clip.error) { setError(clip.error); return }
+    setRaw(clip.text)
+    if (parseTrackingId(clip.text) || isSignedQrPayload(clip.text)) lookup(clip.text)
+    else setError('That is not a tracking ID.')
   }
 
   async function retryFolderDetails() {
@@ -383,11 +396,15 @@ export default function ScanPage() {
           {!doc && error ? <div className="error" role="alert">{error}</div> : null}
           <form className="scan-id-form" onSubmit={(e) => { e.preventDefault(); lookup(raw) }}>
             <div className="field">
-              <label htmlFor="scan-tracking-id">Tracking ID or QR text</label>
+              <div className="field-label-row">
+                <label htmlFor="scan-tracking-id">Tracking ID or QR text</label>
+                <button type="button" className="btn-ghost" disabled={busy} onClick={pasteLookup}>Paste</button>
+              </div>
               <input id="scan-tracking-id" value={raw} disabled={busy} onChange={(e) => setRaw(e.target.value)} placeholder="DOC-2026-000001 or SF1.…" />
             </div>
             <button className="btn" type="submit" disabled={busy || !raw.trim()}>{loading ? 'Looking up…' : 'Look up folder'}</button>
           </form>
+          <QuickOpen docs={recent} disabled={busy} onOpen={(id) => { setRaw(id); lookup(id) }} onClear={() => setRecent(clearRecentDocs(user.id))} />
           <div className="scan-input-divider"><span>Or read a QR label</span></div>
           {camOn ? (
             <div id="sf-reader" className="reader" />

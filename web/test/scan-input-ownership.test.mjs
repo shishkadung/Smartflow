@@ -45,6 +45,7 @@ async function scanPage(t, smartflow, decode) {
     isSignedQrPayload, parseTrackingId,
     preferredForwardDestination: () => '',
     clerkScanActions: () => ({ canIn: false, canOut: false }),
+    loadRecentDocs: () => [], rememberRecentDoc: () => [], clearRecentDocs: () => [], readClipboardText: async () => ({ error: 'Clipboard is empty.' }),
     Html5Qrcode: class {
       constructor(host) { this.host = host; this.isScanning = host === 'sf-reader'; this.stops = 0; this.clears = 0; scanners.push(this) }
       async start(_camera, _options, callback) { cameraCallbacks.push(callback) }

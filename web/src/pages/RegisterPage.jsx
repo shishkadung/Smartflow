@@ -6,6 +6,7 @@ import { emptyInventory, FolderInventoryEditor, readInventory } from '../compone
 import { ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import { documentTypesForOffice, OTHER_DOCUMENT_TYPE } from '../tracking.js'
+import { draftIsDirty, registrationDraftKey, useRegistrationDraft } from '../registration-draft.js'
 import { LifeEmpty, LifeSkeleton, Modal, Overview } from '../components/ui.jsx'
 import CreationRecovery from '../components/CreationRecovery.jsx'
 import { SfIcon } from '../icons.jsx'
@@ -97,15 +98,23 @@ export default function RegisterPage() {
       .catch((e) => setOfficeError(e.message || 'Could not load sender offices.'))
   }, [needsReceivedFrom, offices.length, user.office_id, officeRetry, smartflow])
 
-  const formDirty = Boolean(
-    title.trim()
-    || otherName.trim()
-    || comment.trim()
-    || reference.trim()
-    || payee.trim()
-    || fundSource.trim()
-    || dueDate,
-  )
+  const draftValues = { title, otherName, comment, reference, payee, fundSource, receivedFrom, dueDate, type, inventory }
+  const formDirty = draftIsDirty(draftValues, types[0] || '')
+  // A half-filled form is kept in this browser; with a linked request it waits until the request has loaded.
+  const draft = useRegistrationDraft({
+    storageKey: registrationDraftKey(user, requestId),
+    enabled: user.role === 'staff' && types.length > 0 && (!requestId || Boolean(linkedRequest)),
+    overwrite: Boolean(requestId),
+    values: draftValues,
+    firstType: types[0] || '',
+    types,
+    created,
+    apply: (next) => {
+      setTitle(next.title); setOtherName(next.otherName); setComment(next.comment); setReference(next.reference)
+      setPayee(next.payee); setFundSource(next.fundSource); setReceivedFrom(next.receivedFrom); setDueDate(next.dueDate)
+      setType(next.type); setInventory(next.inventory)
+    },
+  })
 
   function clearForm() {
     setInventory(emptyInventory())
@@ -341,6 +350,7 @@ export default function RegisterPage() {
         </aside>
         <form className="form-card sf-life__panel" onSubmit={onSubmit}>
           <div className="finishing-form-intro"><h3 className="section-title">Folder on your desk</h3><p className="muted">The folder must already be at your office.</p></div>
+          {draft.note ? <p className="muted register-draft-note" role={draft.alert ? 'status' : undefined}>{draft.note}</p> : null}
           {error ? <div className="error" role="alert">{error}</div> : null}
           {needsReceivedFrom && officeError ? <div className="error" role="alert">{officeError}<button type="button" className="btn-secondary" onClick={() => { setOfficeError(''); setOfficeRetry(value => value + 1) }}>Retry sender offices</button></div> : null}
           <fieldset className="finishing-form-section">

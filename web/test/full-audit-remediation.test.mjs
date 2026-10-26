@@ -47,6 +47,7 @@ async function page(name, auth, query = '', folder = 'pages') {
     parseTrackingId: value => /^DOC-\d{4}-\d{6}$/.test(value) ? value : null,
     isSignedQrPayload: () => false, preferredForwardDestination: doc => String(doc.suggested_forward?.office_id || ''),
     clerkScanActions: () => ({ canIn: false, canOut: false }), statTone: () => '',
+    loadRecentDocs: () => [], rememberRecentDoc: () => [], clearRecentDocs: () => [], readClipboardText: async () => ({ error: 'Clipboard is empty.' }),
     reportPeriodBounds, reportPeriodQuery, reportViewFromSearch, reportViewParams, beginScopedRead, failScopedRead, scopedReadView,
   }
   for (const line of source.matchAll(/^import \{([^}]+)\} from /gm)) {
