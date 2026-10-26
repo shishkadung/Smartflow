@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import { LifeSkeleton, Overview, WorkCard } from '../components/ui.jsx'
-import { HomeMetrics, HomeTaskLinks } from '../components/HomeWorkspace.jsx'
+import { HomeActivity, HomeMetrics, HomeTaskLinks, HomeUpdated } from '../components/HomeWorkspace.jsx'
 import { SfIcon } from '../icons.jsx'
 
 export default function StaffHomePage() {
@@ -15,13 +15,14 @@ export default function StaffHomePage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [retry, setRetry] = useState(0)
+  const [updated, setUpdated] = useState(null)
 
   useEffect(() => {
     let cancelled = false
     // oxlint-disable-next-line react/set-state-in-effect -- Retain the last successful dashboard while checking its freshness.
     setLoading(true)
     smartflow.dashboardStats(user.office_id)
-      .then((d) => { if (!cancelled) { setData(d); setError('') } })
+      .then((d) => { if (!cancelled) { setData(d); setError(''); setUpdated(new Date()) } })
       .catch((e) => { if (!cancelled) setError(e instanceof ApiError ? e.message : 'Could not load dashboard') })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
@@ -114,6 +115,8 @@ export default function StaffHomePage() {
         {arriving ? incomingPanel : deskPanel}
         {arriving ? deskPanel : incomingPanel}
       </div>
+      {data ? <HomeActivity title="Today's activity" caption="Latest scans at your office (newest first)" rows={data.recent_movements} named onOpen={(id) => navigate(`/documents?id=${encodeURIComponent(id)}`)} /> : null}
+      {data ? <HomeUpdated at={updated} failed={Boolean(error)} /> : null}
     </div>
   )
 }

@@ -257,7 +257,7 @@ class SfHeadStaffActivityList extends StatelessWidget {
                   children: [
                     SfStatusPill(
                       label: st == 'OUT' ? 'SENT' : 'IN',
-                      tone: st == 'IN' ? SfPillTone.success : SfPillTone.danger,
+                      tone: st == 'OUT' ? SfPillTone.neutral : SfPillTone.success,
                     ),
                     const SizedBox(width: 10),
                     Expanded(

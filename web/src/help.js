@@ -158,9 +158,10 @@ export const HELP_PAGES = {
   adminQrMonitor: {
     title: 'How to use QR scan monitor',
     purpose:
-      'Audit accepted and rejected scans from the last 48 hours (duplicates, wrong office, tampered QR) for COA support.',
+      'Audit accepted and rejected scans from the last 24 hours, 48 hours or 7 days (duplicates, wrong office, tampered QR) for COA support.',
     steps: [
-      'Filter Accepted / Rejected / All as needed.',
+      'Pick the time window, then filter Accepted / Rejected / All as needed.',
+      'Needs review lists staff with 3 or more rejected scans in the window.',
       'Use rejected rows to show that state rules are enforced.',
       'Export CSV when the panel asks for an audit sample.',
     ],

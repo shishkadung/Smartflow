@@ -472,7 +472,7 @@ window.fetch = async (url, options = {}) => {
     in_transit:busyHome ? documents.filter((doc) => doc.tray === 'incoming').map((doc) => ({...doc, document_id:doc.id, last_office_name:doc.current_office_name})) : [],
     recent_movements:busyHome ? sample.journey.map((movement) => ({...movement, document_id:sample.id, title:sample.title, type:sample.type})) : [],
   }
-  else if (endpoint === 'head-dashboard.php') data = {stats:{in_office:busyHome ? 3 : 0, overdue:busyHome ? 1 : 0, avg_hours:busyHome ? 4.2 : 0}, queue:busyHome ? documents.map((doc) => ({...doc, document_id:doc.id, status_label:doc.is_overdue ? 'overdue' : 'in_office', hours_pending:doc.hours_waiting})) : []}
+  else if (endpoint === 'head-dashboard.php') data = {stats:{in_office:busyHome ? 3 : 0, overdue:busyHome ? 1 : 0, avg_hours:busyHome ? 4.2 : 0}, queue:busyHome ? documents.map((doc) => ({...doc, document_id:doc.id, status_label:doc.is_overdue ? 'overdue' : 'in_office', hours_pending:doc.hours_waiting})) : [], recent_movements:busyHome ? sample.journey.map((movement) => ({...movement, document_id:sample.id, title:sample.title, user_name:'Sample staff', destination_office_code:movement.status === 'OUT' ? 'TRE' : null})) : []}
   else if (endpoint === 'accountant-dashboard.php') data = {stats:{active_documents:busyHome ? 3 : 0, overdue:busyHome ? 1 : 0, pending_signups:busyHome ? 2 : 0, pilot_offices:offices.length}, month:'2026-10', office_totals:offices.map((office, i) => ({office_id:office.id, office_name:office.name, office_code:office.code, in_office:busyHome && i === 0 ? 3 : 0, overdue:busyHome && i === 0 ? 1 : 0, docs_processed:busyHome ? 12 - i : 0}))}
   else if (endpoint === 'admin-offices.php') data = {offices:emptyReview ? [] : adminOffices}
   else if (endpoint === 'admin-thresholds-update.php') {
@@ -499,7 +499,8 @@ window.fetch = async (url, options = {}) => {
     const outcome = parsed.searchParams.get('outcome') || 'all'
     const events = emptyReview ? [] : scanEvents.filter((event) => outcome === 'all' || event.outcome === outcome)
     if (parsed.searchParams.get('format') === 'csv') return new Response('When,Document,Outcome\n' + events.map((event) => `${event.created_at},${event.document_id},${event.outcome}`).join('\n'), {headers:{'Content-Type':'text/csv;charset=utf-8'}})
-    data = {events}
+    const rejected = events.filter((event) => event.outcome === 'rejected').length
+    data = {events, hours:Number(parsed.searchParams.get('hours')) || 48, summary:{accepted:events.length - rejected, rejected, total:events.length}, suspicious:rejected ? [{user_id:7, user_name:'Sample staff', username:'sample.staff', office_code:'ACC', reject_count:3}] : [], top_reject_reasons:rejected ? [{code:'WRONG_OFFICE', count:rejected}] : []}
   }
   else if (endpoint === 'audit-activity.php') data = {events:emptyReview ? [] : activityEvents}
   else if (endpoint === 'reports-summary.php') {

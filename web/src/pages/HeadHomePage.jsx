@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import { LifeEmpty, LifeSkeleton, Overview, Segmented, WorkCard } from '../components/ui.jsx'
-import { HomeMetrics, HomeTaskLinks } from '../components/HomeWorkspace.jsx'
+import { HomeActivity, HomeMetrics, HomeTaskLinks, HomeUpdated } from '../components/HomeWorkspace.jsx'
 import { QUEUE_PAGE_SIZE, filterQueue, queueCounts, queueState, waitLabel } from '../head-queue.js'
 import { scrollBehavior } from '../motion.js'
 
@@ -17,22 +17,23 @@ export default function HeadHomePage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [retry, setRetry] = useState(0)
+  const [updated, setUpdated] = useState(null)
 
   useEffect(() => {
     let cancelled = false
     // oxlint-disable-next-line react/set-state-in-effect -- Track the dashboard refresh while retaining its last successful data.
     setLoading(true)
     smartflow.headDashboard(user.office_id)
-      .then((d) => { if (!cancelled) { setData(d); setError('') } })
+      .then((d) => { if (!cancelled) { setData(d); setError(''); setUpdated(new Date()) } })
       .catch((e) => { if (!cancelled) setError(e instanceof ApiError ? e.message : 'Could not load office queue') })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [user.office_id, revision, retry, smartflow])
 
-  return <HeadDashboardContent data={data} error={error} loading={loading} onRetry={() => setRetry((value) => value + 1)} />
+  return <HeadDashboardContent data={data} error={error} loading={loading} updated={updated} onRetry={() => setRetry((value) => value + 1)} />
 }
 
-export function HeadDashboardContent({ data, error, loading, onRetry }) {
+export function HeadDashboardContent({ data, error, loading, updated = null, onRetry }) {
   const navigate = useNavigate()
   const { hash } = useLocation()
   const [filter, setFilter] = useState('active')
@@ -52,6 +53,9 @@ export function HeadDashboardContent({ data, error, loading, onRetry }) {
   const counts = useMemo(() => queueCounts(queue), [queue])
   const matches = useMemo(() => filterQueue(queue, { filter, query, sort }), [queue, filter, query, sort])
   const visible = matches.slice(0, limit)
+  const recent = data?.recent_movements || emptyQueue
+  // All clear is only claimed from a successful, finished read.
+  const onTrack = Boolean(data) && !error && !loading && counts.overdue === 0 && counts.awaiting === 0 && Number(stats.in_office) > 0
   // A different view starts again at the first page.
   const choose = (setter) => (value) => { setter(value); setLimit(QUEUE_PAGE_SIZE) }
   const showAll = () => { setFilter('all'); setQuery(''); setLimit(QUEUE_PAGE_SIZE) }
@@ -74,6 +78,7 @@ export function HeadDashboardContent({ data, error, loading, onRetry }) {
         { label: 'Avg hours', value: stats.avg_hours, detail: 'Processing time' },
       ]} /> : null}
       <HomeTaskLinks />
+      {onTrack ? <p className="hint home-on-track" role="status">Office on track — no overdue or unconfirmed forwards right now.</p> : null}
       {loading && !data ? <LifeSkeleton rows={3} label="Loading queue" /> : null}
       {data ?
       <div className="card sf-life__panel" id="office-queue">
@@ -158,6 +163,8 @@ export function HeadDashboardContent({ data, error, loading, onRetry }) {
         ) : null}
       </div>
       : null}
+      {data ? <HomeActivity title="Staff activity today" rows={recent} limit={6} onOpen={(id) => navigate(`/documents?id=${encodeURIComponent(id)}`)} /> : null}
+      {data ? <HomeUpdated at={updated} failed={Boolean(error)} /> : null}
     </div>
   )
 }

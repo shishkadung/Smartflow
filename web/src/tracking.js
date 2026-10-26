@@ -105,6 +105,26 @@ export function formatWhen(raw) {
   return `${date} · ${time}`
 }
 
+/** Time on a home activity row: the clock today, with the date for earlier days ("3:14 PM", "Oct 24 · 3:14 PM"). */
+export function movementListTime(raw, now = new Date()) {
+  if (!raw) return '—'
+  const d = new Date(String(raw).replace(' ', 'T'))
+  if (Number.isNaN(d.getTime())) return String(raw)
+  const clock = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+  if (d.toDateString() === now.toDateString()) return clock
+  const date = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  return now - d < 7 * 86400000 ? `${date} · ${clock}` : `${date}, ${clock}`
+}
+
+/** Subtitle under a movement row on the home pages: time · route · staff. */
+export function movementScanSubtitle(m, now = new Date()) {
+  const parts = [movementListTime(m?.scanned_at, now)]
+  if (m?.status === 'OUT' && m?.destination_office_code) parts.push(`To ${m.destination_office_code}`)
+  else if (m?.status === 'IN') parts.push('At your office')
+  if (m?.user_name) parts.push(m.user_name)
+  return parts.join(' · ')
+}
+
 const RETURN_PREFIX = /^Returned to (.+?): (.*)$/s
 
 /** Hide only an entire boilerplate remark; appended receipt evidence and clerk notes stay intact. */
