@@ -60,8 +60,9 @@ abstract final class SfIcons {
   static const headAnalyticsActive = Icons.insights_rounded;
 
   // ─── Admin bottom navigation ───────────────────────────────────────────
-  static const adminHome = Icons.dashboard_outlined;
-  static const adminHomeActive = Icons.dashboard_rounded;
+  // Home is the same house for every role (and on the web), so it never looks like a different tab for admin.
+  static const adminHome = clerkHome;
+  static const adminHomeActive = clerkHomeActive;
 
   static const adminUsers = Icons.groups_outlined;
   static const adminUsersActive = Icons.groups_rounded;
