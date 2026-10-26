@@ -441,10 +441,12 @@
 .app-shell .head-queue-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; margin-top: 10px; }
 .app-shell .head-queue-controls > .toolbar { flex: 0 1 auto; }
 .app-shell .head-queue-controls__find { flex: 1 1 220px; min-width: 0; margin: 0; }
-.app-shell .head-queue-controls__sort { flex: 0 1 180px; min-width: 0; margin: 0; }
+.app-shell .head-queue-controls__sort { flex: 0 1 210px; min-width: 0; margin: 0; }
 .app-shell .head-queue-controls .field :is(input, select) { width: 100%; }
+.app-shell .head-queue-more { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; margin-top: 12px; }
 @media (max-width: 767px) {
   .app-shell .head-queue-controls__find, .app-shell .head-queue-controls__sort { flex: 1 1 100%; }
+  .app-shell .head-queue-more .btn-secondary { min-height: 44px; }
 }
 
 /* Register: keep the primary action reachable while a long form scrolls (desktop shell only). */
@@ -475,3 +477,22 @@
 .app-shell .user-account__name { font-weight: 650; overflow-wrap: anywhere; }
 .app-shell .user-account__meta { color: var(--sf-muted); font-size: 13px; overflow-wrap: anywhere; }
 .app-shell .manage-actions { display: grid; gap: 10px; margin-top: 12px; }
+
+/* Text links that open a record get a finger-sized target on phones. */
+@media (max-width: 767px) {
+  .app-shell .tap-link, .app-shell .admin-home__section-head .linkish { display: inline-flex; align-items: center; min-height: 44px; }
+  .app-shell .admin-home__section-head { align-items: center; }
+  .app-shell .admin-home__section-head .linkish { padding-inline: 8px; margin-right: -8px; }
+  .app-shell .segmented button { min-height: 44px; min-width: 44px; }
+}
+
+/* Users & access: find an account before scrolling the directory. */
+.app-shell .users-filters { display: grid; grid-template-columns: minmax(200px, 2fr) repeat(3, minmax(120px, 1fr)); gap: 12px; align-items: end; }
+.app-shell .users-filters .field { min-width: 0; }
+.app-shell .users-filters .field :is(input, select) { width: 100%; }
+.app-shell .users-filters__summary { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 12px 0 8px; }
+@media (max-width: 767px) {
+  .app-shell .users-filters { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .app-shell .users-filters__find { grid-column: 1 / -1; }
+  .app-shell .users-filters__summary .btn-secondary { min-height: 44px; }
+}

@@ -5,6 +5,7 @@ import { ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import { LifeEmpty, LifeSkeleton, Overview, Segmented, WorkCard } from '../components/ui.jsx'
 import { HomeMetrics, HomeTaskLinks } from '../components/HomeWorkspace.jsx'
+import { QUEUE_PAGE_SIZE, filterQueue, queueCounts, queueState, waitLabel } from '../head-queue.js'
 
 const emptyQueue = []
 
@@ -33,9 +34,10 @@ export default function HeadHomePage() {
 export function HeadDashboardContent({ data, error, loading, onRetry }) {
   const navigate = useNavigate()
   const { hash } = useLocation()
-  const [filter, setFilter] = useState('all')
-  const [sort, setSort] = useState('hoursDesc')
+  const [filter, setFilter] = useState('active')
+  const [sort, setSort] = useState('attention')
   const [query, setQuery] = useState('')
+  const [limit, setLimit] = useState(QUEUE_PAGE_SIZE)
 
   useEffect(() => {
     if (hash !== '#office-queue') return undefined
@@ -46,36 +48,13 @@ export function HeadDashboardContent({ data, error, loading, onRetry }) {
 
   const stats = data?.stats || {}
   const queue = data?.queue || emptyQueue
-
-  function awaitingReceive(item) {
-    const meta = String(item.meta || '').toLowerCase()
-    return item.last_status === 'OUT' && meta.includes('awaiting receive')
-  }
-
-  const visible = useMemo(() => {
-    const q = query.trim().toUpperCase()
-    const list = queue.filter((item) => {
-      const status = String(item.status_label || '').trim().toLowerCase()
-      if (filter === 'in_office' && status !== 'in_office') return false
-      if (filter === 'overdue' && status !== 'overdue') return false
-      if (filter === 'forwarded' && !awaitingReceive(item)) return false
-      if (q) {
-        const id = String(item.document_id || item.id || '').toUpperCase()
-        const title = String(item.title || '').toUpperCase()
-        if (!id.includes(q) && !title.includes(q)) return false
-      }
-      return true
-    })
-    list.sort((a, b) => {
-      if (sort === 'id') {
-        return String(a.document_id || '').localeCompare(String(b.document_id || ''))
-      }
-      const ha = Number(a.hours_pending) || 0
-      const hb = Number(b.hours_pending) || 0
-      return sort === 'hoursAsc' ? ha - hb : hb - ha
-    })
-    return list
-  }, [queue, filter, sort, query])
+  const counts = useMemo(() => queueCounts(queue), [queue])
+  const matches = useMemo(() => filterQueue(queue, { filter, query, sort }), [queue, filter, query, sort])
+  const visible = matches.slice(0, limit)
+  // A different view starts again at the first page.
+  const choose = (setter) => (value) => { setter(value); setLimit(QUEUE_PAGE_SIZE) }
+  const showAll = () => { setFilter('all'); setQuery(''); setLimit(QUEUE_PAGE_SIZE) }
+  const searchEverywhere = () => { setFilter('all'); setLimit(QUEUE_PAGE_SIZE) }
 
   return (
     <div className="sf-life home-dashboard">
@@ -102,22 +81,25 @@ export function HeadDashboardContent({ data, error, loading, onRetry }) {
           <div className="toolbar">
             <Segmented
               value={filter}
-              onChange={setFilter}
+              onChange={choose(setFilter)}
               options={[
+                { value: 'active', label: 'Active', badge: counts.active },
+                { value: 'overdue', label: 'Overdue', badge: counts.overdue },
+                { value: 'in_office', label: 'In office', badge: counts.in_office },
+                { value: 'awaiting', label: 'Awaiting receive', badge: counts.awaiting },
+                { value: 'completed', label: 'Completed', badge: counts.completed },
                 { value: 'all', label: 'All' },
-                { value: 'in_office', label: 'In office' },
-                { value: 'overdue', label: 'Overdue' },
-                { value: 'forwarded', label: 'Awaiting receive' },
               ]}
             />
           </div>
           <div className="field head-queue-controls__find">
             <label htmlFor="head-queue-search">Find in queue</label>
-            <input id="head-queue-search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Tracking ID or title" />
+            <input id="head-queue-search" value={query} onChange={(e) => choose(setQuery)(e.target.value)} placeholder="Tracking ID or title" />
           </div>
           <div className="field head-queue-controls__sort">
             <label htmlFor="head-queue-sort">Sort</label>
-            <select id="head-queue-sort" value={sort} onChange={(e) => setSort(e.target.value)}>
+            <select id="head-queue-sort" value={sort} onChange={(e) => choose(setSort)(e.target.value)}>
+              <option value="attention">Needs attention first</option>
               <option value="hoursDesc">Longest wait</option>
               <option value="hoursAsc">Shortest wait</option>
               <option value="id">Tracking ID</option>
@@ -127,28 +109,36 @@ export function HeadDashboardContent({ data, error, loading, onRetry }) {
         {!error && queue.length === 0 ? (
           <LifeEmpty icon="custodyLog" tone="ok">No documents in the office queue.</LifeEmpty>
         ) : null}
-        {queue.length > 0 && visible.length === 0 ? (
-          <LifeEmpty icon="custodyLog" action={<button type="button" className="btn-secondary" onClick={() => { setFilter('all'); setQuery('') }}>Show all</button>}>
-            No documents in this filter.
-          </LifeEmpty>
+        {queue.length > 0 && matches.length === 0 ? (
+          query.trim() && filter !== 'all' ? (
+            <LifeEmpty icon="custodyLog" action={<><button type="button" className="btn-secondary" onClick={searchEverywhere}>Search all folders</button><button type="button" className="btn-secondary" onClick={() => choose(setQuery)('')}>Clear search</button></>}>
+              Nothing matches “{query.trim()}” in this view.
+            </LifeEmpty>
+          ) : filter === 'active' && !query.trim() ? (
+            <LifeEmpty icon="custodyLog" tone="ok" action={<button type="button" className="btn-secondary" onClick={() => choose(setFilter)('completed')}>Show completed</button>}>
+              No active documents. Finished folders are under Completed.
+            </LifeEmpty>
+          ) : (
+            <LifeEmpty icon="custodyLog" action={<button type="button" className="btn-secondary" onClick={showAll}>Show all</button>}>
+              No documents in this filter.
+            </LifeEmpty>
+          )
         ) : null}
         {visible.length > 0 ? (
+          <>
           <div className="work-list">
             {visible.map((doc) => {
               const docId = doc.document_id || doc.id
-              const status = String(doc.status_label || '').trim().toLowerCase()
-              const waiting = awaitingReceive(doc)
+              const state = queueState(doc)
               // Use the server's classification: completed or elsewhere-held folders must not read as "In office".
-              const tone = status === 'overdue' ? 'bad' : waiting ? 'warn' : status === 'completed' ? 'ok' : status === 'in_office' ? 'info' : 'neutral'
-              const pill = status === 'overdue' ? 'Overdue' : waiting ? 'Awaiting receive' : status === 'completed' ? 'Completed' : status === 'in_office' ? 'In office' : (doc.status_pill || 'On time')
-              const hours = Number(doc.hours_pending)
-              const wait = Number.isFinite(hours) && hours > 0 ? `${hours}h waiting` : 'Just recorded'
+              const tone = state === 'overdue' ? 'bad' : state === 'awaiting' ? 'warn' : state === 'completed' ? 'ok' : state === 'in_office' ? 'info' : 'neutral'
+              const pill = state === 'overdue' ? 'Overdue' : state === 'awaiting' ? 'Awaiting receive' : state === 'completed' ? 'Completed' : state === 'in_office' ? 'In office' : (doc.status_pill || 'On time')
               return (
                 <WorkCard
                   key={docId}
                   kicker={docId}
                   title={doc.title || doc.type || 'Folder'}
-                  meta={wait}
+                  meta={waitLabel(doc)}
                   pill={pill}
                   tone={tone}
                   verb="Open"
@@ -157,6 +147,13 @@ export function HeadDashboardContent({ data, error, loading, onRetry }) {
               )
             })}
           </div>
+          {matches.length > visible.length ? (
+            <div className="head-queue-more">
+              <span className="muted" role="status">Showing {visible.length} of {matches.length}</span>
+              <button type="button" className="btn-secondary" onClick={() => setLimit((value) => value + QUEUE_PAGE_SIZE)}>Show {Math.min(QUEUE_PAGE_SIZE, matches.length - visible.length)} more</button>
+            </div>
+          ) : null}
+          </>
         ) : null}
       </div>
       : null}

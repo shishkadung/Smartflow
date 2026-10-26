@@ -138,7 +138,7 @@ export function QrMonitorContent({ data, error, loading, canReadExceptions = tru
               onRowClick={(r) => r.document_id && onOpen(r.document_id)}
               columns={[
                 { key: 'created_at', label: 'When', width: '19%', render: (r) => formatWhen(r.created_at || r.scanned_at) || '—' },
-                { key: 'document_id', label: 'Doc', width: '17%', render: (r) => r.document_id ? <Link className="linkish nowrap" to={`/history?id=${encodeURIComponent(r.document_id)}`} aria-label={`View history of ${r.document_id}`} onClick={event => event.stopPropagation()}>{r.document_id}</Link> : '—' },
+                { key: 'document_id', label: 'Doc', width: '17%', render: (r) => r.document_id ? <Link className="linkish nowrap tap-link" to={`/history?id=${encodeURIComponent(r.document_id)}`} aria-label={`View history of ${r.document_id}`} onClick={event => event.stopPropagation()}>{r.document_id}</Link> : '—' },
                 { key: 'username', label: 'Who', width: '19%', render: who },
                 {
                   key: 'outcome',

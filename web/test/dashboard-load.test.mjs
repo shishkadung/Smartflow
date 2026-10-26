@@ -23,7 +23,9 @@ test('head queue labels completed and elsewhere-held folders with the server sta
   }
   const html = render(HeadDashboardContent, { error: '', loading: false, data })
   const pills = [...html.matchAll(/class="status-pill[^"]*">([^<]+)</g)].map((m) => m[1])
-  assert.deepEqual(pills, ['Completed', 'On time', 'In office']) // default sort: longest wait first
+  // The default view hides finished folders and lists what is in the office before folders held elsewhere.
+  assert.deepEqual(pills, ['In office', 'On time'])
+  assert.doesNotMatch(html, /DOC-1|Filed folder/)
 })
 
 for (const [role, Component] of [['head', HeadDashboardContent], ['admin', AdminDashboardContent]]) {

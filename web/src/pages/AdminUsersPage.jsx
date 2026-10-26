@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { ApiError } from '../api.js'
 import { DocTable, LifeEmpty, Overview, StatusPill, Modal } from '../components/ui.jsx'
 import { useAuth } from '../auth.jsx'
+import { emptyAccountFilters, filterAccounts, filtersActive, officeCodes } from '../user-directory.js'
 
 export default function AdminUsersPage() {
   const { user, smartflow } = useAuth()
@@ -126,7 +127,82 @@ export function emailNeedsCheck(row) {
   return !email || email === `${String(row?.username || '').toLowerCase()}${DEFAULT_EMAIL_DOMAIN}`
 }
 
-const TEMPORARY_PASSWORD_NOTE = 'Share it privately (in person or by phone), never by chat or email. It is shown only once, expires in 24 hours, and the user must choose a new password at their next sign-in.'
+// Search and filters live here, not in UsersContent, which callers also invoke as a plain function.
+export function AccountDirectory({ users, user, blocked, manageBlocked, onSelectStatus, onStartManage }) {
+  const [filters, setFilters] = useState(emptyAccountFilters)
+  if (!users.length) return null
+  const set = (key) => (event) => setFilters((current) => ({ ...current, [key]: event.target.value }))
+  const rows = filterAccounts(users, filters)
+  const narrowed = filtersActive(filters)
+  return <>
+    <div className="users-filters">
+      <label className="field users-filters__find">Find an account
+        <input type="search" value={filters.query} onChange={set('query')} placeholder="Name, username or email" autoComplete="off" />
+      </label>
+      <label className="field">Office
+        <select value={filters.office} onChange={set('office')}>
+          <option value="">All offices</option>
+          {officeCodes(users).map((code) => <option key={code} value={code}>{code}</option>)}
+        </select>
+      </label>
+      <label className="field">Role
+        <select value={filters.role} onChange={set('role')}>
+          <option value="">All roles</option>
+          <option value="staff">Staff</option>
+          <option value="head">Head</option>
+          <option value="admin">Admin</option>
+        </select>
+      </label>
+      <label className="field">Status
+        <select value={filters.status} onChange={set('status')}>
+          <option value="">Any status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </label>
+    </div>
+    <div className="users-filters__summary">
+      <span className="muted" role="status">{narrowed ? `Showing ${rows.length} of ${users.length} accounts` : `${users.length} ${users.length === 1 ? 'account' : 'accounts'}`}</span>
+      {narrowed ? <button type="button" className="btn-secondary" onClick={() => setFilters(emptyAccountFilters)}>Clear filters</button> : null}
+    </div>
+    {rows.length === 0 ? <LifeEmpty icon="users" action={<button type="button" className="btn-secondary" onClick={() => setFilters(emptyAccountFilters)}>Clear filters</button>}>No accounts match these filters.</LifeEmpty> : (
+      <DocTable
+        columns={[
+          {
+            key: 'name',
+            label: 'Account',
+            render: (r) => <span className="user-account">
+              <strong className="user-account__name">{r.name}</strong>
+              <span className="user-account__meta">@{r.username} · {r.email || 'email not set'}</span>
+              {['staff', 'head'].includes(r.role) && emailNeedsCheck(r) ? <span className="user-account__meta">Check email</span> : null}
+            </span>,
+          },
+          { key: 'office_code', label: 'Office', render: (r) => <><span className="sr-only phone-user-field-label" aria-hidden="true">Office</span>{r.office_code}</> },
+          { key: 'role', label: 'Role', render: (r) => <><span className="sr-only phone-user-field-label" aria-hidden="true">Role</span>{r.role}</> },
+          {
+            key: 'is_active',
+            label: 'Status',
+            render: (r) => (
+              <button type="button" className="btn-ghost" disabled={blocked || r.id === user.id} aria-label={`${r.is_active ? 'Deactivate' : 'Activate'} ${r.username}${r.id === user.id ? ' (your account)' : ''}`} onClick={(e) => { e.stopPropagation(); onSelectStatus(r) }}>
+                <StatusPill tone={r.is_active ? 'ok' : 'bad'}>{r.is_active ? 'Active' : 'Inactive'}</StatusPill>
+              </button>
+            ),
+          },
+          {
+            key: 'manage',
+            label: '',
+            render: (r) => (['staff', 'head'].includes(r.role)
+              ? <button type="button" className="btn-secondary" disabled={manageBlocked} aria-label={`Manage ${r.username}`} onClick={(e) => { e.stopPropagation(); onStartManage(r) }}>Manage</button>
+              : <span className="muted" aria-label="No administrator actions available">—</span>),
+          },
+        ]}
+        rows={rows}
+      />
+    )}
+  </>
+}
+
+const TEMPORARY_PASSWORD_NOTE ='Share it privately (in person or by phone), never by chat or email. It is shown only once, expires in 24 hours, and the user must choose a new password at their next sign-in.'
 
 // The temporary password is displayed in groups of four so it is easy to read aloud.
 export function TemporaryPasswordResult({ result, onClose }) {
@@ -188,38 +264,7 @@ export function UsersContent({ user, users, pending, loadError, error, ok, loadi
           {users === null ? <p className="muted">{loading ? 'Loading directory…' : 'The account directory has not been verified.'}</p> : users.length === 0 && !loading && !loadError ? (
             <LifeEmpty icon="users">No users.</LifeEmpty>
           ) : (
-            <DocTable
-              columns={[
-                {
-                  key: 'name',
-                  label: 'Account',
-                  render: (r) => <span className="user-account">
-                    <strong className="user-account__name">{r.name}</strong>
-                    <span className="user-account__meta">@{r.username} · {r.email || 'email not set'}</span>
-                    {['staff', 'head'].includes(r.role) && emailNeedsCheck(r) ? <span className="user-account__meta">Check email</span> : null}
-                  </span>,
-                },
-                { key: 'office_code', label: 'Office', render: (r) => <><span className="sr-only phone-user-field-label" aria-hidden="true">Office</span>{r.office_code}</> },
-                { key: 'role', label: 'Role', render: (r) => <><span className="sr-only phone-user-field-label" aria-hidden="true">Role</span>{r.role}</> },
-                {
-                  key: 'is_active',
-                  label: 'Status',
-                  render: (r) => (
-                    <button type="button" className="btn-ghost" disabled={busy || loading || Boolean(loadError) || r.id === user.id} aria-label={`${r.is_active ? 'Deactivate' : 'Activate'} ${r.username}${r.id === user.id ? ' (your account)' : ''}`} onClick={(e) => { e.stopPropagation(); setSelectedUser(r) }}>
-                      <StatusPill tone={r.is_active ? 'ok' : 'bad'}>{r.is_active ? 'Active' : 'Inactive'}</StatusPill>
-                    </button>
-                  ),
-                },
-                {
-                  key: 'manage',
-                  label: '',
-                  render: (r) => (['staff', 'head'].includes(r.role)
-                    ? <button type="button" className="btn-secondary" disabled={busy || loading || Boolean(loadError) || resetBusy || emailBusy} aria-label={`Manage ${r.username}`} onClick={(e) => { e.stopPropagation(); onStartManage(r) }}>Manage</button>
-                    : <span className="muted" aria-label="No administrator actions available">—</span>),
-                },
-              ]}
-              rows={users}
-            />
+            <AccountDirectory users={users} user={user} blocked={busy || loading || Boolean(loadError)} manageBlocked={busy || loading || Boolean(loadError) || resetBusy || emailBusy} onSelectStatus={setSelectedUser} onStartManage={onStartManage} />
           )}
         </section>
       </div>
