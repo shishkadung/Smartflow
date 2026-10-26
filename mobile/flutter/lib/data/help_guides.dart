@@ -14,6 +14,7 @@ enum SfHelpPage {
   adminReports,
   adminThresholds,
   adminQrMonitor,
+  officeChecklists,
 }
 
 class SfHelpGuide {
@@ -207,11 +208,24 @@ SfHelpGuide sfHelpGuide(SfHelpPage page, {String role = 'staff'}) {
       return const SfHelpGuide(
         title: 'How to use QR scan monitor',
         purpose:
-            'Audit accepted and rejected scans (duplicates, wrong office, tampered QR) for COA support.',
+            'Audit accepted and rejected scans from the last 24 hours, 48 hours or 7 days (duplicates, wrong office, tampered QR) for COA support.',
         steps: [
-          'Filter Accepted / Rejected / All as needed.',
+          'Pick the time window, then filter Accepted / Rejected / All as needed.',
+          'Needs review lists staff with 3 or more rejected scans in the window.',
           'Use rejected rows to show that state rules are enforced.',
           'Export CSV when the panel asks for an audit sample.',
+        ],
+      );
+    case SfHelpPage.officeChecklists:
+      return const SfHelpGuide(
+        title: 'How to use Office checklists',
+        purpose:
+            'Publish the attachment names your office requires for a document type. Staff apply one when registering a folder.',
+        steps: [
+          'Choose the document type, then list each attachment and mark which are required.',
+          'Publish attachments as checklist. Staff then see it as Use … when they register that type.',
+          'A checklist holds names only. Staff still count and enter the actual pages.',
+          'Archive a checklist you no longer use. Folders already registered keep their contents.',
         ],
       );
   }
@@ -296,6 +310,9 @@ SfHelpPage? sfHelpPageForPath(String path) {
     case '/head/queue':
     case '/head/analytics':
       return SfHelpPage.home;
+    case '/head/checklists':
+    case '/admin/checklists':
+      return SfHelpPage.officeChecklists;
     case '/admin/users':
       return SfHelpPage.adminUsers;
     case '/admin/offices':

@@ -23,12 +23,6 @@ export '../../widgets/sf_account_menu.dart'
         sfIsProfileSecurityView,
         sfIsOnProfilePage;
 
-/// On hold (19 October 2026): the Office checklists entry is hidden from the Head and Admin Menu
-/// until the client confirms offices will publish required attachments. The screen, its routes
-/// (`/head/checklists`, `/admin/checklists`), the API endpoint and the data are kept; set this to
-/// true to show the entry again. The web has no checklist management at all.
-const bool kOfficeChecklistsMenuEnabled = false;
-
 /// Resolve API-relative avatar path to absolute URL.
 String? sfAvatarAbsoluteUrl(String? relative) {
   final rel = relative?.trim();
@@ -122,12 +116,11 @@ Future<void> showSfRoleMoreSheet(
         ),
         documents,
         requests,
-        if (kOfficeChecklistsMenuEnabled)
-          const SfMoreDestination(
-            icon: Icons.checklist_rounded,
-            title: 'Office checklists',
-            route: '/head/checklists',
-          ),
+        const SfMoreDestination(
+          icon: Icons.checklist_rounded,
+          title: 'Office checklists',
+          route: '/head/checklists',
+        ),
         ?help,
       ];
     case 'admin':
@@ -135,12 +128,11 @@ Future<void> showSfRoleMoreSheet(
       destinations = [
         documents,
         requests,
-        if (kOfficeChecklistsMenuEnabled)
-          const SfMoreDestination(
-            icon: Icons.checklist_rounded,
-            title: 'Office checklists',
-            route: '/admin/checklists',
-          ),
+        const SfMoreDestination(
+          icon: Icons.checklist_rounded,
+          title: 'Office checklists',
+          route: '/admin/checklists',
+        ),
         SfMoreDestination(
           icon: Icons.settings_outlined,
           title: 'Administration',
