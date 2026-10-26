@@ -1176,3 +1176,109 @@ class SfEmailChannelCard extends StatelessWidget {
     );
   }
 }
+
+/// The kind of a custody exception and how serious it looks (the web names and tones).
+({String label, SfPillTone tone}) sfExceptionKind(Object? type) =>
+    switch ('$type') {
+      'unforwarded' => (label: 'Unforwarded OUT', tone: SfPillTone.warning),
+      'wrong_receiver' => (label: 'Wrong receiver', tone: SfPillTone.danger),
+      'skipped_office' => (label: 'Skipped office', tone: SfPillTone.danger),
+      'incomplete_contents' => (
+        label: 'Incomplete contents',
+        tone: SfPillTone.warning,
+      ),
+      _ => (
+        label: type == null || '$type'.isEmpty ? 'Exception' : '$type',
+        tone: SfPillTone.neutral,
+      ),
+    };
+
+/// One custody exception: the folder, its kind and what was found. Opening it shows the folder's full history.
+class SfExceptionTile extends StatelessWidget {
+  const SfExceptionTile({
+    super.key,
+    required this.exception,
+    required this.onOpen,
+  });
+
+  final Map exception;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final kind = sfExceptionKind(exception['exception_type']);
+    final id = exception['document_id']?.toString() ?? '';
+    final seen = exception['last_scanned_at']?.toString() ?? '';
+    final card = SfFormCard(
+      padding: EdgeInsets.zero,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // The kind sits beside the folder ID and wraps under it when the text is large.
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        id.isNotEmpty ? id : '—',
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          color: SfColors.ink,
+                        ),
+                      ),
+                      SfStatusPill(label: kind.label, tone: kind.tone),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${exception['detail'] ?? ''}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: SfColors.muted,
+                      height: 1.4,
+                    ),
+                  ),
+                  if (seen.isNotEmpty)
+                    Text(
+                      'Last scanned ${formatMovementListTime(seen)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: SfColors.muted,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Tooltip(
+              message: 'Open full history for $id',
+              child: const Icon(Icons.chevron_right, color: SfColors.muted),
+            ),
+          ],
+        ),
+      ),
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: id.isEmpty
+          ? card
+          : Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: onOpen,
+                borderRadius: BorderRadius.circular(18),
+                child: card,
+              ),
+            ),
+    );
+  }
+}

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../services/api_client.dart';
+import '../../services/smartflow_api.dart';
 import '../../theme/sf_icons.dart';
 import '../../theme/smartflow_theme.dart';
 import '../../utils/api_error.dart';
@@ -42,6 +44,10 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
   List<Map<String, dynamic>> _topReasons = const [];
   List<Map<String, dynamic>> _activity = const [];
 
+  /// Custody exceptions are read apart from the scan log: their failure never hides the scans, and the other way round.
+  List<Map<String, dynamic>> _exceptions = const [];
+  String _exceptionsError = '';
+
   Object get _identity {
     final auth = context.read<AuthProvider>();
     return (
@@ -64,7 +70,32 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
     _suspicious = const [];
     _topReasons = const [];
     _activity = const [];
+    _exceptions = const [];
+    _exceptionsError = '';
     _loadedQuery = null;
+  }
+
+  /// Only the Accounting administrator may read custody exceptions.
+  bool get _canReadExceptions =>
+      context.read<AuthProvider>().user?.officeCode.toUpperCase() == 'ACC';
+
+  Future<({List<Map<String, dynamic>> rows, String error})> _readExceptions(
+    SmartflowApi api,
+  ) async {
+    try {
+      final result = await api.auditExceptions(hours: 24);
+      final rows = (result['exceptions'] ?? result['items']) as List? ?? [];
+      return (
+        rows: [for (final row in rows) Map<String, dynamic>.from(row as Map)],
+        error: '',
+      );
+    } catch (e) {
+      final message = apiErrorMessage(e);
+      return (
+        rows: const <Map<String, dynamic>>[],
+        error: message.isEmpty ? 'Could not load custody exceptions.' : message,
+      );
+    }
   }
 
   static const _activityLabels = {
@@ -73,6 +104,7 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
     'user.deactivate': 'User deactivated',
     'user.reactivate': 'User reactivated',
     'user.profile_update': 'Profile updated',
+    'user.email_update': 'Reset email changed by administrator',
     'user.password_change': 'Password changed',
     'user.password_reset': 'Password reset',
     'threshold.update': 'Threshold changed',
@@ -131,12 +163,17 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
       final api = auth.api;
       final hours = _hours;
       final outcome = _outcome;
-      final results = await Future.wait([
+      final canReadExceptions = _canReadExceptions;
+      final results = await Future.wait<Object?>([
         api.auditScans(hours: hours, outcome: outcome),
         api.auditActivity(hours: 168, limit: 50),
+        if (canReadExceptions) _readExceptions(api),
       ]);
-      final data = results[0];
-      final activity = results[1];
+      final data = results[0] as Map<String, dynamic>;
+      final activity = results[1] as Map<String, dynamic>;
+      final exceptions = canReadExceptions
+          ? results[2] as ({List<Map<String, dynamic>> rows, String error})
+          : null;
       if (!_isCurrent(generation, query)) return;
       setState(() {
         _summary = data['summary'] as Map<String, dynamic>?;
@@ -152,6 +189,8 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
         _activity = List<Map<String, dynamic>>.from(
           activity['events'] as List? ?? [],
         );
+        _exceptions = exceptions?.rows ?? const [];
+        _exceptionsError = exceptions?.error ?? '';
         _loadedQuery = query;
         _fresh = true;
         _loading = false;
@@ -309,6 +348,7 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
               icon: Icons.table_chart_outlined,
               onPressed: _exporting || !_fresh ? null : _exportCsv,
             ),
+            ..._exceptionsPanel(),
             if (_suspicious.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text(
@@ -381,6 +421,55 @@ class _AdminQrMonitorScreenState extends State<AdminQrMonitorScreen> {
         ],
       ),
     );
+  }
+
+  /// Custody exceptions, as the web QR monitor shows them: only for Accounting, and honest about what was verified.
+  List<Widget> _exceptionsPanel() {
+    return [
+      const SizedBox(height: 16),
+      const Text(
+        'Custody exceptions',
+        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+      ),
+      const SizedBox(height: 4),
+      if (!_canReadExceptions)
+        const Text(
+          'Custody exceptions are available to Accounting administrators.',
+          style: TextStyle(fontSize: 12, color: SfColors.muted),
+        )
+      else ...[
+        const Text(
+          'Missing receipt records after 24 hours, receiver mismatches, route gaps and incomplete DV contents across recorded folder history.',
+          style: TextStyle(fontSize: 12, color: SfColors.muted, height: 1.4),
+        ),
+        const SizedBox(height: 8),
+        if (_exceptionsError.isNotEmpty) ...[
+          SfErrorBanner(
+            message: 'Custody exceptions unavailable. $_exceptionsError',
+          ),
+          TextButton(
+            onPressed: _loading || _exporting ? null : _load,
+            child: const Text('Retry exceptions'),
+          ),
+        ] else if (_exceptions.isEmpty)
+          // The read succeeded and found nothing: that is a verified empty result, never a failed read.
+          const SfEmptyState(
+            icon: Icons.verified_outlined,
+            title: 'No custody exceptions found',
+            subtitle: 'Nothing was flagged in the recorded folder history.',
+          )
+        else
+          ..._exceptions.map(
+            (ex) => SfExceptionTile(
+              exception: ex,
+              onOpen: () => context.push(
+                '/admin/history',
+                extra: {'documentId': ex['document_id']?.toString() ?? ''},
+              ),
+            ),
+          ),
+      ],
+    ];
   }
 
   Widget _outcomeChip(String label, String value) {

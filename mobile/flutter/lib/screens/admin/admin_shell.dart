@@ -14,6 +14,7 @@ import '../../services/smartflow_api.dart';
 import '../../utils/format_time.dart';
 import '../../utils/office_rules.dart';
 import '../../utils/report_metrics.dart';
+import '../../utils/user_directory.dart';
 import '../../theme/sf_icons.dart';
 import '../../theme/smartflow_theme.dart';
 import '../shared/change_password_sheet.dart';
@@ -549,7 +550,10 @@ class AdminUsersScreen extends StatefulWidget {
 class _AdminUsersScreenState extends State<AdminUsersScreen> {
   List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> _pending = [];
+  final _searchCtrl = TextEditingController();
   String _search = '';
+  String _office = '';
+  String _role = '';
   _AdminUserFilter _filter = _AdminUserFilter.all;
   String? _error;
   String? _readError;
@@ -962,12 +966,37 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     }
   }
 
-  bool _matchesSearch(Map<String, dynamic> m) {
-    if (_search.isEmpty) return true;
-    final q = _search.toLowerCase();
-    return (m['username']?.toString().toLowerCase().contains(q) ?? false) ||
-        (m['office_name']?.toString().toLowerCase().contains(q) ?? false) ||
-        (m['role']?.toString().toLowerCase().contains(q) ?? false);
+  /// What the Active and Inactive chips mean as a status; the other chips are not a status.
+  String get _status => switch (_filter) {
+    _AdminUserFilter.active => 'active',
+    _AdminUserFilter.inactive => 'inactive',
+    _ => '',
+  };
+
+  AccountFilters get _filters => AccountFilters(
+    query: _search,
+    office: _office,
+    role: _role,
+    status: _status,
+  );
+
+  void _clearFilters() {
+    _searchCtrl.clear();
+    setState(() {
+      _search = '';
+      _office = '';
+      _role = '';
+      if (_filter == _AdminUserFilter.active ||
+          _filter == _AdminUserFilter.inactive) {
+        _filter = _AdminUserFilter.all;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   @override
@@ -975,21 +1004,20 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     final showPending =
         _filter == _AdminUserFilter.all || _filter == _AdminUserFilter.pending;
     final showActive = _filter != _AdminUserFilter.pending;
+    final filters = _filters;
+    // Sign-up requests have no status; their role is the one they asked for.
     final filteredPending = _pending
-        .where(_matchesSearch)
+        .where(
+          (p) => matchesAccountFilters(
+            p,
+            filters,
+            roleKey: 'requested_role',
+            checkStatus: false,
+          ),
+        )
         .toList(growable: false);
-    final filteredUsers = _users
-        .where((m) {
-          if (!_matchesSearch(m)) return false;
-          if (_filter == _AdminUserFilter.active) {
-            return m['is_active'] as bool? ?? true;
-          }
-          if (_filter == _AdminUserFilter.inactive) {
-            return m['is_active'] == false;
-          }
-          return true;
-        })
-        .toList(growable: false);
+    final filteredUsers = filterAccounts(_users, filters);
+    final narrowed = filters.active;
 
     return RefreshIndicator(
       onRefresh: _load,
@@ -1023,9 +1051,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
           SfFormCard(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
             child: TextField(
+              controller: _searchCtrl,
               decoration: const InputDecoration(
                 labelText: 'Search accounts',
-                hintText: 'Search username, role, office…',
+                hintText: 'Name, username, email or office',
                 border: InputBorder.none,
                 prefixIcon: Icon(Icons.search_rounded, size: 20),
                 isDense: true,
@@ -1033,6 +1062,65 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
               onChanged: (v) => setState(() => _search = v.trim()),
             ),
           ),
+          if (_hasLoaded && _users.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    key: ValueKey('users-office-$_office'),
+                    isExpanded: true,
+                    initialValue: _office,
+                    decoration: const InputDecoration(
+                      labelText: 'Office',
+                      isDense: true,
+                    ),
+                    items: [
+                      const DropdownMenuItem(
+                        value: '',
+                        child: Text(
+                          'All offices',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      for (final code in officeCodes(_users))
+                        DropdownMenuItem(
+                          value: code,
+                          child: Text(code, overflow: TextOverflow.ellipsis),
+                        ),
+                    ],
+                    onChanged: (v) => setState(() => _office = v ?? ''),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    key: ValueKey('users-role-$_role'),
+                    isExpanded: true,
+                    initialValue: _role,
+                    decoration: const InputDecoration(
+                      labelText: 'Role',
+                      isDense: true,
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: '',
+                        child: Text(
+                          'All roles',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      DropdownMenuItem(value: 'staff', child: Text('Staff')),
+                      DropdownMenuItem(value: 'head', child: Text('Head')),
+                      DropdownMenuItem(value: 'admin', child: Text('Admin')),
+                    ],
+                    onChanged: (v) => setState(() => _role = v ?? ''),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -1101,19 +1189,19 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 _filter != _AdminUserFilter.active &&
                 filteredPending.isEmpty &&
                 _pending.isNotEmpty &&
-                _search.isNotEmpty)
+                narrowed)
               const Padding(
                 padding: EdgeInsets.only(top: 12),
                 child: SfEmptyState(
                   icon: Icons.search_off_rounded,
                   title: 'No pending match',
-                  subtitle: 'Try a different search term.',
+                  subtitle: 'Try a different search, office or role.',
                 ),
               ),
             if (_filter == _AdminUserFilter.pending &&
                 _readFresh &&
                 filteredPending.isEmpty &&
-                (_pending.isEmpty || _search.isEmpty))
+                (_pending.isEmpty || !narrowed))
               const Padding(
                 padding: EdgeInsets.only(top: 16),
                 child: SfEmptyState(
@@ -1132,12 +1220,43 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   color: SfColors.navy,
                 ),
               ),
+              if (_users.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      narrowed
+                          ? 'Showing ${filteredUsers.length} of ${_users.length} accounts'
+                          : '${_users.length} ${_users.length == 1 ? 'account' : 'accounts'}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: SfColors.muted,
+                      ),
+                    ),
+                    if (narrowed)
+                      TextButton(
+                        onPressed: _clearFilters,
+                        child: const Text('Clear filters'),
+                      ),
+                  ],
+                ),
+              ],
               const SizedBox(height: 8),
               if (filteredUsers.isEmpty && _readFresh)
-                const SfEmptyState(
+                SfEmptyState(
                   icon: Icons.people_outline_rounded,
                   title: 'No users found',
-                  subtitle: 'Adjust filters or search.',
+                  subtitle: narrowed && _users.isNotEmpty
+                      ? 'No accounts match these filters.'
+                      : 'Adjust filters or search.',
+                  actionLabel: narrowed && _users.isNotEmpty
+                      ? 'Clear filters'
+                      : null,
+                  onAction: narrowed && _users.isNotEmpty
+                      ? _clearFilters
+                      : null,
                 )
               else
                 ...filteredUsers.map(
@@ -2204,21 +2323,6 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
     );
   }
 
-  static ({String label, SfPillTone tone}) _exceptionKind(Object? type) =>
-      switch ('$type') {
-        'unforwarded' => (label: 'Unforwarded OUT', tone: SfPillTone.warning),
-        'wrong_receiver' => (label: 'Wrong receiver', tone: SfPillTone.danger),
-        'skipped_office' => (label: 'Skipped office', tone: SfPillTone.danger),
-        'incomplete_contents' => (
-          label: 'Incomplete contents',
-          tone: SfPillTone.warning,
-        ),
-        _ => (
-          label: type == null || '$type'.isEmpty ? 'Exception' : '$type',
-          tone: SfPillTone.neutral,
-        ),
-      };
-
   List<Widget> _exceptionsSection() {
     return [
       Text('Audit exceptions · $_periodLabel', style: _sectionTitle),
@@ -2267,31 +2371,13 @@ class _AdminReportsScreenState extends State<AdminReportsScreen> {
               'No missing receipts, receiver mismatches, route gaps or incomplete DV contents were flagged.',
         )
       else
-        ..._exceptions.map((ex) {
-          final kind = _exceptionKind(ex['exception_type']);
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: SfListTile(
-              title: ex['document_id']?.toString() ?? '',
-              subtitle: ex['detail']?.toString() ?? '',
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SfStatusPill(label: kind.label, tone: kind.tone),
-                  Tooltip(
-                    message: 'Open full history for ${ex['document_id'] ?? ''}',
-                    child: const Icon(
-                      Icons.chevron_right,
-                      color: SfColors.muted,
-                    ),
-                  ),
-                ],
-              ),
-              onTap: () =>
-                  _openReportHistory(ex['document_id']?.toString() ?? ''),
-            ),
-          );
-        }),
+        ..._exceptions.map(
+          (ex) => SfExceptionTile(
+            exception: ex,
+            onOpen: () =>
+                _openReportHistory(ex['document_id']?.toString() ?? ''),
+          ),
+        ),
     ];
   }
 

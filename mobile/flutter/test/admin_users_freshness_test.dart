@@ -112,7 +112,8 @@ class _OverlappingUsersApi extends _UsersApi {
 Future<void> _mount(WidgetTester tester, _UsersApi api) async {
   GoogleFonts.config.allowRuntimeFetching = false;
   SharedPreferences.setMockInitialValues({});
-  tester.view.physicalSize = const Size(390, 1000);
+  // Tall enough for the office and role filters above the accounts.
+  tester.view.physicalSize = const Size(390, 1400);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
