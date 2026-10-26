@@ -511,14 +511,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             const SizedBox(height: 8),
             ...offices.map((o) {
               final m = o as Map<String, dynamic>;
+              final overdue = (m['overdue'] as int?) ?? 0;
               return SfAdminOfficeHealthTile(
                 name: m['office_name']?.toString() ?? '',
                 code: m['office_code']?.toString() ?? '',
                 docsProcessed: (m['docs_processed'] as int?) ?? 0,
                 inOffice: (m['in_office'] as int?) ?? 0,
-                overdue: (m['overdue'] as int?) ?? 0,
+                overdue: overdue,
+                // An office that needs follow-up opens its overdue folders; a quiet one opens what is on its desk.
                 onTap: () => context.push(
-                  '/admin/documents?scope=municipal&office_id=${m['office_id']}&tray=in_office',
+                  '/admin/documents?scope=municipal&office_id=${m['office_id']}&${overdue > 0 ? 'overdue=1' : 'tray=in_office'}',
                 ),
               );
             }),
