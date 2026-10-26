@@ -6,6 +6,7 @@ import { Modal, Overview, roleLabel, statTone } from '../components/ui.jsx'
 import { RoleTipButton } from '../components/Help.jsx'
 import { UserAvatar } from '../components/UserAvatar.jsx'
 import { SfIcon } from '../icons.jsx'
+import { NEW_PASSWORD_MISMATCH, passwordsMatch } from '../password-rules.js'
 
 export default function ProfilePage() {
   const { user, token, logout, endSession, updateUser, smartflow } = useAuth()
@@ -25,6 +26,7 @@ export default function ProfilePage() {
 
   const [currentPassword, setCurrent] = useState('')
   const [newPassword, setNew] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [pwError, setPwError] = useState('')
   const [pwOk, setPwOk] = useState('')
   const [pwSaving, setPwSaving] = useState(false)
@@ -147,12 +149,14 @@ export default function ProfilePage() {
     e.preventDefault()
     setPwError('')
     setPwOk('')
+    if (!passwordsMatch(newPassword, confirmPassword)) { setPwError(NEW_PASSWORD_MISMATCH); return }
     setPwSaving(true)
     const changingToken = token
     try {
       const data = await smartflow.changePassword(currentPassword, newPassword)
       setCurrent('')
       setNew('')
+      setConfirmPassword('')
       endSession(changingToken, data.message || 'Password changed. Sign in again with your new password.')
     } catch (err) {
       setPwError(err instanceof ApiError ? err.message : 'Could not change password')
@@ -167,6 +171,7 @@ export default function ProfilePage() {
     setPwOk('')
     setCurrent('')
     setNew('')
+    setConfirmPassword('')
   }
 
   const hasPhoto = Boolean(user.has_avatar || user.avatar_url)
@@ -390,6 +395,10 @@ export default function ProfilePage() {
           <div className="field">
             <label htmlFor="profile-new-password">New password (8+ characters)</label>
             <input id="profile-new-password" type="password" value={newPassword} onChange={(e) => setNew(e.target.value)} required minLength={8} autoComplete="new-password" />
+          </div>
+          <div className="field">
+            <label htmlFor="profile-confirm-password">Confirm new password</label>
+            <input id="profile-confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required autoComplete="new-password" />
           </div>
         </form>
       </Modal>

@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { smartflow, ApiError } from '../api.js'
 import { AuthShell } from '../components/ui.jsx'
 import { SfIcon } from '../icons.jsx'
+import { PASSWORDS_DO_NOT_MATCH, passwordsMatch } from '../password-rules.js'
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate()
@@ -10,6 +11,7 @@ export default function ResetPasswordPage() {
   const [username, setUsername] = useState(state?.username || '')
   const [code, setCode] = useState('')
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [ok, setOk] = useState('')
@@ -19,6 +21,7 @@ export default function ResetPasswordPage() {
     e.preventDefault()
     setError('')
     setOk('')
+    if (!passwordsMatch(password, confirm)) { setError(PASSWORDS_DO_NOT_MATCH); return }
     setLoading(true)
     try {
       const data = await smartflow.resetPassword({
@@ -84,6 +87,23 @@ export default function ResetPasswordPage() {
               {showPassword ? 'Hide' : 'Show'}
             </button>
           </div>
+        </div>
+        <div className="field">
+          <label htmlFor="reset-confirm">Confirm password</label>
+          <div className="field-password">
+            <input
+              id="reset-confirm"
+              type={showPassword ? 'text' : 'password'}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              required
+              autoComplete="new-password"
+              placeholder="Enter your password again"
+              aria-invalid={confirm !== '' && confirm !== password}
+              aria-describedby={confirm !== '' && confirm !== password ? 'reset-confirm-error' : undefined}
+            />
+          </div>
+          {confirm !== '' && confirm !== password ? <p className="field-error" id="reset-confirm-error">{PASSWORDS_DO_NOT_MATCH}</p> : null}
         </div>
         <button className="btn btn--navy" type="submit" disabled={loading}>
           {loading ? 'Saving…' : 'Update password'}

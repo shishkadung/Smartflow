@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { smartflow, ApiError } from '../api.js'
 import { AuthShell, roleLabel } from '../components/ui.jsx'
 import { SfIcon } from '../icons.jsx'
+import { PASSWORDS_DO_NOT_MATCH, passwordsMatch } from '../password-rules.js'
 
 function BackLink({ to = '/' }) {
   return (
@@ -21,6 +22,7 @@ export default function SignupPage() {
   const [username, setUsername] = useState(state?.username || '')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirm, setConfirm] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [officeId, setOfficeId] = useState('')
   const [role, setRole] = useState('staff')
@@ -38,6 +40,7 @@ export default function SignupPage() {
   async function onSubmit(e) {
     e.preventDefault()
     setError('')
+    if (!passwordsMatch(password, confirm)) { setError(PASSWORDS_DO_NOT_MATCH); return }
     setLoading(true)
     try {
       const data = await smartflow.signup({
@@ -112,6 +115,23 @@ export default function SignupPage() {
               {showPassword ? 'Hide' : 'Show'}
             </button>
           </div>
+        </div>
+        <div className="field">
+          <label htmlFor="signup-confirm">Confirm password</label>
+          <div className="field-password">
+            <input
+              id="signup-confirm"
+              type={showPassword ? 'text' : 'password'}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              required
+              autoComplete="new-password"
+              placeholder="Enter your password again"
+              aria-invalid={confirm !== '' && confirm !== password}
+              aria-describedby={confirm !== '' && confirm !== password ? 'signup-confirm-error' : undefined}
+            />
+          </div>
+          {confirm !== '' && confirm !== password ? <p className="field-error" id="signup-confirm-error">{PASSWORDS_DO_NOT_MATCH}</p> : null}
         </div>
         <div className="field">
           <label htmlFor="signup-office">Office</label>

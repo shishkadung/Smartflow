@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ApiError } from '../api.js'
 import { useAuth } from '../auth.jsx'
 import { AuthShell } from './ui.jsx'
+import { NEW_PASSWORD_MISMATCH, passwordsMatch } from '../password-rules.js'
 
 // Shown instead of every page while an administrator-issued temporary password is still in use.
 // The server refuses all other requests until the password has been replaced.
@@ -17,7 +18,7 @@ export default function ForcedPasswordChange() {
     e.preventDefault()
     setError('')
     if (next.length < 8) { setError('Choose a password of at least 8 characters.'); return }
-    if (next !== confirm) { setError('The two new passwords do not match.'); return }
+    if (!passwordsMatch(next, confirm)) { setError(NEW_PASSWORD_MISMATCH); return }
     if (next === current) { setError('Choose a password different from the temporary one.'); return }
     setSaving(true)
     try {
@@ -50,7 +51,7 @@ export default function ForcedPasswordChange() {
           <input id="forced-new" type="password" autoComplete="new-password" minLength={8} value={next} onChange={(e) => setNext(e.target.value)} required />
         </div>
         <div className="field">
-          <label htmlFor="forced-confirm">Repeat the new password</label>
+          <label htmlFor="forced-confirm">Confirm new password</label>
           <input id="forced-confirm" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
         </div>
         <button className="btn btn--navy" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save new password'}</button>
