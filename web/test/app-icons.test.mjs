@@ -73,6 +73,37 @@ test('Android launcher icons exist in every density, plus the adaptive icon', as
   assert.match(await text('mobile/flutter/android/app/src/main/AndroidManifest.xml'), /android:icon="@mipmap\/ic_launcher"/)
 })
 
+test('the Android launch screen shows the SmartFlow mark on navy, and the municipal seal stays inside the app', async () => {
+  const res = 'mobile/flutter/android/app/src/main/res'
+  const density = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 }
+  for (const [name, scale] of Object.entries(density)) {
+    const logo = await png(`${res}/drawable-${name}/splash_logo.png`)
+    assert.deepEqual([logo.width, logo.height], [288 * scale, 288 * scale], `splash_logo ${name} is 288dp`)
+  }
+  for (const folder of ['values-v31', 'values-night-v31']) {
+    const styles = await text(`${res}/${folder}/styles.xml`)
+    assert.ok(styles.startsWith('<?xml'), `${folder}: no byte-order mark`)
+    assert.match(styles, /android:windowSplashScreenAnimatedIcon">@drawable\/splash_logo</)
+    assert.match(styles, /android:windowSplashScreenBackground">@color\/ic_launcher_background</)
+  }
+  for (const folder of ['drawable', 'drawable-v21']) {
+    const launch = await text(`${res}/${folder}/launch_background.xml`)
+    assert.match(launch, /@color\/ic_launcher_background/)
+    assert.match(launch, /@drawable\/splash_logo/)
+  }
+  // The in-app loading screen continues the launch screen with the same mark.
+  const pubspec = await text('mobile/flutter/pubspec.yaml')
+  assert.match(pubspec, /assets\/brand\/smartflow_splash\.png/)
+  assert.match(pubspec, /assets\/brand\/urbiztondo_seal\.png/)
+  assert.match(await text('mobile/flutter/lib/main.dart'), /assets\/brand\/smartflow_splash\.png/)
+  const splash = await png('mobile/flutter/assets/brand/smartflow_splash.png')
+  assert.deepEqual([splash.width, splash.height], [512, 591])
+  // The municipal seal is untouched: same asset, still used by the app header and the web header.
+  assert.ok(await exists('mobile/flutter/assets/brand/urbiztondo_seal.png'))
+  assert.match(await text('mobile/flutter/lib/widgets/sf_widgets.dart'), /assets\/brand\/urbiztondo_seal\.png/)
+  assert.ok(await exists('web/src/assets/brand/urbiztondo_seal.png'))
+})
+
 test('every iOS icon matches its file name and has no alpha channel', async () => {
   const folder = 'mobile/flutter/ios/Runner/Assets.xcassets/AppIcon.appiconset'
   const files = (await readdir(new URL(`${folder}/`, project))).filter((name) => name.endsWith('.png'))

@@ -43,4 +43,5 @@ The municipal seal is separate. Keep using it as the municipality's identity (it
 
 ## Status
 
-These files are not wired into the apps yet. The web favicon and the Android and iOS launcher icons still show the municipal seal on navy. Swapping them is a small change (regenerate the icon sizes from `svg/smartflow-app-icon.svg`).
+- **Android app:** the launcher icon (adaptive and legacy) and the launch screen use this logo. Opening the app shows the mark, large, on navy; the in-app loading screen continues it with the same mark in the same place. Inside the app the municipal seal stays in the header.
+- **Web favicon and iOS icons:** still the municipal seal on navy. Swapping them is a small change (regenerate the icon sizes from `svg/smartflow-app-icon.svg`).

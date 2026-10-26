@@ -91,21 +91,36 @@ class _SmartflowAppState extends State<SmartflowApp>
   }
 }
 
-/// Shown while saved session is restored — matches app sky gradient (not black).
+/// Shown while the saved session is restored. It continues the Android launch screen (the SmartFlow mark, same size and
+/// place, on the brand navy) so opening the app never flashes a different screen.
 class _BootstrapSplash extends StatelessWidget {
   const _BootstrapSplash();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: SfColors.bg,
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: const BoxDecoration(gradient: SfGradients.pageSky),
-        child: const Center(
-          child: CircularProgressIndicator(color: SfColors.blue),
-        ),
+      backgroundColor: SfColors.navy,
+      body: Stack(
+        children: [
+          Center(
+            child: Image.asset(
+              'assets/brand/smartflow_splash.png',
+              width: 134,
+              semanticLabel: 'SmartFlow',
+            ),
+          ),
+          const Align(
+            alignment: Alignment(0, 0.42),
+            child: SizedBox(
+              width: 26,
+              height: 26,
+              child: CircularProgressIndicator(
+                strokeWidth: 3,
+                color: Color(0xFF9EC0EA),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
