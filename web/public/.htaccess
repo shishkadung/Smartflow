@@ -32,7 +32,7 @@ RewriteRule ^ index.html [L]
         Header set Cache-Control "public, max-age=31536000, immutable"
     </FilesMatch>
     # Files without a content hash must be revalidated so a new release is picked up.
-    <FilesMatch "^(index\.html|qr-generator\.js|qr-label-renderer\.js|favicon\.svg|icons\.svg)$">
+    <FilesMatch "^(index\.html|qr-generator\.js|qr-label-renderer\.js|favicon\.ico|favicon-32\.png|apple-touch-icon\.png|icon-192\.png|icon-512\.png|manifest\.webmanifest|icons\.svg)$">
         Header set Cache-Control "no-cache"
     </FilesMatch>
 </IfModule>
