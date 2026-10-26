@@ -92,7 +92,8 @@ class _SmartflowAppState extends State<SmartflowApp>
 }
 
 /// Shown while the saved session is restored. It continues the Android launch screen (the SmartFlow mark, same size and
-/// place, on the brand navy) so opening the app never flashes a different screen.
+/// place, on the brand navy) so opening the app never flashes a different screen. Android 12 and newer draw the mark on
+/// their launch screen (dot, S, QR square); this screen starts from the finished mark.
 class _BootstrapSplash extends StatelessWidget {
   const _BootstrapSplash();
 

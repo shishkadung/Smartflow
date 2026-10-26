@@ -44,4 +44,5 @@ The municipal seal is separate. Keep using it as the municipality's identity (it
 ## Status
 
 - **Android app:** the launcher icon (adaptive and legacy) and the launch screen use this logo. Opening the app shows the mark, large, on navy; the in-app loading screen continues it with the same mark in the same place. Inside the app the municipal seal stays in the header.
+- **Launch animation (Android 12 and newer):** the system launch screen draws the mark in under a second: the gold dot appears, the S is drawn from the dot to the end, then the QR square pops in (`res/drawable-v31/splash_logo_animated.xml`). Older Android versions and the in-app loading screen show the finished mark. When animations are switched off in the phone's settings, the finished mark is shown straight away.
 - **Web favicon and iOS icons:** still the municipal seal on navy. Swapping them is a small change (regenerate the icon sizes from `svg/smartflow-app-icon.svg`).

@@ -83,7 +83,7 @@ test('the Android launch screen shows the SmartFlow mark on navy, and the munici
   for (const folder of ['values-v31', 'values-night-v31']) {
     const styles = await text(`${res}/${folder}/styles.xml`)
     assert.ok(styles.startsWith('<?xml'), `${folder}: no byte-order mark`)
-    assert.match(styles, /android:windowSplashScreenAnimatedIcon">@drawable\/splash_logo</)
+    assert.match(styles, /android:windowSplashScreenAnimatedIcon">@drawable\/splash_logo_animated</)
     assert.match(styles, /android:windowSplashScreenBackground">@color\/ic_launcher_background</)
   }
   for (const folder of ['drawable', 'drawable-v21']) {
@@ -102,6 +102,30 @@ test('the Android launch screen shows the SmartFlow mark on navy, and the munici
   assert.ok(await exists('mobile/flutter/assets/brand/urbiztondo_seal.png'))
   assert.match(await text('mobile/flutter/lib/widgets/sf_widgets.dart'), /assets\/brand\/urbiztondo_seal\.png/)
   assert.ok(await exists('web/src/assets/brand/urbiztondo_seal.png'))
+})
+
+test('the Android 12 splash draws the mark: dot, then the S, then the QR square, in under a second', async () => {
+  const res = 'mobile/flutter/android/app/src/main/res'
+  const vector = await text(`${res}/drawable-v31/splash_logo_vector.xml`)
+  const animated = await text(`${res}/drawable-v31/splash_logo_animated.xml`)
+  for (const file of [vector, animated]) assert.ok(file.startsWith('<?xml'), 'no byte-order mark before the XML declaration')
+  assert.match(animated, /android:drawable="@drawable\/splash_logo_vector"/)
+  // The vector is the finished mark (what shows when animations are off): same shapes and colours as the logo.
+  assert.match(vector, /android:width="288dp"[^]*android:viewportWidth="512"/)
+  assert.match(vector, /android:strokeWidth="62"/)
+  for (const colour of ['#FFFFFF', '#F5B83D', '#9EC0EA', '#0B1F3A']) assert.ok(vector.includes(colour), `${colour} is used`)
+  assert.doesNotMatch(vector, /trimPath|android:scale[XY]="0"/, 'the static vector is the finished mark, not a hidden start state')
+  // Every animation targets a shape that exists, and the whole thing fits the one second Android allows.
+  const names = [...vector.matchAll(/android:name="([^"]+)"/g)].map((m) => m[1])
+  assert.deepEqual(names.sort(), ['dot', 'eye', 'route'])
+  const targets = [...animated.matchAll(/<target android:name="([^"]+)"/g)].map((m) => m[1])
+  assert.deepEqual([...new Set(targets)].sort(), ['dot', 'eye', 'route'])
+  const durations = [...animated.matchAll(/android:duration="(\d+)"/g)].map((m) => Number(m[1]))
+  assert.ok(durations.length >= 5)
+  for (const ms of durations) assert.ok(ms <= 1000, `${ms} ms stays within the splash limit`)
+  // Each animator starts at time zero and holds its first value through its interpolator, so nothing flashes complete first.
+  assert.doesNotMatch(animated, /startOffset/)
+  assert.equal([...animated.matchAll(/android:valueFrom="0"/g)].length, durations.length)
 })
 
 test('every iOS icon matches its file name and has no alpha channel', async () => {

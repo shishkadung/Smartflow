@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12 and newer play this on the system splash screen: the gold dot appears, the S is drawn from the dot to the
+     QR square, then the square pops in. About 0.8 seconds in total; the system allows up to 1 second.
+     Every animator starts at time zero and its interpolator holds the first value until its turn, so the mark is never
+     shown complete and then restarted. If the app is ready sooner the system removes the splash, and the app's own
+     loading screen shows the finished mark. The vector's own values are the finished mark, which is what is shown when
+     animations are switched off. -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:drawable="@drawable/splash_logo_vector">
+    <target android:name="dot">
+        <aapt:attr name="android:animation">
+            <set android:ordering="together">
+                <objectAnimator
+                    android:duration="800"
+                    android:propertyName="scaleX"
+                    android:valueFrom="0"
+                    android:valueTo="1">
+                    <aapt:attr name="android:interpolator">
+                        <pathInterpolator android:pathData="M0,0C0.11,0 0.056,1 0.28,1L1,1" />
+                    </aapt:attr>
+                </objectAnimator>
+                <objectAnimator
+                    android:duration="800"
+                    android:propertyName="scaleY"
+                    android:valueFrom="0"
+                    android:valueTo="1">
+                    <aapt:attr name="android:interpolator">
+                        <pathInterpolator android:pathData="M0,0C0.11,0 0.056,1 0.28,1L1,1" />
+                    </aapt:attr>
+                </objectAnimator>
+            </set>
+        </aapt:attr>
+    </target>
+    <target android:name="route">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:duration="800"
+                android:propertyName="trimPathEnd"
+                android:valueFrom="0"
+                android:valueTo="1">
+                <aapt:attr name="android:interpolator">
+                    <pathInterpolator android:pathData="M0,0L0.2,0C0.46,0 0.33,1 0.85,1L1,1" />
+                </aapt:attr>
+            </objectAnimator>
+        </aapt:attr>
+    </target>
+    <target android:name="eye">
+        <aapt:attr name="android:animation">
+            <set android:ordering="together">
+                <objectAnimator
+                    android:duration="800"
+                    android:propertyName="scaleX"
+                    android:valueFrom="0"
+                    android:valueTo="1">
+                    <aapt:attr name="android:interpolator">
+                        <pathInterpolator android:pathData="M0,0L0.65,0C0.79,0 0.72,1 1,1" />
+                    </aapt:attr>
+                </objectAnimator>
+                <objectAnimator
+                    android:duration="800"
+                    android:propertyName="scaleY"
+                    android:valueFrom="0"
+                    android:valueTo="1">
+                    <aapt:attr name="android:interpolator">
+                        <pathInterpolator android:pathData="M0,0L0.65,0C0.79,0 0.72,1 1,1" />
+                    </aapt:attr>
+                </objectAnimator>
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The SmartFlow mark at its final size, on the same 288dp canvas as splash_logo.png (the S sits inside the middle 192dp
+     circle). The group transform is the scale(0.72) used for the PNG. Shapes are named so the animation can reach them.
+     The navy rounded square keeps the end of the S out of the QR square's opening (the PNG does this with a mask). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="288dp"
+    android:height="288dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group
+        android:scaleX="0.72"
+        android:scaleY="0.72"
+        android:translateX="69.52"
+        android:translateY="72.4">
+        <path
+            android:name="route"
+            android:pathData="M156,364C210,414 344,412 344,326C344,248 168,262 168,186C168,100 302,98 356,148"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="62"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round" />
+        <group
+            android:name="dot"
+            android:pivotX="156"
+            android:pivotY="364">
+            <path
+                android:fillColor="#F5B83D"
+                android:pathData="M110,364a46,46 0 1,0 92,0a46,46 0 1,0 -92,0z" />
+        </group>
+        <group
+            android:name="eye"
+            android:pivotX="356"
+            android:pivotY="148">
+            <path
+                android:fillColor="#0B1F3A"
+                android:pathData="M335,115H377A12,12 0 0,1 389,127V169A12,12 0 0,1 377,181H335A12,12 0 0,1 323,169V127A12,12 0 0,1 335,115Z" />
+            <path
+                android:fillColor="#9EC0EA"
+                android:fillType="evenOdd"
+                android:pathData="M326,96H386A22,22 0 0,1 408,118V178A22,22 0 0,1 386,200H326A22,22 0 0,1 304,178V118A22,22 0 0,1 326,96ZM335,115H377A12,12 0 0,1 389,127V169A12,12 0 0,1 377,181H335A12,12 0 0,1 323,169V127A12,12 0 0,1 335,115Z" />
+            <path
+                android:fillColor="#9EC0EA"
+                android:pathData="M346,131H366A7,7 0 0,1 373,138V158A7,7 0 0,1 366,165H346A7,7 0 0,1 339,158V138A7,7 0 0,1 346,131Z" />
+        </group>
+    </group>
+</vector>
